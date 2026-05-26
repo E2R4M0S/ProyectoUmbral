@@ -175,8 +175,12 @@ services:
   frontend:
     build:
       context: ./frontend
+    environment:
+      VITE_API_URL: http://api-gateway:80
     ports:
       - "5173:5173"
+    depends_on:
+      - api-gateway
     networks:
       - umbral-network
 
