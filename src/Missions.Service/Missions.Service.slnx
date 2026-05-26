@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Missions.Api/Missions.Api.csproj" />
+  <Project Path="Missions.Application/Missions.Application.csproj" />
+  <Project Path="Missions.Domain/Missions.Domain.csproj" />
+  <Project Path="Missions.Infrastructure/Missions.Infrastructure.csproj" />
+</Solution>
