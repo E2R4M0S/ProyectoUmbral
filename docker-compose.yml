@@ -95,8 +95,90 @@ services:
       - "5000:80"
     networks:
       - umbral-network
+    environment:
+      ASPNETCORE_URLS: http://+:80
     depends_on:
       - keycloak
+
+  # ─── Missions.Service ─────────────────────────────────────
+  missions.service:
+    build:
+      context: ./src/Missions.Service
+      dockerfile: Missions.Api/Dockerfile
+    ports:
+      - "5001:80"
+    networks:
+      - umbral-network
+    environment:
+      ASPNETCORE_URLS: http://+:80
+    depends_on:
+      missions-db:
+        condition: service_started
+
+  # ─── Sessions.Service ─────────────────────────────────────
+  sessions.service:
+    build:
+      context: ./src/Sessions.Service
+      dockerfile: Sessions.Api/Dockerfile
+    ports:
+      - "5002:80"
+    networks:
+      - umbral-network
+    environment:
+      ASPNETCORE_URLS: http://+:80
+    depends_on:
+      sessions-db:
+        condition: service_started
+
+  # ─── Teams.Service ────────────────────────────────────────
+  teams.service:
+    build:
+      context: ./src/Teams.Service
+      dockerfile: Teams.Api/Dockerfile
+    ports:
+      - "5003:80"
+    networks:
+      - umbral-network
+    environment:
+      ASPNETCORE_URLS: http://+:80
+    depends_on:
+      teams-db:
+        condition: service_started
+
+  # ─── Trivia.Service ───────────────────────────────────────
+  trivia.service:
+    build:
+      context: ./src/Trivia.Service
+      dockerfile: Trivia.Api/Dockerfile
+    ports:
+      - "5004:80"
+    networks:
+      - umbral-network
+    environment:
+      ASPNETCORE_URLS: http://+:80
+    depends_on:
+      trivia-db:
+        condition: service_started
+
+  # ─── RealTimeHub (SignalR) ────────────────────────────────
+  realtimehub:
+    build:
+      context: ./src/RealTimeHub
+    ports:
+      - "5005:80"
+    networks:
+      - umbral-network
+    environment:
+      ASPNETCORE_URLS: http://+:80
+
+  # ─── Frontend (Vite + React) ──────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:5173"
+    networks:
+      - umbral-network
 
 volumes:
   keycloak-db-data:

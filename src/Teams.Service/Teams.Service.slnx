@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Teams.Api/Teams.Api.csproj" />
+  <Project Path="Teams.Application/Teams.Application.csproj" />
+  <Project Path="Teams.Domain/Teams.Domain.csproj" />
+  <Project Path="Teams.Infrastructure/Teams.Infrastructure.csproj" />
+</Solution>
