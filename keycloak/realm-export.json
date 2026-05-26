@@ -1,0 +1,38 @@
+{
+  "realm": "umbral",
+  "enabled": true,
+  "sslRequired": "none",
+  "roles": {
+    "realm": [
+      { "name": "admin", "composite": false },
+      { "name": "operator", "composite": false },
+      { "name": "participant", "composite": false }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "umbral-frontend",
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "directAccessGrantsEnabled": false,
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:5173"
+      }
+    },
+    {
+      "clientId": "umbral-gateway",
+      "publicClient": false,
+      "secret": "${GATEWAY_CLIENT_SECRET}",
+      "protocol": "openid-connect",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "attributes": {
+        "access.token.lifespan": "300"
+      }
+    }
+  ]
+}
