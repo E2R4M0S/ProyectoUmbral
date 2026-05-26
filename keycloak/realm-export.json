@@ -20,7 +20,19 @@
       "directAccessGrantsEnabled": false,
       "attributes": {
         "post.logout.redirect.uris": "http://localhost:5173"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-mapper-gateway",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "umbral-gateway",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "clientId": "umbral-gateway",
