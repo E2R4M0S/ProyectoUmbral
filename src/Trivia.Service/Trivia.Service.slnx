@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Trivia.Api/Trivia.Api.csproj" />
+  <Project Path="Trivia.Application/Trivia.Application.csproj" />
+  <Project Path="Trivia.Domain/Trivia.Domain.csproj" />
+  <Project Path="Trivia.Infrastructure/Trivia.Infrastructure.csproj" />
+</Solution>

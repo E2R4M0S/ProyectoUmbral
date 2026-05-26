@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Sessions.Api/Sessions.Api.csproj" />
+  <Project Path="Sessions.Application/Sessions.Application.csproj" />
+  <Project Path="Sessions.Domain/Sessions.Domain.csproj" />
+  <Project Path="Sessions.Infrastructure/Sessions.Infrastructure.csproj" />
+</Solution>

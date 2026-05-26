@@ -1,0 +1,6 @@
+@Teams.Api_HostAddress = http://localhost:5221
+
+GET {{Teams.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
