@@ -1,0 +1,35 @@
+# ─── Documentos del proyecto ──────────────────────────────────
+# Los docs de especificación se gestionan aparte del código
+Documentacion/
+docs/
+
+# ─── .NET ─────────────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+*.vs/
+.DS_Store
+*.DotSettings.user
+
+# ─── Node / Frontend ─────────────────────────────────────────
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# ─── Docker ──────────────────────────────────────────────────
+docker-data/
+
+# ─── IDE ─────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── OS ──────────────────────────────────────────────────────
+Thumbs.db
+.DS_Store
