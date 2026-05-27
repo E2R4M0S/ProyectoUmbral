@@ -1,4 +1,5 @@
-﻿using Teams.Application;
+﻿using Teams.Api.Endpoints;
+using Teams.Application;
 using Teams.Infrastructure;
 using Serilog;
 
@@ -21,6 +22,13 @@ try
 
     var app = builder.Build();
 
+    // Auto-create database on startup for development
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<TeamsDbContext>();
+        db.Database.EnsureCreated();
+    }
+
     app.UseSerilogRequestLogging();
 
     if (app.Environment.IsDevelopment())
@@ -31,6 +39,8 @@ try
     app.MapGet("/health", () => Results.Ok(new { Status = "Healthy", Service = "Teams.Api" }))
        .WithName("Health")
        .AllowAnonymous();
+
+    app.MapRegisterParticipantEndpoint();
 
     app.Run();
 }
