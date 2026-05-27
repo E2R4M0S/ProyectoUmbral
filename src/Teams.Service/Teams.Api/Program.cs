@@ -1,4 +1,5 @@
-﻿using Teams.Application;
+﻿using Teams.Api.Endpoints;
+using Teams.Application;
 using Teams.Infrastructure;
 using Serilog;
 
@@ -31,6 +32,8 @@ try
     app.MapGet("/health", () => Results.Ok(new { Status = "Healthy", Service = "Teams.Api" }))
        .WithName("Health")
        .AllowAnonymous();
+
+    app.MapRegisterParticipantEndpoint();
 
     app.Run();
 }
