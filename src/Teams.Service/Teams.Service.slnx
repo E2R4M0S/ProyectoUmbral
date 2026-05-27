@@ -3,4 +3,5 @@
   <Project Path="Teams.Application/Teams.Application.csproj" />
   <Project Path="Teams.Domain/Teams.Domain.csproj" />
   <Project Path="Teams.Infrastructure/Teams.Infrastructure.csproj" />
+  <Project Path="Teams.Application.Tests/Teams.Application.Tests.csproj" />
 </Solution>

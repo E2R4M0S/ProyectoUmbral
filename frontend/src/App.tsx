@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { Registro } from "./pages/public/Registro";
 
 function Home() {
   return <h1>UMBRAL — Página pública</h1>;
@@ -31,6 +32,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/callback" element={<Callback />} />
+        <Route path="/registro" element={<Registro />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
         </Route>
