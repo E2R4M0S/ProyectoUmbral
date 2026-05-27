@@ -22,6 +22,13 @@ try
 
     var app = builder.Build();
 
+    // Auto-create database on startup for development
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<TeamsDbContext>();
+        db.Database.EnsureCreated();
+    }
+
     app.UseSerilogRequestLogging();
 
     if (app.Environment.IsDevelopment())
