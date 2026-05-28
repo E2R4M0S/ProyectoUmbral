@@ -13,6 +13,7 @@ public class MissionsDbContext : DbContext
 
     public DbSet<Mission> Missions => Set<Mission>();
     public DbSet<MissionStage> MissionStages => Set<MissionStage>();
+    public DbSet<MissionClue> MissionClues => Set<MissionClue>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

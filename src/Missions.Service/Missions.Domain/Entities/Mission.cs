@@ -87,4 +87,16 @@ public class Mission
 
         stage.Update(name, description, order);
     }
+
+    public void AddStageClue(Guid stageId, string content, int? penalty, ReleaseType releaseType)
+    {
+        var stage = _stages.FirstOrDefault(s => s.Id == stageId);
+        if (stage is null)
+        {
+            throw new InvalidOperationException($"Stage with id '{stageId}' not found");
+        }
+
+        stage.AddClue(content, penalty, releaseType);
+    }
+
 }

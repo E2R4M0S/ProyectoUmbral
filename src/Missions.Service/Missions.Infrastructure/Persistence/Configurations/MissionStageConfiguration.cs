@@ -30,5 +30,10 @@ public class MissionStageConfiguration : IEntityTypeConfiguration<MissionStage>
             .WithMany()
             .HasForeignKey(s => s.MissionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(s => s.Clues)
+            .WithOne()
+            .HasForeignKey(c => c.StageId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

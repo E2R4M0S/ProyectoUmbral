@@ -1,8 +1,12 @@
-namespace Missions.Application.Missions.Stages;
+using Missions.Application.Missions.Clues;
+using Missions.Application.Missions.Stages;
+
+namespace Missions.Application.Missions.Catalog;
 
 public record StageDto(
     Guid Id,
     string Name,
     string Description,
-    int Order
+    int Order,
+    IReadOnlyList<ClueDto> Clues
 );
