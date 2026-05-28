@@ -93,6 +93,8 @@ try
 
     app.MapGetUserByIdEndpoint();
 
+    app.MapCreateTeamEndpoint();
+
     app.Run();
 }
 catch (Exception ex)
