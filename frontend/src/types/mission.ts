@@ -1,6 +1,6 @@
 export type Difficulty = "Easy" | "Medium" | "Hard";
 export type MissionType = "Treasure" | "Trivia";
-export type MissionStatus = "Draft" | "Active";
+export type MissionStatus = "Draft" | "Active" | "Inactive";
 
 export interface CreateMissionRequest {
   title: string;

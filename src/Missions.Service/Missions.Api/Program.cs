@@ -83,6 +83,7 @@ try
 
     app.MapCreateMissionEndpoint();
     app.MapUpdateMissionEndpoint();
+    app.MapChangeMissionStatusEndpoint();
     app.MapMissionCatalogEndpoints();
 
     app.Run();

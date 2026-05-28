@@ -42,4 +42,19 @@ public class Mission
         Difficulty = difficulty;
         TimeMinutes = timeMinutes;
     }
+
+    public void SetStatus(MissionStatus newStatus)
+    {
+        if (Status == newStatus)
+        {
+            throw new InvalidOperationException($"Mission is already in '{Status}' status");
+        }
+
+        if (Status == MissionStatus.Draft && newStatus == MissionStatus.Inactive)
+        {
+            throw new InvalidOperationException("Cannot transition mission from 'Draft' to 'Inactive'");
+        }
+
+        Status = newStatus;
+    }
 }
