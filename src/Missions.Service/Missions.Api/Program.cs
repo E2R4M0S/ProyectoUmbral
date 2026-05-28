@@ -46,6 +46,10 @@ try
     {
         options.AddPolicy("admin", policy =>
             policy.RequireRole("admin"));
+
+        options.AddPolicy("operator_or_admin", policy =>
+            policy.RequireAssertion(ctx =>
+                ctx.User.IsInRole("admin") || ctx.User.IsInRole("operator")));
     });
 
     builder.Services.AddHealthChecks();
@@ -78,6 +82,7 @@ try
        .AllowAnonymous();
 
     app.MapCreateMissionEndpoint();
+    app.MapMissionCatalogEndpoints();
 
     app.Run();
 }
