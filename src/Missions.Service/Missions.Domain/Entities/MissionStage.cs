@@ -1,3 +1,5 @@
+using Missions.Domain.Enums;
+
 namespace Missions.Domain.Entities;
 
 public class MissionStage
@@ -9,6 +11,9 @@ public class MissionStage
     public int Order { get; private set; }
 
     public Mission Mission { get; private set; } = null!;
+
+    private readonly List<MissionClue> _clues = new();
+    public IReadOnlyList<MissionClue> Clues => _clues.AsReadOnly();
 
     private MissionStage() { } // EF Core
 
@@ -26,5 +31,21 @@ public class MissionStage
         Name = name.Trim();
         Description = description.Trim();
         Order = order;
+    }
+
+    internal void AddClue(string content, int? penalty, ReleaseType releaseType)
+    {
+        var clue = new MissionClue(Id, content, penalty, releaseType);
+        _clues.Add(clue);
+    }
+
+    internal void RemoveClue(Guid clueId)
+    {
+        var clue = _clues.FirstOrDefault(c => c.Id == clueId);
+        if (clue is null)
+        {
+            throw new InvalidOperationException($"Clue with id '{clueId}' not found");
+        }
+        _clues.Remove(clue);
     }
 }

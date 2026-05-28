@@ -1,5 +1,6 @@
 using MediatR;
 using Missions.Application.Common.Interfaces;
+using Missions.Application.Missions.Clues;
 using Missions.Application.Missions.Stages;
 
 namespace Missions.Application.Missions.Catalog;
@@ -29,7 +30,14 @@ public class GetMissionByIdQueryHandler : IRequestHandler<GetMissionByIdQuery, M
             mission.Status.ToString(),
             mission.Stages
                 .OrderBy(s => s.Order)
-                .Select(s => new StageDto(s.Id, s.Name, s.Description, s.Order))
+                .Select(s => new StageDto(
+                    s.Id,
+                    s.Name,
+                    s.Description,
+                    s.Order,
+                    s.Clues
+                        .Select(c => new ClueDto(c.Id, c.Content, c.Penalty, c.ReleaseType.ToString()))
+                        .ToList()))
                 .ToList()
         );
     }
