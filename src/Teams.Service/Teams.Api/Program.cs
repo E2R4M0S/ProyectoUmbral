@@ -95,6 +95,8 @@ try
 
     app.MapCreateTeamEndpoint();
 
+    app.MapGetTeamsEndpoint();
+
     app.Run();
 }
 catch (Exception ex)

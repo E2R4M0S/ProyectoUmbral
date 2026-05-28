@@ -49,6 +49,7 @@ public class CreateTeamCommandHandler : IRequestHandler<CreateTeamCommand, Creat
 
         // Crear el equipo
         var team = Team.Create(command.Name, command.Description, command.LeaderId);
+        team.GenerateJoinCode();
 
         // Agregar los miembros
         foreach (var memberId in command.MemberIds)

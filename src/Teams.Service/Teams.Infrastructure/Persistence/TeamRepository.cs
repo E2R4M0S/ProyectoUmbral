@@ -23,4 +23,27 @@ public class TeamRepository : ITeamRepository
     {
         return !await _context.Teams.AnyAsync(t => t.Name == name, ct);
     }
+
+    public async Task<(IReadOnlyList<Team> Teams, int TotalCount)> GetTeamsAsync(
+        string? search, int page, int pageSize, CancellationToken ct)
+    {
+        var query = _context.Teams.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLowerInvariant();
+            query = query.Where(t => t.Name.ToLower().Contains(searchLower));
+        }
+
+        var totalCount = await query.CountAsync(ct);
+
+        var items = await query
+            .OrderByDescending(t => t.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Include(t => t.Members)
+            .ToListAsync(ct);
+
+        return (items, totalCount);
+    }
 }

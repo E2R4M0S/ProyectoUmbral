@@ -28,6 +28,9 @@ public class TeamConfiguration : IEntityTypeConfiguration<Team>
         builder.Property(t => t.CreatedAt)
             .IsRequired();
 
+        builder.Property(t => t.JoinCode)
+            .HasMaxLength(6);
+
         builder.HasMany(t => t.Members)
             .WithOne()
             .HasForeignKey(m => m.TeamId)

@@ -153,4 +153,31 @@ public class CreateTeamCommandHandlerTests
         result.MemberIds.Should().BeEmpty();
         await _repository.Received(1).AddAsync(Arg.Any<Team>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_HappyPath_ShouldGenerateJoinCode()
+    {
+        // Arrange
+        var command = new CreateTeamCommand(
+            Name: "Los Lobos",
+            Description: "Equipo móvil",
+            LeaderId: "leader-999",
+            MemberIds: new List<string>());
+
+        _repository.IsNameUniqueAsync("Los Lobos", Arg.Any<CancellationToken>()).Returns(true);
+        _keycloakAdminService.GetUserByIdAsync("leader-999", Arg.Any<CancellationToken>())
+            .Returns(new UserRepresentation { Id = "leader-999" });
+
+        Team? capturedTeam = null;
+        _repository.AddAsync(Arg.Do<Team>(t => capturedTeam = t), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _sut.Handle(command, CancellationToken.None);
+
+        // Assert
+        capturedTeam.Should().NotBeNull();
+        capturedTeam!.JoinCode.Should().NotBeNullOrEmpty();
+        capturedTeam.JoinCode.Should().HaveLength(6);
+    }
 }
