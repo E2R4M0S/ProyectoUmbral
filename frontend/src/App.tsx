@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Registro } from "./pages/public/Registro";
 import { MiPerfil } from "./pages/participant/MiPerfil";
+import { CrearOperador } from "./pages/admin/CrearOperador";
 
 function Home() {
   return <h1>UMBRAL — Página pública</h1>;
@@ -39,6 +40,7 @@ function App() {
         </Route>
         <Route element={<ProtectedRoute requiredRole="admin" />}>
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/admin/operadores/nuevo" element={<CrearOperador />} />
         </Route>
         <Route element={<ProtectedRoute requiredRole="operator" />}>
           <Route path="/operator" element={<OperatorPanel />} />

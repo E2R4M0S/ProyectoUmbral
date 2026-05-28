@@ -46,6 +46,9 @@ try
     {
         options.AddPolicy("participant", policy =>
             policy.RequireRole("participant"));
+
+        options.AddPolicy("admin", policy =>
+            policy.RequireRole("admin"));
     });
 
     builder.Services.AddHealthChecks();
@@ -81,6 +84,8 @@ try
 
     app.MapGetProfileEndpoint();
     app.MapUpdateProfileEndpoint();
+
+    app.MapCreateOperatorEndpoint();
 
     app.Run();
 }
