@@ -42,7 +42,11 @@ try
     // Transform Keycloak realm_access.roles into ClaimTypes.Role claims
     builder.Services.AddScoped<IClaimsTransformation, KeycloakRolesTransformer>();
 
-    builder.Services.AddAuthorization();
+    builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy("participant", policy =>
+            policy.RequireRole("participant"));
+    });
 
     builder.Services.AddHealthChecks();
     builder.Services.AddOpenApi();
