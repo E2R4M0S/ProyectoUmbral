@@ -30,7 +30,27 @@ public class Team
 
     public void AddMember(string userId)
     {
+        if (_members.Any(m => m.UserId == userId))
+        {
+            throw new InvalidOperationException($"User '{userId}' is already a member");
+        }
         _members.Add(TeamMember.Create(Id, userId));
+    }
+
+    public void RemoveMember(string userId)
+    {
+        var member = _members.FirstOrDefault(m => m.UserId == userId);
+        if (member is null)
+        {
+            throw new InvalidOperationException($"User '{userId}' is not a member");
+        }
+        _members.Remove(member);
+    }
+
+    public void Update(string name, string description)
+    {
+        Name = name.Trim();
+        Description = description.Trim();
     }
 
     public void GenerateJoinCode()

@@ -98,6 +98,8 @@ try
     app.MapGetTeamsEndpoint();
     app.MapGetTeamByIdEndpoint();
 
+    app.MapUpdateTeamEndpoint();
+
     app.Run();
 }
 catch (Exception ex)
