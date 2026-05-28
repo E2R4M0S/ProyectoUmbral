@@ -12,6 +12,13 @@ public class MissionStage
 
     private MissionStage() { } // EF Core
 
+    internal void Update(string name, string description, int order)
+    {
+        Name = name.Trim();
+        Description = description.Trim();
+        Order = order;
+    }
+
     internal MissionStage(Guid missionId, string name, string description, int order)
     {
         Id = Guid.NewGuid();
