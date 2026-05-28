@@ -16,6 +16,7 @@ public static class DependencyInjection
 
         // Repositories
         services.AddScoped<IParticipantRepository, ParticipantRepository>();
+        services.AddScoped<ITeamRepository, TeamRepository>();
 
         // Keycloak admin service
         services.AddHttpClient<IKeycloakAdminService, KeycloakAdminService>((sp, client) =>
