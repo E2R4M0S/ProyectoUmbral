@@ -19,6 +19,12 @@ public class TeamRepository : ITeamRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public async Task UpdateAsync(Team team, CancellationToken ct)
+    {
+        _context.Teams.Update(team);
+        await _context.SaveChangesAsync(ct);
+    }
+
     public async Task<bool> IsNameUniqueAsync(string name, CancellationToken ct)
     {
         return !await _context.Teams.AnyAsync(t => t.Name == name, ct);
