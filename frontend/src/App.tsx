@@ -7,6 +7,7 @@ import { DesactivarOperador } from "./pages/admin/DesactivarOperador";
 import { ListadoUsuarios } from "./pages/admin/ListadoUsuarios";
 import { DetalleUsuario } from "./pages/admin/DetalleUsuario";
 import { CrearMision } from "./pages/admin/CrearMision";
+import { CatalogoMisiones } from "./pages/admin/CatalogoMisiones";
 
 function Home() {
   return <h1>UMBRAL — Página pública</h1>;
@@ -49,6 +50,7 @@ function App() {
           <Route path="/admin/usuarios" element={<ListadoUsuarios />} />
           <Route path="/admin/usuarios/:id" element={<DetalleUsuario />} />
           <Route path="/admin/misiones/crear" element={<CrearMision />} />
+          <Route path="/admin/misiones" element={<CatalogoMisiones />} />
         </Route>
         <Route element={<ProtectedRoute requiredRole="operator" />}>
           <Route path="/operator" element={<OperatorPanel />} />
