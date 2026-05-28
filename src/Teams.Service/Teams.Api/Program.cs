@@ -96,6 +96,7 @@ try
     app.MapCreateTeamEndpoint();
 
     app.MapGetTeamsEndpoint();
+    app.MapGetTeamByIdEndpoint();
 
     app.Run();
 }

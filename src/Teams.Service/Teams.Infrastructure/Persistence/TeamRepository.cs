@@ -46,4 +46,11 @@ public class TeamRepository : ITeamRepository
 
         return (items, totalCount);
     }
+
+    public async Task<Team?> GetByIdWithMembersAsync(Guid id, CancellationToken ct)
+    {
+        return await _context.Teams
+            .Include(t => t.Members)
+            .FirstOrDefaultAsync(t => t.Id == id, ct);
+    }
 }
