@@ -1,4 +1,5 @@
-﻿using Teams.Api.Endpoints;
+﻿using System.Security.Claims;
+using Teams.Api.Endpoints;
 using Teams.Application;
 using Teams.Infrastructure;
 using Serilog;
@@ -42,6 +43,9 @@ try
 
     app.MapRegisterParticipantEndpoint();
 
+    app.MapGetProfileEndpoint();
+    app.MapUpdateProfileEndpoint();
+
     app.Run();
 }
 catch (Exception ex)
@@ -52,4 +56,3 @@ finally
 {
     Log.CloseAndFlush();
 }
-
