@@ -1,6 +1,6 @@
 # Skill Registry — proyectoumbral
 
-> Generated: 2026-05-26
+> Generated: 2026-05-28
 > Scope: user-level skills (opencode), no project-level skills detected.
 
 ## User Skills (`~/.config/opencode/skills/`)
@@ -35,9 +35,14 @@ None detected. No `skills/`, `.opencode/skills/`, `.claude/skills/`, `.gemini/sk
 
 ## Convention Files
 
-None detected. No `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `GEMINI.md`, or `copilot-instructions.md` found at project root.
+- `C:\Users\erosd\.config\opencode\AGENTS.md` — custom-agent configuration for this model.
 
 ## Filtering Notes
 
 - `sdd-*`, `_shared`, and `skill-registry` skills are indexed but excluded from SDD context loading (they are invoked by the orchestrator or skills system, not during SDD phases).
 - `_shared` is a support package, not invokable.
+
+## Persistence
+
+- Artifact store: engram
+- SDD context cached via `topic_key: sdd-init/ProyectoUmbral` and `topic_key: sdd/ProyectoUmbral/testing-capabilities`
