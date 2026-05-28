@@ -42,6 +42,41 @@ public class GetMissionByIdQueryHandlerTests
         result.TimeMinutes.Should().Be(45);
         result.Type.Should().Be("Treasure");
         result.Status.Should().Be("Active");
+        result.Stages.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_WhenMissionWithStagesExists_ReturnsStagesInDto()
+    {
+        // Arrange
+        var mission = Mission.Create("Find Treasure", "Secret location", Difficulty.Hard, 45, MissionType.Treasure);
+        typeof(Mission).GetProperty("Status")!.SetValue(mission, MissionStatus.Active);
+
+        // Add stages using reflection (simulating AddStage behavior)
+        var stageType = typeof(Mission).Assembly.GetType("Missions.Domain.Entities.MissionStage")!;
+        var stage = Mission.Create("Find Treasure", "Secret location", Difficulty.Hard, 45, MissionType.Treasure);
+
+        var missionId = mission.Id;
+
+        // Use the domain's AddStage method
+        mission.AddStage("Stage 1", "First stage", 1);
+        mission.AddStage("Stage 2", "Second stage", 2);
+
+        _repository.GetByIdAsync(mission.Id, Arg.Any<CancellationToken>())
+            .Returns(mission);
+
+        var query = new GetMissionByIdQuery(mission.Id);
+
+        // Act
+        var result = await _sut.Handle(query, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Stages.Should().HaveCount(2);
+        result.Stages[0].Name.Should().Be("Stage 1");
+        result.Stages[0].Order.Should().Be(1);
+        result.Stages[1].Name.Should().Be("Stage 2");
+        result.Stages[1].Order.Should().Be(2);
     }
 
     [Fact]

@@ -85,6 +85,7 @@ try
     app.MapUpdateMissionEndpoint();
     app.MapChangeMissionStatusEndpoint();
     app.MapMissionCatalogEndpoints();
+    app.MapCreateStageEndpoint();
 
     app.Run();
 }
