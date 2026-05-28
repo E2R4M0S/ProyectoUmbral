@@ -60,4 +60,47 @@ public class MissionClueDomainTests
             .WithMessage($"*Stage with id '{wrongStageId}' not found*");
     }
 
+    [Fact]
+    public void Mission_RemoveStageClue_WithValidClueId_ShouldRemoveClue()
+    {
+        var mission = Mission.Create("Test Mission", "Description", Difficulty.Easy, 30, MissionType.Treasure);
+        mission.AddStage("Stage One", "First stage", 1);
+        var stageId = mission.Stages.Single().Id;
+        mission.AddStageClue(stageId, "Clue to remove", null, ReleaseType.Auto);
+        var clueId = mission.Stages.Single().Clues.Single().Id;
+
+        mission.RemoveStageClue(stageId, clueId);
+
+        mission.Stages.Single().Clues.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Mission_RemoveStageClue_WhenClueNotFound_ShouldThrowInvalidOperationException()
+    {
+        var mission = Mission.Create("Test Mission", "Description", Difficulty.Easy, 30, MissionType.Treasure);
+        mission.AddStage("Stage One", "First stage", 1);
+        var stageId = mission.Stages.Single().Id;
+        var wrongClueId = Guid.NewGuid();
+
+        Action act = () => mission.RemoveStageClue(stageId, wrongClueId);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage($"*Clue with id '{wrongClueId}' not found*");
+    }
+
+    [Fact]
+    public void Mission_RemoveStageClue_WhenStageNotFound_ShouldThrowInvalidOperationException()
+    {
+        var mission = Mission.Create("Test Mission", "Description", Difficulty.Easy, 30, MissionType.Treasure);
+        mission.AddStage("Stage One", "First stage", 1);
+        mission.AddStageClue(mission.Stages.Single().Id, "Some clue", null, ReleaseType.Auto);
+        var wrongStageId = Guid.NewGuid();
+        var clueId = mission.Stages.Single().Clues.Single().Id;
+
+        Action act = () => mission.RemoveStageClue(wrongStageId, clueId);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage($"*Stage with id '{wrongStageId}' not found*");
+    }
+
 }
