@@ -99,4 +99,15 @@ public class Mission
         stage.AddClue(content, penalty, releaseType);
     }
 
+    public void RemoveStageClue(Guid stageId, Guid clueId)
+    {
+        var stage = _stages.FirstOrDefault(s => s.Id == stageId);
+        if (stage is null)
+        {
+            throw new InvalidOperationException($"Stage with id '{stageId}' not found");
+        }
+
+        stage.RemoveClue(clueId);
+    }
+
 }

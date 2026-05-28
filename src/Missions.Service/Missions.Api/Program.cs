@@ -88,6 +88,7 @@ try
     app.MapCreateStageEndpoint();
     app.MapUpdateStageEndpoint();
     app.MapCreateClueEndpoint();
+    app.MapDeleteClueEndpoint();
     
 
     app.Run();
