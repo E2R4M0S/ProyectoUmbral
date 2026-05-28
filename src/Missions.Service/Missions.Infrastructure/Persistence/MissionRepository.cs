@@ -20,9 +20,14 @@ public class MissionRepository : IMissionRepository
         await _context.SaveChangesAsync(ct);
     }
 
-    public async Task<bool> IsTitleUniqueAsync(string title, CancellationToken ct)
+    public async Task<bool> IsTitleUniqueAsync(string title, CancellationToken ct, Guid? excludeId = null)
     {
-        return !await _context.Missions.AnyAsync(m => m.Title == title, ct);
+        var query = _context.Missions.Where(m => m.Title == title);
+        if (excludeId.HasValue)
+        {
+            query = query.Where(m => m.Id != excludeId.Value);
+        }
+        return !await query.AnyAsync(ct);
     }
 
     public async Task<(IReadOnlyList<Mission> Missions, int TotalCount)> GetMissionsAsync(
@@ -61,5 +66,11 @@ public class MissionRepository : IMissionRepository
     public async Task<Mission?> GetByIdAsync(Guid id, CancellationToken ct)
     {
         return await _context.Missions.FindAsync([id], ct);
+    }
+
+    public async Task UpdateAsync(Mission mission, CancellationToken ct)
+    {
+        _context.Missions.Update(mission);
+        await _context.SaveChangesAsync(ct);
     }
 }

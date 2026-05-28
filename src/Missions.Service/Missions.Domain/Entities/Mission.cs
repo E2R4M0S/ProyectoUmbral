@@ -34,4 +34,12 @@ public class Mission
             CreatedAt = DateTime.UtcNow
         };
     }
+
+    public void Update(string title, string description, Difficulty difficulty, int timeMinutes)
+    {
+        Title = title.Trim();
+        Description = description.Trim();
+        Difficulty = difficulty;
+        TimeMinutes = timeMinutes;
+    }
 }

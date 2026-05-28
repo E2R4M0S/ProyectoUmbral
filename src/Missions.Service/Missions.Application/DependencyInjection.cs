@@ -2,6 +2,8 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Missions.Application.Common.Behaviors;
+using Missions.Application.Common.Interfaces;
+using Missions.Application.Common.Services;
 
 namespace Missions.Application;
 
@@ -15,6 +17,8 @@ public static class DependencyInjection
         services.AddTransient(
             typeof(IPipelineBehavior<,>),
             typeof(ValidationBehavior<,>));
+
+        services.AddScoped<IMissionLockService, PassthroughMissionLockService>();
 
         return services;
     }
