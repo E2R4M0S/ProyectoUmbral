@@ -8,4 +8,5 @@ public interface ITeamRepository
     Task<bool> IsNameUniqueAsync(string name, CancellationToken ct);
     Task<(IReadOnlyList<Team> Teams, int TotalCount)> GetTeamsAsync(
         string? search, int page, int pageSize, CancellationToken ct);
+    Task<Team?> GetByIdWithMembersAsync(Guid id, CancellationToken ct);
 }
