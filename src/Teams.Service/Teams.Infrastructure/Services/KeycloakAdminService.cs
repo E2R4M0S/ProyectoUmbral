@@ -156,6 +156,39 @@ public class KeycloakAdminService : IKeycloakAdminService
         }
     }
 
+    public async Task UpdateUserAsync(string userId, string name, string alias, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var payload = new
+        {
+            firstName = name,
+            attributes = new Dictionary<string, string[]>
+            {
+                ["alias"] = new[] { alias }
+            }
+        };
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}")
+        {
+            Content = JsonContent.Create(payload)
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError(
+                "Keycloak update user failed: {StatusCode} {Error}",
+                response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
+    }
+
     private static object BuildUserPayload(string username, string email, string password, string? alias)
     {
         var credentials = new[]

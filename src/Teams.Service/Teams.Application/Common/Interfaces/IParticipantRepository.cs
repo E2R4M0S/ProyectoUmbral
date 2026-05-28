@@ -7,4 +7,7 @@ public interface IParticipantRepository
     Task AddAsync(Participant participant, CancellationToken ct);
     Task<bool> IsAliasUniqueAsync(string alias, CancellationToken ct);
     Task<bool> IsEmailUniqueAsync(string email, CancellationToken ct);
+    Task<Participant?> GetByKeycloakUserIdAsync(string keycloakUserId, CancellationToken ct);
+    Task UpdateAsync(Participant participant, CancellationToken ct);
+    Task<bool> IsAliasUniqueAsync(string alias, string? excludeKeycloakUserId, CancellationToken ct);
 }

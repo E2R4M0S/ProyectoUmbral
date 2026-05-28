@@ -28,4 +28,22 @@ public class ParticipantRepository : IParticipantRepository
     {
         return !await _context.Participants.AnyAsync(p => p.Email == email, ct);
     }
+
+    public async Task<Participant?> GetByKeycloakUserIdAsync(string keycloakUserId, CancellationToken ct)
+    {
+        return await _context.Participants
+            .FirstOrDefaultAsync(p => p.KeycloakUserId == keycloakUserId, ct);
+    }
+
+    public async Task UpdateAsync(Participant participant, CancellationToken ct)
+    {
+        _context.Participants.Update(participant);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<bool> IsAliasUniqueAsync(string alias, string? excludeKeycloakUserId, CancellationToken ct)
+    {
+        return !await _context.Participants
+            .AnyAsync(p => p.Alias == alias && p.KeycloakUserId != excludeKeycloakUserId, ct);
+    }
 }

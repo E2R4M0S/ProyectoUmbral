@@ -27,4 +27,12 @@ public class Participant
             CreatedAt = DateTime.UtcNow
         };
     }
+
+    public void Update(string name, string alias)
+    {
+        var trimmedAlias = alias.Trim();
+        ValueObjects.Alias.Create(trimmedAlias); // validates via VO
+        Name = name.Trim();
+        Alias = trimmedAlias;
+    }
 }
