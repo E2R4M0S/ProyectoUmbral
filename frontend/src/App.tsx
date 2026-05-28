@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Registro } from "./pages/public/Registro";
+import { CrearOperador } from "./pages/admin/CrearOperador";
+import { DesactivarOperador } from "./pages/admin/DesactivarOperador";
 
 function Home() {
   return <h1>UMBRAL — Página pública</h1>;
@@ -38,6 +40,8 @@ function App() {
         </Route>
         <Route element={<ProtectedRoute requiredRole="admin" />}>
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/admin/operadores/nuevo" element={<CrearOperador />} />
+          <Route path="/admin/operadores/desactivar" element={<DesactivarOperador />} />
         </Route>
         <Route element={<ProtectedRoute requiredRole="operator" />}>
           <Route path="/operator" element={<OperatorPanel />} />
