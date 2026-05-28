@@ -71,4 +71,20 @@ public class Mission
         var stage = new MissionStage(Id, name, description, order);
         _stages.Add(stage);
     }
+
+    public void UpdateStage(Guid stageId, string name, string description, int order)
+    {
+        var stage = _stages.FirstOrDefault(s => s.Id == stageId);
+        if (stage is null)
+        {
+            throw new InvalidOperationException($"Stage with id '{stageId}' not found");
+        }
+
+        if (_stages.Any(s => s.Id != stageId && s.Order == order))
+        {
+            throw new InvalidOperationException($"A stage with Order {order} already exists");
+        }
+
+        stage.Update(name, description, order);
+    }
 }
