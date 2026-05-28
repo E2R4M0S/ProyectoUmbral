@@ -82,6 +82,7 @@ try
        .AllowAnonymous();
 
     app.MapCreateMissionEndpoint();
+    app.MapUpdateMissionEndpoint();
     app.MapMissionCatalogEndpoints();
 
     app.Run();
