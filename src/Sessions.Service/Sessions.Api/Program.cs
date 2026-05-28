@@ -82,6 +82,7 @@ try
        .AllowAnonymous();
 
     app.MapCreateSessionEndpoint();
+    app.MapGetSessionsEndpoint();
 
     app.Run();
 }
