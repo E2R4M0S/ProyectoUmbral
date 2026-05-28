@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Teams.Application.Common.Interfaces;
+using Teams.Application.Teams.Operators.Create;
 
 namespace Teams.Infrastructure.Services;
 
@@ -136,6 +137,126 @@ public class KeycloakAdminService : IKeycloakAdminService
             throw new InvalidOperationException(
                 $"Failed to assign participant role to Keycloak user '{userId}': {assignResponse.StatusCode}");
         }
+    }
+
+    // ─── Operator-specific methods ────────────────────────────────────────
+
+    private async Task<string> CreateKeycloakOperatorUserAsync(
+        string token, string name, string email, string password, CancellationToken ct)
+    {
+        var payload = BuildOperatorPayload(name, email, password);
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users")
+        {
+            Content = JsonContent.Create(payload)
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError(
+                "Keycloak create operator failed: {StatusCode} {Error}",
+                response.StatusCode, errorBody);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                throw new InvalidOperationException($"Email '{email}' is already registered in Keycloak.");
+            }
+
+            response.EnsureSuccessStatusCode();
+        }
+
+        var location = response.Headers.Location?.ToString();
+        var userId = location?.Split('/').LastOrDefault();
+
+        if (string.IsNullOrEmpty(userId))
+            throw new InvalidOperationException("Failed to extract Keycloak user ID from Location header.");
+
+        return userId;
+    }
+
+    private static object BuildOperatorPayload(string name, string email, string password)
+    {
+        var credentials = new[]
+        {
+            new
+            {
+                type = "password",
+                value = password,
+                temporary = false
+            }
+        };
+
+        return new
+        {
+            username = email,
+            email,
+            emailVerified = true,
+            enabled = true,
+            credentials,
+            attributes = new Dictionary<string, string[]>
+            {
+                ["name"] = new[] { name }
+            }
+        };
+    }
+
+    private async Task AssignOperatorRoleAsync(string token, string userId, CancellationToken ct)
+    {
+        var rolesRequest = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/roles");
+        rolesRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var rolesResponse = await _httpClient.SendAsync(rolesRequest, ct);
+        rolesResponse.EnsureSuccessStatusCode();
+
+        var roles = await rolesResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var operatorRole = roles.EnumerateArray()
+            .FirstOrDefault(r => r.GetProperty("name").GetString() == "operator");
+
+        if (operatorRole.ValueKind == JsonValueKind.Undefined)
+        {
+            _logger.LogWarning("Operator role not found in realm '{Realm}'", _options.Realm);
+            return;
+        }
+
+        var assignRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}/role-mappings/realm")
+        {
+            Content = JsonContent.Create(new[] { operatorRole })
+        };
+        assignRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var assignResponse = await _httpClient.SendAsync(assignRequest, ct);
+
+        if (!assignResponse.IsSuccessStatusCode)
+        {
+            var errorBody = await assignResponse.Content.ReadAsStringAsync(ct);
+            _logger.LogError(
+                "Failed to assign operator role to user {UserId}: {StatusCode} {Error}",
+                userId, assignResponse.StatusCode, errorBody);
+            throw new InvalidOperationException(
+                $"Failed to assign operator role to Keycloak user '{userId}': {assignResponse.StatusCode}");
+        }
+    }
+
+    public async Task<CreateOperatorResult> CreateOperatorAsync(
+        string name, string email, string password, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var userId = await CreateKeycloakOperatorUserAsync(token, name, email, password, ct);
+
+        await AssignOperatorRoleAsync(token, userId, ct);
+
+        return new CreateOperatorResult(name, email, userId);
     }
 
     public async Task DeleteUserAsync(string userId, CancellationToken ct)
