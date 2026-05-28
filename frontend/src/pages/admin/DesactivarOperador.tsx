@@ -73,7 +73,7 @@ export function DesactivarOperador() {
     setIsSubmitting(true);
 
     try {
-      const result = await desactivarOperador({ email: email.trim() });
+      await desactivarOperador({ email: email.trim() });
       setSuccess(true);
       setEmail("");
     } catch (err) {
