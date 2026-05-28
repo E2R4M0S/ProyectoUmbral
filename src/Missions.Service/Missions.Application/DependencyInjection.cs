@@ -19,7 +19,7 @@ public static class DependencyInjection
             typeof(ValidationBehavior<,>));
 
         services.AddScoped<IMissionLockService, PassthroughMissionLockService>();
-        services.AddScoped<IMissionStageValidator, PassthroughMissionStageValidator>();
+        services.AddScoped<IMissionStageValidator, MissionStageValidator>();
 
         return services;
     }

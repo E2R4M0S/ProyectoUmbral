@@ -65,7 +65,9 @@ public class MissionRepository : IMissionRepository
 
     public async Task<Mission?> GetByIdAsync(Guid id, CancellationToken ct)
     {
-        return await _context.Missions.FindAsync([id], ct);
+        return await _context.Missions
+            .Include(m => m.Stages)
+            .FirstOrDefaultAsync(m => m.Id == id, ct);
     }
 
     public async Task UpdateAsync(Mission mission, CancellationToken ct)

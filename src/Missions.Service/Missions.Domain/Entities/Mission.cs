@@ -13,6 +13,9 @@ public class Mission
     public MissionStatus Status { get; private set; }
     public DateTime CreatedAt { get; private set; }
 
+    private readonly List<MissionStage> _stages = new();
+    public IReadOnlyList<MissionStage> Stages => _stages.AsReadOnly();
+
     private Mission() { } // EF Core
 
     public static Mission Create(
@@ -56,5 +59,16 @@ public class Mission
         }
 
         Status = newStatus;
+    }
+
+    public void AddStage(string name, string description, int order)
+    {
+        if (_stages.Any(s => s.Order == order))
+        {
+            throw new InvalidOperationException($"A stage with Order {order} already exists");
+        }
+
+        var stage = new MissionStage(Id, name, description, order);
+        _stages.Add(stage);
     }
 }

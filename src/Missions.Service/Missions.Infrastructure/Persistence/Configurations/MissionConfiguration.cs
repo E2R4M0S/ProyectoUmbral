@@ -39,5 +39,9 @@ public class MissionConfiguration : IEntityTypeConfiguration<Mission>
 
         builder.Property(m => m.CreatedAt)
             .IsRequired();
+
+        builder.HasMany(m => m.Stages)
+            .WithOne(s => s.Mission)
+            .HasForeignKey(s => s.MissionId);
     }
 }
