@@ -111,7 +111,7 @@ export function ListadoUsuarios() {
   const [items, setItems] = useState<UserListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, _setPageSize] = useState(20);
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("");
   const [enabled, setEnabled] = useState<boolean | undefined>(undefined);
