@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Teams.Application.Common.Interfaces;
 using Teams.Application.Teams.Operators.Create;
 using Teams.Application.Teams.Operators.Disable;
+using Teams.Application.Teams.Users.GetUsers;
 
 namespace Teams.Infrastructure.Services;
 
@@ -417,5 +419,157 @@ public class KeycloakAdminService : IKeycloakAdminService
             enabled = true,
             credentials
         };
+    }
+
+    // ─── User listing methods ───────────────────────────────────────────────
+
+    public async Task<IReadOnlyList<UserRepresentation>> GetUsersAsync(
+        int first, int max, string? search, bool? enabled, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var queryParams = new List<string> { $"first={first}", $"max={max}" };
+        if (!string.IsNullOrWhiteSpace(search))
+            queryParams.Add($"search={Uri.EscapeDataString(search)}");
+        if (enabled.HasValue)
+            queryParams.Add($"enabled={enabled.Value.ToString().ToLowerInvariant()}");
+
+        var url = $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users?{string.Join("&", queryParams)}";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError("Keycloak get users failed: {StatusCode} {Error}", response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var users = new List<UserRepresentation>();
+
+        foreach (var element in json.EnumerateArray())
+        {
+            users.Add(ParseUserRepresentation(element));
+        }
+
+        return users;
+    }
+
+    public async Task<IReadOnlyList<UserRepresentation>> GetUsersByRoleAsync(
+        string role, int first, int max, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var url = $"{_options.BaseUrl}/admin/realms/{_options.Realm}/roles/{Uri.EscapeDataString(role)}/users?first={first}&max={max}";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError("Keycloak get users by role failed: {StatusCode} {Error}", response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var users = new List<UserRepresentation>();
+
+        foreach (var element in json.EnumerateArray())
+        {
+            users.Add(ParseUserRepresentation(element));
+        }
+
+        return users;
+    }
+
+    public async Task<IReadOnlyList<string>> GetUserRealmRolesAsync(string userId, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var url = $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}/role-mappings/realm";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError("Keycloak get user realm roles failed: {StatusCode} {Error}", response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var roles = new List<string>();
+
+        foreach (var element in json.EnumerateArray())
+        {
+            if (element.TryGetProperty("name", out var nameProp))
+            {
+                var name = nameProp.GetString();
+                if (!string.IsNullOrEmpty(name))
+                    roles.Add(name);
+            }
+        }
+
+        return roles;
+    }
+
+    public async Task<UserRepresentation?> GetUserByIdAsync(string userId, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var url = $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request, ct);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return null;
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError("Keycloak get user by id failed: {StatusCode} {Error}", response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        return ParseUserRepresentation(json);
+    }
+
+    private static UserRepresentation ParseUserRepresentation(JsonElement element)
+    {
+        var rep = new UserRepresentation
+        {
+            Id = element.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "",
+            FirstName = element.TryGetProperty("firstName", out var fnProp) ? fnProp.GetString() : null,
+            Email = element.TryGetProperty("email", out var emailProp) ? emailProp.GetString() ?? "" : "",
+            Enabled = element.TryGetProperty("enabled", out var enProp) && enProp.GetBoolean(),
+            CreatedTimestamp = element.TryGetProperty("createdTimestamp", out var ctProp) ? ctProp.GetInt64() : 0,
+            EmailVerified = element.TryGetProperty("emailVerified", out var evProp) && evProp.GetBoolean()
+        };
+
+        if (element.TryGetProperty("attributes", out var attrsProp) && attrsProp.ValueKind == JsonValueKind.Object)
+        {
+            var dict = ImmutableDictionary.CreateBuilder<string, string[]>();
+            foreach (var prop in attrsProp.EnumerateObject())
+            {
+                var values = prop.Value.ValueKind == JsonValueKind.Array
+                    ? prop.Value.EnumerateArray().Select(v => v.GetString() ?? "").ToArray()
+                    : Array.Empty<string>();
+                dict.Add(prop.Name, values);
+            }
+            rep.Attributes = dict.ToImmutable();
+        }
+
+        return rep;
     }
 }

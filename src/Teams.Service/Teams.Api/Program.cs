@@ -89,6 +89,10 @@ try
 
     app.MapDisableOperatorEndpoint();
 
+    app.MapGetUsersEndpoint();
+
+    app.MapGetUserByIdEndpoint();
+
     app.Run();
 }
 catch (Exception ex)
@@ -136,5 +140,4 @@ file sealed class KeycloakRolesTransformer : IClaimsTransformation
         principal.AddIdentity(identity);
         return Task.FromResult(principal);
     }
-}
 }
