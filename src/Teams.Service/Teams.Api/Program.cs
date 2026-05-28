@@ -49,6 +49,9 @@ try
 
         options.AddPolicy("admin", policy =>
             policy.RequireRole("admin"));
+
+        options.AddPolicy("authenticated", policy =>
+            policy.RequireAuthenticatedUser());
     });
 
     builder.Services.AddHealthChecks();
@@ -99,6 +102,8 @@ try
     app.MapGetTeamByIdEndpoint();
 
     app.MapUpdateTeamEndpoint();
+
+    app.MapJoinTeamEndpoint();
 
     app.Run();
 }
