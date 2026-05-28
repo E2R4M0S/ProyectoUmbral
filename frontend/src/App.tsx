@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Registro } from "./pages/public/Registro";
+import { MiPerfil } from "./pages/participant/MiPerfil";
 
 function Home() {
   return <h1>UMBRAL — Página pública</h1>;
@@ -44,6 +45,7 @@ function App() {
         </Route>
         <Route element={<ProtectedRoute requiredRole="participant" />}>
           <Route path="/participant" element={<ParticipantPanel />} />
+          <Route path="/participant/perfil" element={<MiPerfil />} />
         </Route>
       </Routes>
     </BrowserRouter>
