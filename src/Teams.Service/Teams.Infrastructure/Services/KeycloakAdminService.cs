@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Teams.Application.Common.Interfaces;
 using Teams.Application.Teams.Operators.Create;
+using Teams.Application.Teams.Operators.Disable;
 
 namespace Teams.Infrastructure.Services;
 
@@ -86,7 +87,6 @@ public class KeycloakAdminService : IKeycloakAdminService
             response.EnsureSuccessStatusCode();
         }
 
-        // Extract user ID from Location header: /admin/realms/{realm}/users/{uuid}
         var location = response.Headers.Location?.ToString();
         var userId = location?.Split('/').LastOrDefault();
 
@@ -98,7 +98,6 @@ public class KeycloakAdminService : IKeycloakAdminService
 
     private async Task AssignParticipantRoleAsync(string token, string userId, CancellationToken ct)
     {
-        // Get available realm roles
         var rolesRequest = new HttpRequestMessage(
             HttpMethod.Get,
             $"{_options.BaseUrl}/admin/realms/{_options.Realm}/roles");
@@ -117,7 +116,6 @@ public class KeycloakAdminService : IKeycloakAdminService
             return;
         }
 
-        // Assign the role
         var assignRequest = new HttpRequestMessage(
             HttpMethod.Post,
             $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}/role-mappings/realm")
@@ -136,6 +134,39 @@ public class KeycloakAdminService : IKeycloakAdminService
                 userId, assignResponse.StatusCode, errorBody);
             throw new InvalidOperationException(
                 $"Failed to assign participant role to Keycloak user '{userId}': {assignResponse.StatusCode}");
+        }
+    }
+
+    public async Task UpdateUserAsync(string userId, string name, string alias, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var payload = new
+        {
+            firstName = name,
+            attributes = new Dictionary<string, string[]>
+            {
+                ["alias"] = new[] { alias }
+            }
+        };
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}")
+        {
+            Content = JsonContent.Create(payload)
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError(
+                "Keycloak update user failed: {StatusCode} {Error}",
+                response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
         }
     }
 
@@ -277,37 +308,77 @@ public class KeycloakAdminService : IKeycloakAdminService
         }
     }
 
-    public async Task UpdateUserAsync(string userId, string name, string alias, CancellationToken ct)
+    public async Task<DisableOperatorResponse> DisableOperatorAsync(string email, CancellationToken ct)
     {
         var token = await GetAdminTokenAsync(ct);
 
-        var payload = new
-        {
-            firstName = name,
-            attributes = new Dictionary<string, string[]>
-            {
-                ["alias"] = new[] { alias }
-            }
-        };
+        var searchRequest = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users?email={Uri.EscapeDataString(email)}");
+        searchRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var request = new HttpRequestMessage(
+        var searchResponse = await _httpClient.SendAsync(searchRequest, ct);
+
+        if (!searchResponse.IsSuccessStatusCode)
+        {
+            var errorBody = await searchResponse.Content.ReadAsStringAsync(ct);
+            _logger.LogError(
+                "Keycloak user search failed: {StatusCode} {Error}",
+                searchResponse.StatusCode, errorBody);
+            searchResponse.EnsureSuccessStatusCode();
+        }
+
+        var users = await searchResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
+
+        var user = users.EnumerateArray().FirstOrDefault();
+
+        if (user.ValueKind == JsonValueKind.Undefined)
+        {
+            throw new InvalidOperationException($"No user found with email '{email}'");
+        }
+
+        var userId = user.GetProperty("id").GetString()!;
+        var wasAlreadyDisabled = !user.GetProperty("enabled").GetBoolean();
+
+        var disablePayload = new { enabled = false };
+        var disableRequest = new HttpRequestMessage(
             HttpMethod.Put,
             $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}")
         {
-            Content = JsonContent.Create(payload)
+            Content = JsonContent.Create(disablePayload)
         };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        disableRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _httpClient.SendAsync(request, ct);
+        var disableResponse = await _httpClient.SendAsync(disableRequest, ct);
 
-        if (!response.IsSuccessStatusCode)
+        if (!disableResponse.IsSuccessStatusCode)
         {
-            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            var errorBody = await disableResponse.Content.ReadAsStringAsync(ct);
             _logger.LogError(
-                "Keycloak update user failed: {StatusCode} {Error}",
-                response.StatusCode, errorBody);
-            response.EnsureSuccessStatusCode();
+                "Keycloak disable user failed: {StatusCode} {Error}",
+                disableResponse.StatusCode, errorBody);
+            disableResponse.EnsureSuccessStatusCode();
         }
+
+        var logoutRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}/logout");
+        logoutRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var logoutResponse = await _httpClient.SendAsync(logoutRequest, ct);
+
+        if (!logoutResponse.IsSuccessStatusCode)
+        {
+            _logger.LogWarning(
+                "Keycloak logout failed (non-fatal): UserId={UserId}, StatusCode={StatusCode}",
+                userId, logoutResponse.StatusCode);
+        }
+
+        var message = wasAlreadyDisabled
+            ? "El operador ya estaba desactivado."
+            : "Operador desactivado correctamente.";
+
+        return new DisableOperatorResponse(message, wasAlreadyDisabled);
     }
 
     private static object BuildUserPayload(string username, string email, string password, string? alias)

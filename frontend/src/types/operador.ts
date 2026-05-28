@@ -9,3 +9,12 @@ export interface OperadorResponse {
   email: string;
   keycloakUserId: string;
 }
+
+export interface DesactivarOperadorRequest {
+  email: string;
+}
+
+export interface DesactivarOperadorResponse {
+  message: string;
+  wasAlreadyDisabled: boolean;
+}
