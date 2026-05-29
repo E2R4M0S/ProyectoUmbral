@@ -1,6 +1,6 @@
 import { userManager } from "../auth/keycloak";
 
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = "";
 
 export async function fetchWithAuth(
   url: string,

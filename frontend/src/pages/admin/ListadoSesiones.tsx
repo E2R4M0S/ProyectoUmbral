@@ -4,8 +4,10 @@ import type { SessionListItem, GetSessionsParams } from "../../types/session";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Todos los estados" },
-  { value: "Waiting", label: "Esperando" },
-  { value: "InProgress", label: "En Progreso" },
+  { value: "Scheduled", label: "Programada" },
+  { value: "Preparing", label: "Preparándose" },
+  { value: "Active", label: "Activa" },
+  { value: "Paused", label: "Pausada" },
   { value: "Finished", label: "Finalizada" },
   { value: "Cancelled", label: "Cancelada" },
 ];
@@ -100,8 +102,10 @@ const containerStyle: React.CSSProperties = {
 const badgeStyle = (status: string): React.CSSProperties => {
   let bgColor = "#6c757d";
   switch (status) {
-    case "Waiting": bgColor = "#ffc107"; break;
-    case "InProgress": bgColor = "#28a745"; break;
+    case "Scheduled": bgColor = "#ffc107"; break;
+    case "Preparing": bgColor = "#fd7e14"; break;
+    case "Active": bgColor = "#28a745"; break;
+    case "Paused": bgColor = "#6f42c1"; break;
     case "Finished": bgColor = "#007bff"; break;
     case "Cancelled": bgColor = "#dc3545"; break;
   }
@@ -118,8 +122,10 @@ const badgeStyle = (status: string): React.CSSProperties => {
 
 const statusLabel = (status: string): string => {
   switch (status) {
-    case "Waiting": return "Esperando";
-    case "InProgress": return "En Progreso";
+    case "Scheduled": return "Programada";
+    case "Preparing": return "Preparándose";
+    case "Active": return "Activa";
+    case "Paused": return "Pausada";
     case "Finished": return "Finalizada";
     case "Cancelled": return "Cancelada";
     default: return status;

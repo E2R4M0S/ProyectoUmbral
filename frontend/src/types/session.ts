@@ -1,4 +1,4 @@
-export type SessionStatus = "Waiting" | "InProgress" | "Finished" | "Cancelled";
+export type SessionStatus = "Scheduled" | "Preparing" | "Active" | "Paused" | "Finished" | "Cancelled";
 
 export interface SessionResponse {
   id: string;
