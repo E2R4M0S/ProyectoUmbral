@@ -1,4 +1,5 @@
 using MediatR;
+using Sessions.Application.Common.Interfaces;
 using Sessions.Application.Sessions.Transition;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,12 +12,15 @@ public static class FinishSessionEndpoint
         app.MapPost("/api/sessions/{id:guid}/finish", async (
             [FromRoute] Guid id,
             IMediator mediator,
+            IGameNotifier notifier,
             ILogger<Program> logger) =>
         {
             try
             {
                 var command = new TransitionSessionCommand(id, "Finished");
                 await mediator.Send(command);
+
+                await notifier.NotifySessionStatusChanged(id, "Finished");
 
                 logger.LogInformation(
                     "Session finished successfully: Id={SessionId}",
