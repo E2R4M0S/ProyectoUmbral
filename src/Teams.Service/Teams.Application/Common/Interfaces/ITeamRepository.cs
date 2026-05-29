@@ -10,4 +10,6 @@ public interface ITeamRepository
     Task<(IReadOnlyList<Team> Teams, int TotalCount)> GetTeamsAsync(
         string? search, int page, int pageSize, CancellationToken ct);
     Task<Team?> GetByIdWithMembersAsync(Guid id, CancellationToken ct);
+    Task<Team?> GetByJoinCodeAsync(string joinCode, CancellationToken ct);
+    Task AddMemberAsync(Team team, TeamMember member, CancellationToken ct);
 }

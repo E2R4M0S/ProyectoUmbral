@@ -5,5 +5,6 @@ public record TeamDetailDto(
     string Name,
     string Description,
     string LeaderId,
+    string LeaderName,
     string? JoinCode,
     IReadOnlyList<MemberDto> Members);

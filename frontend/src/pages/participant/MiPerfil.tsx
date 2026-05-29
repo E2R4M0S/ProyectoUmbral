@@ -40,7 +40,10 @@ export function MiPerfil() {
       setOriginalAlias(data.alias);
       setFormState("idle");
     } catch (err) {
-      setErrors({ general: "No se pudo cargar el perfil. Intentalo de nuevo." });
+      const msg = err instanceof ApiError 
+        ? `Error ${err.status}: ${err.body || 'Sin respuesta'}`
+        : err instanceof Error ? err.message : String(err);
+      setErrors({ general: `No se pudo cargar el perfil. ${msg}` });
       setFormState("idle");
     } finally {
       setLoading(false);
@@ -200,21 +203,6 @@ export function MiPerfil() {
           {errors.alias && (
             <span style={fieldErrorStyle}>{errors.alias}</span>
           )}
-        </div>
-
-        <div style={fieldGroupStyle}>
-          <label htmlFor="email" style={labelStyle}>
-            Correo electrónico
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={profile?.email ?? ""}
-            readOnly
-            style={{ ...inputStyle, backgroundColor: "#f3f4f6" }}
-            placeholder="Tu correo"
-          />
-          <span style={hintStyle}>No editable</span>
         </div>
 
         <div style={buttonGroupStyle}>

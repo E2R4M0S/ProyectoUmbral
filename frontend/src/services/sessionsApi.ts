@@ -1,4 +1,12 @@
 import { fetchWithAuth } from "./api";
+import type {
+  SessionResponse,
+  SessionDetail,
+  CreateSessionRequest,
+  SessionProgress,
+  GetSessionsParams,
+  GetSessionsResponse,
+} from "../types/session";
 
 export class ApiError extends Error {
   constructor(
@@ -31,6 +39,67 @@ export async function startSession(id: string): Promise<StartSessionResponse> {
 export async function finishSession(id: string): Promise<StartSessionResponse> {
   const response = await fetchWithAuth(`/api/sessions/${id}/finish`, {
     method: "POST",
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new ApiError(response.status, errorBody);
+  }
+
+  return response.json();
+}
+
+export async function createSession(data: CreateSessionRequest): Promise<SessionResponse> {
+  const response = await fetchWithAuth("/api/sessions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new ApiError(response.status, errorBody);
+  }
+
+  return response.json();
+}
+
+export async function listSessions(params: GetSessionsParams): Promise<GetSessionsResponse> {
+  const searchParams = new URLSearchParams();
+  if (params.search) searchParams.set("search", params.search);
+  if (params.status) searchParams.set("status", params.status);
+  searchParams.set("page", String(params.page ?? 1));
+  searchParams.set("pageSize", String(params.pageSize ?? 10));
+
+  const response = await fetchWithAuth(
+    `/api/sessions?${searchParams.toString()}`,
+    { method: "GET" },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new ApiError(response.status, errorBody);
+  }
+
+  return response.json();
+}
+
+export async function getSessionById(id: string): Promise<SessionDetail> {
+  const response = await fetchWithAuth(`/api/sessions/${id}`, {
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new ApiError(response.status, errorBody);
+  }
+
+  return response.json();
+}
+
+export async function getSessionProgress(id: string): Promise<SessionProgress> {
+  const response = await fetchWithAuth(`/api/sessions/${id}/progress`, {
+    method: "GET",
   });
 
   if (!response.ok) {

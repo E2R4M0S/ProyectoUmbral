@@ -7,4 +7,4 @@ public record CreateTeamCommand(
     string Name,
     string Description,
     string LeaderId,
-    List<string> MemberIds) : IRequest<CreateTeamCommandResult>;
+    List<string>? MemberIds = null) : IRequest<CreateTeamCommandResult>;

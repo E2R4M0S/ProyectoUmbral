@@ -6,4 +6,5 @@ public record CreateTeamCommandResult(
     string Description,
     string LeaderId,
     List<string> MemberIds,
+    string? JoinCode,
     DateTime CreatedAt);

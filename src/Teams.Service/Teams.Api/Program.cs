@@ -28,8 +28,8 @@ try
             options.RequireHttpsMetadata = false;
             options.TokenValidationParameters = new TokenValidationParameters
             {
-                ValidateIssuer = true,
-                ValidateAudience = true,
+                ValidateIssuer = false,
+                ValidateAudience = false,
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true
             };
@@ -42,6 +42,8 @@ try
     // Transform Keycloak realm_access.roles into ClaimTypes.Role claims
     builder.Services.AddScoped<IClaimsTransformation, KeycloakRolesTransformer>();
 
+    builder.Services.AddHttpContextAccessor();
+
     builder.Services.AddAuthorization(options =>
     {
         options.AddPolicy("participant", policy =>
@@ -49,6 +51,10 @@ try
 
         options.AddPolicy("admin", policy =>
             policy.RequireRole("admin"));
+
+        options.AddPolicy("operator_or_admin", policy =>
+            policy.RequireAssertion(ctx =>
+                ctx.User.IsInRole("admin") || ctx.User.IsInRole("operator")));
 
         options.AddPolicy("authenticated", policy =>
             policy.RequireAuthenticatedUser());

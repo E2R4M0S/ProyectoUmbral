@@ -1,8 +1,10 @@
+using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Teams.Application.Common.Interfaces;
 using Teams.Application.Teams.Join;
+using Teams.Domain.Entities;
 
 namespace Teams.Application.Teams.Join;
 
@@ -24,19 +26,15 @@ public class JoinTeamCommandHandler : IRequestHandler<JoinTeamCommand, JoinTeamC
 
     public async Task<JoinTeamCommandResult> Handle(JoinTeamCommand command, CancellationToken ct)
     {
-        var userId = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
+        var userId = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                      ?? _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userId))
         {
             throw new InvalidOperationException("User ID not found in claims");
         }
 
-        var team = await _teamRepository.GetByIdWithMembersAsync(command.TeamId, ct);
+        var team = await _teamRepository.GetByJoinCodeAsync(command.JoinCode, ct);
         if (team is null)
-        {
-            throw new InvalidOperationException($"Team with id '{command.TeamId}' not found");
-        }
-
-        if (team.JoinCode != command.JoinCode)
         {
             throw new InvalidOperationException("Invalid join code");
         }
@@ -46,8 +44,8 @@ public class JoinTeamCommandHandler : IRequestHandler<JoinTeamCommand, JoinTeamC
             throw new InvalidOperationException($"User '{userId}' is already a member");
         }
 
-        team.AddMember(userId);
-        await _teamRepository.UpdateAsync(team, ct);
+        var newMember = TeamMember.Create(team.Id, userId);
+        await _teamRepository.AddMemberAsync(team, newMember, ct);
 
         _logger.LogInformation(
             "User {UserId} joined team: TeamId={TeamId}",

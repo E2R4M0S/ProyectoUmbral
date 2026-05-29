@@ -7,7 +7,7 @@ public static class GetUserByIdEndpoint
 {
     public static void MapGetUserByIdEndpoint(this WebApplication app)
     {
-        app.MapGet("/admin/users/{id}", async (
+        app.MapGet("/users/{id}", async (
             string id,
             IMediator mediator,
             ILogger<Program> logger) =>
