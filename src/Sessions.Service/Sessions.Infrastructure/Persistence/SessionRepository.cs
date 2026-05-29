@@ -25,6 +25,11 @@ public class SessionRepository : ISessionRepository
         return await _context.Sessions.FindAsync(new object[] { id }, ct);
     }
 
+    public async Task<Session?> GetByPinAsync(string pin, CancellationToken ct)
+    {
+        return await _context.Sessions.FirstOrDefaultAsync(s => s.Pin == pin, ct);
+    }
+
     public async Task<bool> IsPinUniqueAsync(string pin, CancellationToken ct)
     {
         return !await _context.Sessions

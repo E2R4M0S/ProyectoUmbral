@@ -23,6 +23,9 @@ public class Session
     public DateTime? EndedAt { get; private set; }
     public DateTime CreatedAt { get; private set; }
 
+    private readonly List<SessionParticipant> _participants = new();
+    public IReadOnlyList<SessionParticipant> Participants => _participants.AsReadOnly();
+
     private Session() { } // EF Core
 
     public static Session Create(string name, Guid missionId, string pin)
@@ -62,5 +65,21 @@ public class Session
         }
 
         Status = newStatus;
+    }
+
+    public void AddParticipant(Guid userId)
+    {
+        if (Status != SessionStatus.Preparing)
+        {
+            throw new InvalidOperationException(
+                $"Cannot join session in '{Status}' status");
+        }
+
+        if (_participants.Any(p => p.UserId == userId))
+        {
+            throw new InvalidOperationException("User has already joined this session");
+        }
+
+        _participants.Add(SessionParticipant.Create(Id, userId));
     }
 }

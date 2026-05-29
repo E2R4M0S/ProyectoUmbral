@@ -11,9 +11,11 @@ public class SessionsDbContext : DbContext
     }
 
     public DbSet<Session> Sessions => Set<Session>();
+    public DbSet<SessionParticipant> SessionParticipants => Set<SessionParticipant>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new SessionConfiguration());
+        modelBuilder.ApplyConfiguration(new SessionParticipantConfiguration());
     }
 }
