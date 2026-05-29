@@ -1,8 +1,10 @@
-import { BrowserRouter, Routes, Route, useNavigate, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, Outlet, Link, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Registro } from "./pages/public/Registro";
 import { MiPerfil } from "./pages/participant/MiPerfil";
 import { UnirseEquipo } from "./pages/participant/UnirseEquipo";
+import { UnirseSesion } from "./pages/participant/UnirseSesion";
+import { GameView } from "./pages/participant/game/GameView";
 import { CrearOperador } from "./pages/admin/CrearOperador";
 import { DesactivarOperador } from "./pages/admin/DesactivarOperador";
 import { ListadoUsuarios } from "./pages/admin/ListadoUsuarios";
@@ -37,14 +39,14 @@ function Home() {
 
   if (auth.isAuthenticated) {
     const roles = auth.user?.access_token ? getRoles(auth.user.access_token) : [];
-    if (roles.includes("admin")) return <AdminPanel><h2>Bienvenido</h2></AdminPanel>;
-    if (roles.includes("operator")) return <OperatorPanel><h2>Bienvenido</h2></OperatorPanel>;
-    return <ParticipantPanel><h2>Bienvenido</h2></ParticipantPanel>;
+    if (roles.includes("admin")) return <Navigate to="/admin" replace />;
+    if (roles.includes("operator")) return <Navigate to="/operator" replace />;
+    return <Navigate to="/participant" replace />;
   }
 
   return (
-    <div style={{ 
-      display: "flex", flexDirection: "column", alignItems: "center", 
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center",
       justifyContent: "center", height: "100vh", fontFamily: "sans-serif",
       backgroundColor: "#1a1a2e", color: "white"
     }}>
@@ -59,6 +61,12 @@ function Home() {
       }}>
         Iniciar Sesión
       </button>
+      <p style={{ marginTop: "1.5rem", fontSize: 14 }}>
+        ¿No tenés cuenta?{" "}
+        <Link to="/registro" style={{ color: "#e94560", fontWeight: 600 }}>
+          Registrate
+        </Link>
+      </p>
     </div>
   );
 }
@@ -115,17 +123,17 @@ function AdminPanel() {
   return (
     <Sidebar role="Administrador">
       <div style={sidebarSectionStyle}>Misiones</div>
-      <a href="misiones" style={sidebarLinkStyle}>📋 Catálogo</a>
-      <a href="misiones/crear" style={sidebarLinkStyle}>➕ Crear Misión</a>
+      <Link to="/admin/misiones" style={sidebarLinkStyle}>📋 Catálogo</Link>
+      <Link to="/admin/misiones/crear" style={sidebarLinkStyle}>➕ Crear Misión</Link>
       <div style={sidebarSectionStyle}>Sesiones</div>
-      <a href="sesiones" style={sidebarLinkStyle}>📋 Listado</a>
-      <a href="sesiones/crear" style={sidebarLinkStyle}>➕ Crear Sesión</a>
+      <Link to="/admin/sesiones" style={sidebarLinkStyle}>📋 Listado</Link>
+      <Link to="/admin/sesiones/crear" style={sidebarLinkStyle}>➕ Crear Sesión</Link>
       <div style={sidebarSectionStyle}>Equipos</div>
-      <a href="equipos" style={sidebarLinkStyle}>📋 Listado</a>
-      <a href="equipos/crear" style={sidebarLinkStyle}>➕ Crear Equipo</a>
+      <Link to="/admin/equipos" style={sidebarLinkStyle}>📋 Listado</Link>
+      <Link to="/admin/equipos/crear" style={sidebarLinkStyle}>➕ Crear Equipo</Link>
       <div style={sidebarSectionStyle}>Usuarios</div>
-      <a href="usuarios" style={sidebarLinkStyle}>📋 Listado</a>
-      <a href="operadores/nuevo" style={sidebarLinkStyle}>➕ Crear Operador</a>
+      <Link to="/admin/usuarios" style={sidebarLinkStyle}>📋 Listado</Link>
+      <Link to="/admin/operadores/nuevo" style={sidebarLinkStyle}>➕ Crear Operador</Link>
     </Sidebar>
   );
 }
@@ -134,12 +142,12 @@ function OperatorPanel() {
   return (
     <Sidebar role="Operador">
       <div style={sidebarSectionStyle}>Misiones</div>
-      <a href="misiones" style={sidebarLinkStyle}>📋 Catálogo</a>
+      <Link to="/operator/misiones" style={sidebarLinkStyle}>📋 Catálogo</Link>
       <div style={sidebarSectionStyle}>Sesiones</div>
-      <a href="sesiones" style={sidebarLinkStyle}>📋 Listado</a>
-      <a href="sesiones/crear" style={sidebarLinkStyle}>➕ Crear Sesión</a>
+      <Link to="/operator/sesiones" style={sidebarLinkStyle}>📋 Listado</Link>
+      <Link to="/operator/sesiones/crear" style={sidebarLinkStyle}>➕ Crear Sesión</Link>
       <div style={sidebarSectionStyle}>Equipos</div>
-      <a href="equipos" style={sidebarLinkStyle}>📋 Listado</a>
+      <Link to="/operator/equipos" style={sidebarLinkStyle}>📋 Listado</Link>
     </Sidebar>
   );
 }
@@ -148,9 +156,11 @@ function ParticipantPanel() {
   return (
     <Sidebar role="Participante">
       <div style={sidebarSectionStyle}>Mi Cuenta</div>
-      <a href="perfil" style={sidebarLinkStyle}>👤 Mi Perfil</a>
+      <Link to="/participant/perfil" style={sidebarLinkStyle}>👤 Mi Perfil</Link>
       <div style={sidebarSectionStyle}>Equipos</div>
-      <a href="equipo/unirse" style={sidebarLinkStyle}>🔗 Unirse a Equipo</a>
+      <Link to="/participant/equipo/unirse" style={sidebarLinkStyle}>🔗 Unirse a Equipo</Link>
+      <div style={sidebarSectionStyle}>Juego</div>
+      <Link to="/participant/sessions/join" style={sidebarLinkStyle}>🎮 Unirse a Sesión</Link>
     </Sidebar>
   );
 }
@@ -165,13 +175,14 @@ function Callback() {
 
   if (auth.isAuthenticated) {
     const roles = auth.user?.access_token ? getRoles(auth.user.access_token) : [];
-    if (roles.includes("admin")) navigate("/", { replace: true });
-    else if (roles.includes("operator")) navigate("/", { replace: true });
+    if (roles.includes("admin")) navigate("/admin", { replace: true });
+    else if (roles.includes("operator")) navigate("/operator", { replace: true });
     else navigate("/participant", { replace: true });
     return null;
   }
 
   if (auth.error) {
+    console.error("[Callback] error:", auth.error);
     return <div>Error: {auth.error.message}</div>;
   }
 
@@ -189,7 +200,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/misiones" element={<CatalogoMisiones />} />
         </Route>
-        <Route element={<ProtectedRoute requiredRole="admin" />}>
+        <Route path="/admin" element={<ProtectedRoute requiredRole="admin" />}>
           <Route element={<AdminPanel />}>
             <Route index element={<h2>Bienvenido al Panel de Administración</h2>} />
             <Route path="misiones" element={<CatalogoMisiones />} />
@@ -207,7 +218,7 @@ function App() {
             <Route path="sesiones/crear" element={<CrearSesion />} />
           </Route>
         </Route>
-        <Route element={<ProtectedRoute requiredRole="operator" />}>
+        <Route path="/operator" element={<ProtectedRoute requiredRole="operator" />}>
           <Route element={<OperatorPanel />}>
             <Route index element={<h2>Panel de Operador</h2>} />
             <Route path="misiones" element={<CatalogoMisiones />} />
@@ -216,13 +227,15 @@ function App() {
             <Route path="equipos" element={<ListadoEquipos />} />
           </Route>
         </Route>
-        <Route element={<ProtectedRoute requiredRole="participant" />}>
+        <Route path="/participant" element={<ProtectedRoute requiredRole="participant" />}>
           <Route element={<ParticipantPanel />}>
             <Route index element={<h2>Panel de Participante</h2>} />
             <Route path="perfil" element={<MiPerfil />} />
             <Route path="equipo/unirse" element={<UnirseEquipo />} />
+            <Route path="sessions/join" element={<UnirseSesion />} />
           </Route>
         </Route>
+        <Route path="/juego/:sessionId" element={<GameView />} />
       </Routes>
     </BrowserRouter>
   );

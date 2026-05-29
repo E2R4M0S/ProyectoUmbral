@@ -7,6 +7,7 @@ import type {
   GetSessionsParams,
   GetSessionsResponse,
 } from "../types/session";
+import type { JoinSessionResponse } from "../types/game";
 
 export class ApiError extends Error {
   constructor(
@@ -21,6 +22,21 @@ export class ApiError extends Error {
 export interface StartSessionResponse {
   id: string;
   status: string;
+}
+
+export async function joinSession(pin: string): Promise<JoinSessionResponse> {
+  const response = await fetchWithAuth("/api/sessions/join", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new ApiError(response.status, errorBody);
+  }
+
+  return response.json();
 }
 
 export async function startSession(id: string): Promise<StartSessionResponse> {
