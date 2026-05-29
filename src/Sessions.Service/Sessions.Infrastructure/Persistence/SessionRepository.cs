@@ -20,6 +20,11 @@ public class SessionRepository : ISessionRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public async Task<Session?> GetByIdAsync(Guid id, CancellationToken ct)
+    {
+        return await _context.Sessions.FindAsync(new object[] { id }, ct);
+    }
+
     public async Task<bool> IsPinUniqueAsync(string pin, CancellationToken ct)
     {
         return !await _context.Sessions
@@ -61,5 +66,11 @@ public class SessionRepository : ISessionRepository
             .ToListAsync(ct);
 
         return (items, totalCount);
+    }
+
+    public async Task UpdateAsync(Session session, CancellationToken ct)
+    {
+        _context.Sessions.Update(session);
+        await _context.SaveChangesAsync(ct);
     }
 }
