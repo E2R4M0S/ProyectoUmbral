@@ -1,27 +1,45 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { listMissions, ApiError } from "../../services/missionsApi";
-import type { MissionListItem, GetMissionsParams } from "../../types/mission";
-
-const DIFFICULTY_OPTIONS = [
-  { value: "", label: "Todas las dificultades" },
-  { value: "Easy", label: "Fácil" },
-  { value: "Medium", label: "Media" },
-  { value: "Hard", label: "Difícil" },
-];
+import { listSessions, ApiError } from "../../services/sessionsApi";
+import type { SessionListItem, GetSessionsParams } from "../../types/session";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Todos los estados" },
-  { value: "Draft", label: "Borrador" },
-  { value: "Active", label: "Activa" },
+  { value: "Waiting", label: "Esperando" },
+  { value: "InProgress", label: "En Progreso" },
+  { value: "Finished", label: "Finalizada" },
+  { value: "Cancelled", label: "Cancelada" },
 ];
+
+const tableStyle: React.CSSProperties = {
+  width: "100%",
+  borderCollapse: "collapse",
+  fontSize: 14,
+};
+
+const thStyle: React.CSSProperties = {
+  textAlign: "left",
+  padding: "10px 12px",
+  borderBottom: "2px solid #e94560",
+  backgroundColor: "#16213e",
+  fontWeight: 600,
+  color: "white",
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderBottom: "1px solid #0f3460",
+  verticalAlign: "middle",
+  color: "white",
+};
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: 8,
-  border: "1px solid #ccc",
+  border: "1px solid #0f3460",
   borderRadius: 4,
   boxSizing: "border-box",
-  fontSize: 14,
+  backgroundColor: "#16213e",
+  color: "white",
 };
 
 const labelStyle: React.CSSProperties = {
@@ -44,67 +62,6 @@ const filterGroupStyle: React.CSSProperties = {
   minWidth: 150,
 };
 
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  fontSize: 14,
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "10px 12px",
-  borderBottom: "2px solid #dee2e6",
-  backgroundColor: "#f8f9fa",
-  fontWeight: 600,
-  color: "#495057",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderBottom: "1px solid #dee2e6",
-  verticalAlign: "middle",
-};
-
-const actionBtnStyle: React.CSSProperties = {
-  padding: "4px 10px",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-  fontSize: 12,
-  fontWeight: 600,
-  backgroundColor: "#0f3460",
-  color: "#fff",
-  textDecoration: "none",
-  display: "inline-block",
-};
-
-const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block",
-  padding: "2px 8px",
-  borderRadius: 12,
-  fontSize: 12,
-  fontWeight: 600,
-  color: "#fff",
-  backgroundColor: color,
-});
-
-const difficultyBadgeColor = (difficulty: string): string => {
-  switch (difficulty) {
-    case "Easy": return "#28a745";
-    case "Medium": return "#ffc107";
-    case "Hard": return "#dc3545";
-    default: return "#6c757d";
-  }
-};
-
-const statusBadgeColor = (status: string): string => {
-  switch (status) {
-    case "Active": return "#007bff";
-    case "Draft": return "#6c757d";
-    default: return "#6c757d";
-  }
-};
-
 const paginationStyle: React.CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
@@ -120,48 +77,81 @@ const buttonStyle = (primary: boolean): React.CSSProperties => ({
   cursor: "pointer",
   fontSize: 13,
   fontWeight: 600,
-  backgroundColor: primary ? "#007bff" : "#6c757d",
+  backgroundColor: primary ? "#0f3460" : "#6c757d",
   color: "#fff",
 });
 
 const errorStyle: React.CSSProperties = {
   padding: "10px 14px",
-  border: "1px solid #dc3545",
+  border: "1px solid #e94560",
   borderRadius: 4,
-  backgroundColor: "#fff5f5",
-  color: "#dc3545",
+  backgroundColor: "#2d1a1a",
+  color: "#e94560",
   marginBottom: 16,
   fontSize: 14,
 };
 
-export function CatalogoMisiones() {
-  const [items, setItems] = useState<MissionListItem[]>([]);
+const containerStyle: React.CSSProperties = {
+  padding: "1rem",
+  maxWidth: 1200,
+  margin: "0 auto",
+};
+
+const badgeStyle = (status: string): React.CSSProperties => {
+  let bgColor = "#6c757d";
+  switch (status) {
+    case "Waiting": bgColor = "#ffc107"; break;
+    case "InProgress": bgColor = "#28a745"; break;
+    case "Finished": bgColor = "#007bff"; break;
+    case "Cancelled": bgColor = "#dc3545"; break;
+  }
+  return {
+    display: "inline-block",
+    padding: "2px 8px",
+    borderRadius: 12,
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#fff",
+    backgroundColor: bgColor,
+  };
+};
+
+const statusLabel = (status: string): string => {
+  switch (status) {
+    case "Waiting": return "Esperando";
+    case "InProgress": return "En Progreso";
+    case "Finished": return "Finalizada";
+    case "Cancelled": return "Cancelada";
+    default: return status;
+  }
+};
+
+export function ListadoSesiones() {
+  const [items, setItems] = useState<SessionListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, _setPageSize] = useState(10);
   const [search, setSearch] = useState("");
-  const [difficulty, setDifficulty] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  async function loadMissions() {
+  async function loadSessions() {
     setLoading(true);
     setError(null);
     try {
-      const params: GetMissionsParams = { page, pageSize };
+      const params: GetSessionsParams = { page, pageSize };
       if (search.trim()) params.search = search.trim();
-      if (difficulty) params.difficulty = difficulty;
       if (status) params.status = status;
 
-      const result = await listMissions(params);
+      const result = await listSessions(params);
       setItems(result.items);
       setTotalCount(result.totalCount);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(`Error ${err.status}: No se pudo cargar el catálogo de misiones.`);
+        setError(`Error ${err.status}: No se pudo cargar el listado de sesiones.`);
       } else {
         setError("Error de conexión. Verificá tu conexión a internet.");
       }
@@ -171,19 +161,19 @@ export function CatalogoMisiones() {
   }
 
   useEffect(() => {
-    loadMissions();
+    loadSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize]);
 
   function handleSearchSubmit(e: FormEvent) {
     e.preventDefault();
     setPage(1);
-    loadMissions();
+    loadSessions();
   }
 
   function handleFilterChange() {
     setPage(1);
-    loadMissions();
+    loadSessions();
   }
 
   function prevPage() {
@@ -195,8 +185,8 @@ export function CatalogoMisiones() {
   }
 
   return (
-    <div style={{ padding: "1rem", maxWidth: 1200, margin: "0 auto" }}>
-      <h2 style={{ marginBottom: "1rem" }}>Catálogo de Misiones</h2>
+    <div style={containerStyle}>
+      <h2 style={{ marginBottom: "1rem" }}>Listado de Sesiones</h2>
 
       {/* Filters */}
       <form onSubmit={handleSearchSubmit} style={{ marginBottom: 16 }}>
@@ -208,26 +198,9 @@ export function CatalogoMisiones() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Título de la misión..."
+              placeholder="Nombre de la sesión..."
               style={inputStyle}
             />
-          </div>
-
-          <div style={filterGroupStyle}>
-            <label htmlFor="difficulty" style={labelStyle}>Dificultad</label>
-            <select
-              id="difficulty"
-              value={difficulty}
-              onChange={(e) => {
-                setDifficulty(e.target.value);
-                handleFilterChange();
-              }}
-              style={{ ...inputStyle, cursor: "pointer" }}
-            >
-              {DIFFICULTY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
           </div>
 
           <div style={filterGroupStyle}>
@@ -259,56 +232,55 @@ export function CatalogoMisiones() {
       {error && <div style={errorStyle}>{error}</div>}
 
       {/* Loading */}
-      {loading && <div style={{ marginBottom: 16, color: "#666" }}>Cargando...</div>}
+      {loading && <div style={{ marginBottom: 16, color: "#aaa" }}>Cargando...</div>}
 
       {/* Table */}
       {!loading && (
         <>
-          <div style={{ marginBottom: 8, fontSize: 13, color: "#666" }}>
+          <div style={{ marginBottom: 8, fontSize: 13, color: "#aaa" }}>
             {totalCount === 0
               ? "Sin resultados"
-              : `${totalCount} misión${totalCount !== 1 ? "es" : ""} encontrada${totalCount !== 1 ? "s" : ""}`}
+              : `${totalCount} sesión${totalCount !== 1 ? "es" : ""} encontrada${totalCount !== 1 ? "s" : ""}`}
           </div>
 
           <table style={tableStyle}>
             <thead>
               <tr>
-                <th style={thStyle}>Título</th>
-                <th style={thStyle}>Dificultad</th>
-                <th style={thStyle}>Tipo</th>
+                <th style={thStyle}>Nombre</th>
+                <th style={thStyle}>Misión</th>
                 <th style={thStyle}>Estado</th>
-                <th style={thStyle}>Acciones</th>
+                <th style={thStyle}>PIN</th>
+                <th style={thStyle}>Fecha</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ ...tdStyle, textAlign: "center", color: "#666" }}>
-                    No se encontraron misiones
+                    No se encontraron sesiones
                   </td>
                 </tr>
               ) : (
                 items.map((item) => (
                   <tr key={item.id}>
-                    <td style={tdStyle}>{item.title}</td>
+                    <td style={tdStyle}>{item.name}</td>
+                    <td style={tdStyle}>{item.missionTitle}</td>
                     <td style={tdStyle}>
-                      <span style={badgeStyle(difficultyBadgeColor(item.difficulty))}>
-                        {item.difficulty}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>{item.type}</td>
-                    <td style={tdStyle}>
-                      <span style={badgeStyle(statusBadgeColor(item.status))}>
-                        {item.status === "Active" ? "Activa" : item.status === "Draft" ? "Borrador" : item.status}
+                      <span style={badgeStyle(item.status)}>
+                        {statusLabel(item.status)}
                       </span>
                     </td>
                     <td style={tdStyle}>
-                      <a
-                        href={`/admin/misiones/${item.id}/editar`}
-                        style={actionBtnStyle}
-                      >
-                        Editar
-                      </a>
+                      <code style={{
+                        padding: "2px 8px",
+                        backgroundColor: "#0f3460",
+                        borderRadius: 4,
+                      }}>
+                        {item.pin}
+                      </code>
+                    </td>
+                    <td style={tdStyle}>
+                      {new Date(item.createdAt).toLocaleDateString("es-AR")}
                     </td>
                   </tr>
                 ))

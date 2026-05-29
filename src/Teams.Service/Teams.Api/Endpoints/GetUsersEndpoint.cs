@@ -7,7 +7,7 @@ public static class GetUsersEndpoint
 {
     public static void MapGetUsersEndpoint(this WebApplication app)
     {
-        app.MapGet("/admin/users", async (
+        app.MapGet("/users", async (
             string? search,
             string? role,
             bool? enabled,

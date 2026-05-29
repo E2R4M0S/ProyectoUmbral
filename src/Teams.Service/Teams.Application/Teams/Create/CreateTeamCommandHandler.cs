@@ -38,12 +38,15 @@ public class CreateTeamCommandHandler : IRequestHandler<CreateTeamCommand, Creat
         }
 
         // Validar que todos los miembros existen en Keycloak
-        foreach (var memberId in command.MemberIds)
+        if (command.MemberIds is not null)
         {
-            var member = await _keycloakAdminService.GetUserByIdAsync(memberId, ct);
-            if (member is null)
+            foreach (var memberId in command.MemberIds)
             {
-                throw new InvalidOperationException($"Member with ID '{memberId}' not found in Keycloak.");
+                var member = await _keycloakAdminService.GetUserByIdAsync(memberId, ct);
+                if (member is null)
+                {
+                    throw new InvalidOperationException($"Member with ID '{memberId}' not found in Keycloak.");
+                }
             }
         }
 
@@ -51,10 +54,16 @@ public class CreateTeamCommandHandler : IRequestHandler<CreateTeamCommand, Creat
         var team = Team.Create(command.Name, command.Description, command.LeaderId);
         team.GenerateJoinCode();
 
+        // Agregar al líder como miembro
+        team.AddMember(command.LeaderId);
+
         // Agregar los miembros
-        foreach (var memberId in command.MemberIds)
+        if (command.MemberIds is not null)
         {
-            team.AddMember(memberId);
+            foreach (var memberId in command.MemberIds)
+            {
+                team.AddMember(memberId);
+            }
         }
 
         // Persistir
@@ -70,6 +79,7 @@ public class CreateTeamCommandHandler : IRequestHandler<CreateTeamCommand, Creat
             team.Description,
             team.LeaderId,
             team.Members.Select(m => m.UserId).ToList(),
+            team.JoinCode,
             team.CreatedAt);
     }
 }

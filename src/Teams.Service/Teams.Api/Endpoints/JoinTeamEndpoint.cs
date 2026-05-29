@@ -8,38 +8,25 @@ public static class JoinTeamEndpoint
 {
     public static void MapJoinTeamEndpoint(this WebApplication app)
     {
-        app.MapPost("/api/teams/{id:guid}/join", async (
-            [FromRoute] Guid id,
+        app.MapPost("/api/teams/join", async (
             [FromBody] JoinTeamRequest request,
             IMediator mediator,
             ILogger<Program> logger) =>
         {
             try
             {
-                var command = new JoinTeamCommand(id, request.JoinCode);
+                var command = new JoinTeamCommand(request.JoinCode);
                 var result = await mediator.Send(command);
 
                 logger.LogInformation(
-                    "User joined team successfully: TeamId={TeamId}",
-                    id);
+                    "User joined team successfully");
 
                 return Results.NoContent();
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not found") || ex.Message.Contains("Invalid join code"))
             {
                 logger.LogWarning(
-                    "Team not found: TeamId={TeamId}", id);
-
-                return Results.NotFound(new
-                {
-                    error = "Not Found",
-                    message = ex.Message
-                });
-            }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("Invalid join code"))
-            {
-                logger.LogWarning(
-                    "Invalid join code for team: TeamId={TeamId}", id);
+                    "Join team failed: {Message}", ex.Message);
 
                 return Results.Json(
                     new { error = "Forbidden", message = ex.Message },
@@ -48,7 +35,7 @@ public static class JoinTeamEndpoint
             catch (InvalidOperationException ex) when (ex.Message.Contains("already a member"))
             {
                 logger.LogWarning(
-                    "User already a member of team: TeamId={TeamId}", id);
+                    "Join team failed: already a member");
 
                 return Results.Conflict(new
                 {
@@ -60,19 +47,12 @@ public static class JoinTeamEndpoint
             {
                 logger.LogError(ex, "Join team failed due to an unexpected error");
 
-                var problem = new
-                {
-                    statusCode = StatusCodes.Status500InternalServerError,
-                    title = "Join team failed",
-                    detail = "An unexpected error occurred while joining the team. Please try again later."
-                };
-
                 return Results.Problem(
-                    problem.title,
+                    "Join team failed",
                     null,
-                    problem.statusCode,
-                    problem.title,
-                    problem.detail);
+                    StatusCodes.Status500InternalServerError,
+                    "Join team failed",
+                    "An unexpected error occurred while joining the team.");
             }
         })
         .WithName("JoinTeam")

@@ -25,6 +25,12 @@ public class TeamRepository : ITeamRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public async Task AddMemberAsync(Team team, TeamMember member, CancellationToken ct)
+    {
+        _context.Set<TeamMember>().Add(member);
+        await _context.SaveChangesAsync(ct);
+    }
+
     public async Task<bool> IsNameUniqueAsync(string name, CancellationToken ct)
     {
         return !await _context.Teams.AnyAsync(t => t.Name == name, ct);
@@ -58,5 +64,13 @@ public class TeamRepository : ITeamRepository
         return await _context.Teams
             .Include(t => t.Members)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
+    }
+
+    public async Task<Team?> GetByJoinCodeAsync(string joinCode, CancellationToken ct)
+    {
+        var code = joinCode.ToUpperInvariant();
+        return await _context.Teams
+            .Include(t => t.Members)
+            .FirstOrDefaultAsync(t => t.JoinCode == code, ct);
     }
 }

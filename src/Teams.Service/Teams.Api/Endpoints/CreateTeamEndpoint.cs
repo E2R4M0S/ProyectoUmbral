@@ -29,6 +29,7 @@ public static class CreateTeamEndpoint
                         description = result.Description,
                         leaderId = result.LeaderId,
                         memberIds = result.MemberIds,
+                        joinCode = result.JoinCode,
                         createdAt = result.CreatedAt
                     });
             }

@@ -70,6 +70,32 @@ export async function getMissionById(id: string): Promise<MissionDetail> {
   return response.json();
 }
 
+export interface UpdateMissionRequest {
+  title: string;
+  description: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  timeMinutes: number;
+  type: "Treasure" | "Trivia";
+}
+
+export async function updateMission(
+  id: string,
+  data: UpdateMissionRequest,
+): Promise<MissionResponse> {
+  const response = await fetchWithAuth(`/api/admin/missions/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new ApiError(response.status, errorBody);
+  }
+
+  return response.json();
+}
+
 export async function getActiveMissions(
   params?: Omit<GetMissionsParams, "status">,
 ): Promise<GetMissionsResponse> {
