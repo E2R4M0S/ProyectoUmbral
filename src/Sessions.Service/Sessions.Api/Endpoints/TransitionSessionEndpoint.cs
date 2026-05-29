@@ -1,4 +1,5 @@
 using MediatR;
+using Sessions.Application.Common.Interfaces;
 using Sessions.Application.Sessions.Transition;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,12 +13,15 @@ public static class TransitionSessionEndpoint
             [FromRoute] Guid id,
             [FromBody] TransitionSessionCommand command,
             IMediator mediator,
+            IGameNotifier notifier,
             ILogger<Program> logger) =>
         {
             try
             {
                 var updatedCommand = command with { Id = id };
                 await mediator.Send(updatedCommand);
+
+                await notifier.NotifySessionStatusChanged(id, command.NewStatus);
 
                 logger.LogInformation(
                     "Session status transitioned successfully: Id={SessionId}",
