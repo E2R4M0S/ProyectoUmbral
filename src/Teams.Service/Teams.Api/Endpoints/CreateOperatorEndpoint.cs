@@ -7,7 +7,7 @@ public static class CreateOperatorEndpoint
 {
     public static void MapCreateOperatorEndpoint(this WebApplication app)
     {
-        app.MapPost("/admin/operators", async (
+        app.MapPost("/operators", async (
             CreateOperatorCommand command,
             IMediator mediator,
             ILogger<Program> logger) =>

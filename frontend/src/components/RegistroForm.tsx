@@ -45,35 +45,42 @@ function validatePassword(value: string): string | undefined {
 
 const inputStyle = (hasError: boolean): React.CSSProperties => ({
   width: "100%",
-  padding: 8,
-  border: hasError ? "1px solid #dc3545" : "1px solid #ccc",
-  borderRadius: 4,
+  padding: 10,
+  border: hasError ? "2px solid #e94560" : "1px solid #0f3460",
+  borderRadius: 8,
   boxSizing: "border-box",
+  backgroundColor: "#16213e",
+  color: "white",
+  fontSize: 15,
+  outline: "none",
 });
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  marginBottom: 4,
+  marginBottom: 6,
   fontWeight: 600,
+  fontSize: 14,
+  color: "#ccc",
 };
 
 const errorStyle: React.CSSProperties = {
-  color: "#dc3545",
+  color: "#e94560",
   fontSize: 12,
   margin: "4px 0 0",
 };
 
 const fieldGroupStyle: React.CSSProperties = {
-  marginBottom: 14,
+  marginBottom: 16,
 };
 
 const submitBtnStyle = (disabled: boolean): React.CSSProperties => ({
   width: "100%",
-  padding: 10,
-  backgroundColor: disabled ? "#999" : "#007bff",
+  padding: 12,
+  marginTop: 8,
+  backgroundColor: disabled ? "#999" : "#e94560",
   color: "#fff",
   border: "none",
-  borderRadius: 4,
+  borderRadius: 8,
   cursor: disabled ? "not-allowed" : "pointer",
   fontSize: 16,
   fontWeight: 600,
@@ -141,7 +148,7 @@ export function RegistroForm({ onSuccess }: RegistroFormProps) {
             padding: "8px 12px",
             border: "1px solid #dc3545",
             borderRadius: 4,
-            backgroundColor: "#fff5f5",
+            backgroundColor: "#2d1a1a",
           }}
         >
           {submitError}

@@ -8,7 +8,7 @@ public static class RegisterParticipantEndpoint
 {
     public static void MapRegisterParticipantEndpoint(this WebApplication app)
     {
-        app.MapPost("/register", async (
+        app.MapPost("/api/teams/register", async (
             RegisterParticipantCommand command,
             IMediator mediator,
             ILogger<Program> logger) =>

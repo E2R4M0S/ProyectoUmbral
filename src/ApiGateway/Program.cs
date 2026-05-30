@@ -43,6 +43,9 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("operator_or_participant", policy =>
         policy.RequireAssertion(ctx =>
             ctx.User.IsInRole("operator") || ctx.User.IsInRole("participant")));
+    options.AddPolicy("operator_or_admin", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.IsInRole("admin") || ctx.User.IsInRole("operator")));
 });
 
 // YARP reverse proxy

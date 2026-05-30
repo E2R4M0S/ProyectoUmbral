@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using MediatR;
 using Teams.Application.Teams.Users.GetUsers;
 
@@ -8,6 +9,7 @@ public static class GetUsersEndpoint
     public static void MapGetUsersEndpoint(this WebApplication app)
     {
         app.MapGet("/users", async (
+            HttpContext httpContext,
             string? search,
             string? role,
             bool? enabled,
@@ -27,6 +29,17 @@ public static class GetUsersEndpoint
 
                 var result = await mediator.Send(query);
 
+                // Operators should NOT see admin users
+                var isAdmin = httpContext.User.IsInRole("admin");
+                if (!isAdmin)
+                {
+                    result = result with
+                    {
+                        Items = result.Items.Where(i => !i.Roles.Contains("admin") && !i.Roles.Contains("operator")).ToArray(),
+                        TotalCount = result.Items.Count(i => !i.Roles.Contains("admin") && !i.Roles.Contains("operator"))
+                    };
+                }
+
                 logger.LogInformation(
                     "Users listed: TotalCount={TotalCount}, Page={Page}, PageSize={PageSize}",
                     result.TotalCount, result.Page, result.PageSize);
@@ -45,6 +58,6 @@ public static class GetUsersEndpoint
             }
         })
         .WithName("GetUsers")
-        .RequireAuthorization("admin");
+        .RequireAuthorization("operator_or_admin");
     }
 }
