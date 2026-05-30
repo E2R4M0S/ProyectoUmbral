@@ -18,10 +18,14 @@ public class SessionParticipantConfiguration : IEntityTypeConfiguration<SessionP
         builder.Property(sp => sp.UserId)
             .IsRequired();
 
+        builder.Property(sp => sp.UserAlias)
+            .HasMaxLength(200)
+            .IsRequired();
+
         builder.Property(sp => sp.JoinedAt)
             .IsRequired();
 
-        builder.HasOne(sp => (Session)null!)
+        builder.HasOne<Session>()
             .WithMany(s => s.Participants)
             .HasForeignKey(sp => sp.SessionId)
             .OnDelete(DeleteBehavior.Cascade);

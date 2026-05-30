@@ -17,6 +17,7 @@ export interface SessionListItem {
   missionTitle: string;
   status: SessionStatus;
   pin: string;
+  participantCount: number;
   createdAt: string;
 }
 
@@ -46,15 +47,23 @@ export interface SessionParticipant {
 export interface CreateSessionRequest {
   name: string;
   missionId: string;
+  missionTitle: string;
 }
 
 export interface SessionProgress {
   sessionId: string;
+  name: string;
   status: SessionStatus;
   elapsedSeconds: number;
-  participants: number;
+  participants: ParticipantProgress[];
   teamId: string | null;
   teamName: string | null;
+}
+
+export interface ParticipantProgress {
+  userId: string;
+  userAlias: string;
+  joinedAt: string;
 }
 
 export interface GetSessionsParams {

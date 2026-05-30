@@ -9,7 +9,7 @@ public static class FinishSessionEndpoint
 {
     public static void MapFinishSessionEndpoint(this WebApplication app)
     {
-        app.MapPost("/api/sessions/{id:guid}/finish", async (
+        app.MapPost("/{id:guid}/finish", async (
             [FromRoute] Guid id,
             IMediator mediator,
             IGameNotifier notifier,

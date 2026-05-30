@@ -8,7 +8,7 @@ public static class JoinSessionEndpoint
 {
     public static void MapJoinSessionEndpoint(this WebApplication app)
     {
-        app.MapPost("/api/sessions/join", async (
+        app.MapPost("/join", async (
             [FromBody] JoinSessionCommand command,
             IMediator mediator,
             ILogger<Program> logger) =>

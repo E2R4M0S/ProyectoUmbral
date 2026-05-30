@@ -9,7 +9,7 @@ public static class GetSessionProgressEndpoint
 {
     public static void MapGetSessionProgressEndpoint(this WebApplication app)
     {
-        app.MapGet("/api/sessions/{id:guid}/progress", async (
+        app.MapGet("/{id:guid}/progress", async (
             [FromRoute] Guid id,
             IMediator mediator,
             ILogger<Program> logger) =>

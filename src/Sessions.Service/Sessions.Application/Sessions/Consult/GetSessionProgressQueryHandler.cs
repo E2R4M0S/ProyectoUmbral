@@ -23,12 +23,15 @@ public class GetSessionProgressQueryHandler : IRequestHandler<GetSessionProgress
             return null;
         }
 
+        var elapsed = session.StartedAt.HasValue
+            ? (int)((session.EndedAt ?? DateTime.UtcNow) - session.StartedAt.Value).TotalSeconds
+            : 0;
+
         return new SessionProgressDto(
             session.Id,
             session.Name,
             session.Status.ToString(),
-            session.StartedAt,
-            session.EndedAt,
-            session.Participants.Select(p => new ParticipantProgressDto(p.UserId, p.JoinedAt)).ToList());
+            elapsed,
+            session.Participants.Select(p => new ParticipantProgressDto(p.UserId, p.UserAlias, p.JoinedAt)).ToList());
     }
 }

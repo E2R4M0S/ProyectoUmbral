@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Sessions.Application.Common.Interfaces;
+using Sessions.Domain.Entities;
 using Sessions.Domain.Enums;
 
 namespace Sessions.Application.Sessions.Join;
@@ -44,15 +45,17 @@ public class JoinSessionCommandHandler : IRequestHandler<JoinSessionCommand, Joi
             throw new InvalidOperationException("User identifier not found in token");
         }
 
-        session.AddParticipant(userId);
-        await _repository.UpdateAsync(session, cancellationToken);
+        var userAlias = _httpContextAccessor.HttpContext?.User.FindFirst("alias")?.Value
+            ?? _httpContextAccessor.HttpContext?.User.FindFirst("preferred_username")?.Value
+            ?? _httpContextAccessor.HttpContext?.User.FindFirst("name")?.Value;
 
-        var participant = session.Participants.Single(p => p.UserId == userId);
+        var newParticipant = SessionParticipant.Create(session.Id, userId, userAlias);
+        await _repository.AddParticipantAsync(newParticipant, cancellationToken);
 
         _logger.LogInformation(
             "User {UserId} joined session {SessionId}",
             userId, session.Id);
 
-        return new JoinSessionCommandResult(session.Id, userId, participant.JoinedAt);
+        return new JoinSessionCommandResult(session.Id, userId, newParticipant.JoinedAt);
     }
 }

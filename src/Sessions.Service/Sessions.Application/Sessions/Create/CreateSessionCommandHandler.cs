@@ -24,11 +24,18 @@ public class CreateSessionCommandHandler
         CreateSessionCommand command,
         CancellationToken ct)
     {
+        var existing = await _repository.GetByNameAsync(command.Name, ct);
+        if (existing is not null)
+        {
+            throw new InvalidOperationException($"Ya existe una sesión con el nombre '{command.Name}'");
+        }
+
         var pin = await GenerateUniquePinAsync(ct);
 
         var session = Session.Create(
             command.Name,
             command.MissionId,
+            command.MissionTitle,
             pin);
 
         await _repository.AddAsync(session, ct);

@@ -4,10 +4,10 @@ public record SessionProgressDto(
     Guid SessionId,
     string Name,
     string Status,
-    DateTime? StartedAt,
-    DateTime? EndedAt,
+    int ElapsedSeconds,
     IReadOnlyList<ParticipantProgressDto> Participants);
 
 public record ParticipantProgressDto(
     Guid UserId,
+    string UserAlias,
     DateTime JoinedAt);

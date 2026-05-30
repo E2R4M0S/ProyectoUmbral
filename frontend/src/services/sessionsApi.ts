@@ -52,6 +52,15 @@ export async function startSession(id: string): Promise<StartSessionResponse> {
   return response.json();
 }
 
+export async function transitionSession(id: string, newStatus: string): Promise<void> {
+  const response = await fetchWithAuth(`/api/sessions/${id}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ newStatus }),
+  });
+  if (!response.ok) throw new ApiError(response.status, await response.text());
+}
+
 export async function finishSession(id: string): Promise<StartSessionResponse> {
   const response = await fetchWithAuth(`/api/sessions/${id}/finish`, {
     method: "POST",
