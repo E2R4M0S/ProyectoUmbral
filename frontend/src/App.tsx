@@ -150,6 +150,7 @@ function OperatorPanel() {
       <Link to="/operator/sesiones/crear" style={sidebarLinkStyle}>➕ Crear Sesión</Link>
       <div style={sidebarSectionStyle}>Equipos</div>
       <Link to="/operator/equipos" style={sidebarLinkStyle}>📋 Listado</Link>
+      <Link to="/operator/equipos/crear" style={sidebarLinkStyle}>➕ Crear Equipo</Link>
       <div style={sidebarSectionStyle}>Usuarios</div>
       <Link to="/operator/usuarios" style={sidebarLinkStyle}>📋 Listado</Link>
     </Sidebar>
@@ -230,6 +231,9 @@ function App() {
             <Route path="sesiones" element={<ListadoSesiones />} />
             <Route path="sesiones/crear" element={<CrearSesion />} />
             <Route path="equipos" element={<ListadoEquipos />} />
+            <Route path="equipos/crear" element={<CrearEquipo />} />
+            <Route path="equipos/:id" element={<EquipoDetalle />} />
+            <Route path="equipos/:id/editar" element={<EditarEquipo />} />
             <Route path="usuarios" element={<ListadoUsuarios />} />
           </Route>
         </Route>

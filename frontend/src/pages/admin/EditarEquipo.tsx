@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "react-oidc-context";
 import { getTeamById, updateTeam, ApiError } from "../../services/teamsApi";
 import type { TeamDetail } from "../../types/team";
 
@@ -85,6 +86,8 @@ const errorMsgStyle: React.CSSProperties = {
 export function EditarEquipo() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const auth = useAuth();
+  const base = auth.user?.access_token && (() => { try { const p = JSON.parse(atob(auth.user.access_token.split(".")[1])); return p.realm_access?.roles?.includes("admin") ? "/admin" : "/operator"; } catch { return "/operator"; } })() || "/operator";
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -200,7 +203,7 @@ export function EditarEquipo() {
       </form>
 
       <button
-        onClick={() => navigate(`/admin/equipos/${id}`)}
+        onClick={() => navigate(`${base}/equipos/${id}`)}
         style={{
           width: "100%",
           marginTop: 8,

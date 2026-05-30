@@ -1,5 +1,7 @@
+import { Link } from "react-router-dom";
 import { useState, useEffect, type FormEvent } from "react";
 import { listTeams, ApiError } from "../../services/teamsApi";
+import { useAuth } from "react-oidc-context";
 import type { TeamListItem, GetTeamsParams } from "../../types/team";
 
 const tableStyle: React.CSSProperties = {
@@ -94,6 +96,9 @@ const containerStyle: React.CSSProperties = {
 };
 
 export function ListadoEquipos() {
+  const auth = useAuth();
+  const base = auth.user?.access_token && (() => { try { const p = JSON.parse(atob(auth.user.access_token.split(".")[1])); return p.realm_access?.roles?.includes("admin") ? "/admin" : "/operator"; } catch { return "/operator"; } })() || "/operator";
+
   const [items, setItems] = useState<TeamListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -218,17 +223,9 @@ export function ListadoEquipos() {
                       </code>
                     </td>
                     <td style={tdStyle}>
-                      {base && (
-                      <Link to={`${base}/equipos/${item.id}`}
-                        style={{
-                          ...buttonStyle(true),
-                          textDecoration: "none",
-                          display: "inline-block",
-                        }}
-                      >
+                      <Link to={`${base}/equipos/${item.id}`} style={{ ...buttonStyle(true), textDecoration: "none", display: "inline-block" }}>
                         Ver Detalle
                       </Link>
-                      )}
                     </td>
                   </tr>
                 ))

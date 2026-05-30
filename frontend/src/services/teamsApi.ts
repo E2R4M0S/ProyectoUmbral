@@ -77,6 +77,7 @@ export async function updateTeam(id: string, data: UpdateTeamRequest): Promise<T
     throw new ApiError(response.status, errorBody);
   }
 
+  if (response.status === 204) return { id } as TeamResponse;
   return response.json();
 }
 
@@ -92,6 +93,7 @@ export async function joinTeam(joinCode: string): Promise<{ success: boolean }> 
     throw new ApiError(response.status, errorBody);
   }
 
+  if (response.status === 204) return { success: true };
   return response.json();
 }
 
