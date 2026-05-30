@@ -96,6 +96,6 @@ public static class CreateTeamEndpoint
             }
         })
         .WithName("CreateTeam")
-        .RequireAuthorization("admin");
+        .RequireAuthorization("operator_or_admin");
     }
 }

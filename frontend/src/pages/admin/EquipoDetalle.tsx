@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useAuth } from "react-oidc-context";
 import { getTeamById, removeMember, ApiError } from "../../services/teamsApi";
 import type { TeamDetail } from "../../types/team";
 
@@ -75,6 +76,8 @@ const memberInfoStyle: React.CSSProperties = {
 export function EquipoDetalle() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const auth = useAuth();
+  const base = auth.user?.access_token && (() => { try { const p = JSON.parse(atob(auth.user.access_token.split(".")[1])); return p.realm_access?.roles?.includes("admin") ? "/admin" : "/operator"; } catch { return "/operator"; } })() || "/operator";
   const [team, setTeam] = useState<TeamDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -132,7 +135,7 @@ export function EquipoDetalle() {
     return (
       <div style={containerStyle}>
         <div style={errorStyle}>{error || "Equipo no encontrado"}</div>
-        <button onClick={() => navigate("/admin/equipos")} style={buttonStyle("secondary")}>
+        <button onClick={() => navigate(`${base}/equipos`)} style={buttonStyle("secondary")}>
           Volver al Listado
         </button>
       </div>
@@ -143,7 +146,7 @@ export function EquipoDetalle() {
     <div style={containerStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
         <h2>Detalle del Equipo</h2>
-        <button onClick={() => navigate("/admin/equipos")} style={buttonStyle("secondary")}>
+        <button onClick={() => navigate(`${base}/equipos`)} style={buttonStyle("secondary")}>
           Volver
         </button>
       </div>
@@ -228,12 +231,9 @@ export function EquipoDetalle() {
       </div>
 
       <div style={{ display: "flex", gap: 8 }}>
-        <a
-          href={`/admin/equipos/${id}/editar`}
-          style={{ ...buttonStyle("primary"), textDecoration: "none" }}
-        >
+        <Link to={`${base}/equipos/${id}/editar`} style={{ ...buttonStyle("primary"), textDecoration: "none" }}>
           Editar Equipo
-        </a>
+        </Link>
       </div>
     </div>
   );

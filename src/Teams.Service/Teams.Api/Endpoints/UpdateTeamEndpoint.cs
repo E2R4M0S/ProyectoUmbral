@@ -82,6 +82,6 @@ public static class UpdateTeamEndpoint
             }
         })
         .WithName("UpdateTeam")
-        .RequireAuthorization("admin");
+        .RequireAuthorization("operator_or_admin");
     }
 }

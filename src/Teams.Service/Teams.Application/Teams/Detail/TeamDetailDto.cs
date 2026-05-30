@@ -7,4 +7,5 @@ public record TeamDetailDto(
     string LeaderId,
     string LeaderName,
     string? JoinCode,
+    DateTime CreatedAt,
     IReadOnlyList<MemberDto> Members);

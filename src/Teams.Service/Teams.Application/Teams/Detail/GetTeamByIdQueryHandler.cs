@@ -50,6 +50,7 @@ public class GetTeamByIdQueryHandler : IRequestHandler<GetTeamByIdQuery, TeamDet
             team.LeaderId,
             leaderName,
             team.JoinCode,
+            team.CreatedAt,
             memberDtos);
     }
 }
