@@ -38,7 +38,7 @@ public class CreateStageCommandHandler : IRequestHandler<CreateStageCommand, Cre
             throw;
         }
 
-        await _repository.UpdateAsync(mission, ct);
+        await _repository.AddStageAsync(mission, ct);
 
         var stage = mission.Stages.Last();
 

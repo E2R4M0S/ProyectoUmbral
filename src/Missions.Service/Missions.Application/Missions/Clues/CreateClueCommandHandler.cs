@@ -34,7 +34,7 @@ public class CreateClueCommandHandler : IRequestHandler<CreateClueCommand, Creat
 
         mission.AddStageClue(command.StageId, command.Content, command.Penalty, releaseType);
 
-        await _repository.UpdateAsync(mission, ct);
+        await _repository.AddClueAsync(mission, command.StageId, ct);
 
         var stage = mission.Stages.First(s => s.Id == command.StageId);
         var clue = stage.Clues.Last();

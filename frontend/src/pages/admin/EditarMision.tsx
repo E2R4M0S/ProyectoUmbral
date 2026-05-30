@@ -109,7 +109,6 @@ export function EditarMision() {
   const [description, setDescription] = useState("");
   const [difficulty, setDifficulty] = useState("");
   const [timeMinutes, setTimeMinutes] = useState("");
-  const [type, setType] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,7 +125,6 @@ export function EditarMision() {
         setDescription(mission.description);
         setDifficulty(mission.difficulty);
         setTimeMinutes(String(mission.timeMinutes));
-        setType(mission.type);
       } catch {
         setSubmitError("No se pudo cargar la misión.");
       } finally {
@@ -146,7 +144,6 @@ export function EditarMision() {
       description: validateDescription(description),
       difficulty: validateDifficulty(difficulty),
       timeMinutes: validateTimeMinutes(Number(timeMinutes)),
-      type: validateType(type),
     };
     setFieldErrors(errors);
 
@@ -160,8 +157,7 @@ export function EditarMision() {
         description: description.trim(),
         difficulty: difficulty as Difficulty,
         timeMinutes: Number(timeMinutes),
-        type: type as MissionType,
-      });
+      } as any);
       setSuccess(true);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -245,7 +241,7 @@ export function EditarMision() {
           {fieldErrors.difficulty && <p style={errorStyle}>{fieldErrors.difficulty}</p>}
         </div>
 
-        <div style={fieldGroupStyle}>
+        <div style={{ ...fieldGroupStyle, marginBottom: 20 }}>
           <label htmlFor="mission-time" style={labelStyle}>
             Tiempo (minutos)
           </label>
@@ -264,30 +260,13 @@ export function EditarMision() {
           {fieldErrors.timeMinutes && <p style={errorStyle}>{fieldErrors.timeMinutes}</p>}
         </div>
 
-        <div style={{ ...fieldGroupStyle, marginBottom: 20 }}>
-          <label htmlFor="mission-type" style={labelStyle}>
-            Tipo
-          </label>
-          <select
-            id="mission-type"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            style={inputStyle(Boolean(fieldErrors.type))}
-          >
-            <option value="">Seleccionar tipo</option>
-            <option value="Treasure">Tesoro</option>
-            <option value="Trivia">Trivia</option>
-          </select>
-          {fieldErrors.type && <p style={errorStyle}>{fieldErrors.type}</p>}
-        </div>
-
         <button type="submit" disabled={isSubmitting} style={submitBtnStyle(isSubmitting)}>
           {isSubmitting ? "Guardando..." : "Guardar Cambios"}
         </button>
       </form>
 
       <button
-        onClick={() => navigate("/misiones")}
+        onClick={() => navigate("/admin/misiones")}
         style={{
           width: "100%",
           marginTop: 8,

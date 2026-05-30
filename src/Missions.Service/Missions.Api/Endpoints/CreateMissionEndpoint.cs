@@ -8,7 +8,7 @@ public static class CreateMissionEndpoint
 {
     public static void MapCreateMissionEndpoint(this WebApplication app)
     {
-        app.MapPost("/admin/missions", async (
+        app.MapPost("/missions", async (
             [FromBody] CreateMissionCommand command,
             IMediator mediator,
             ILogger<Program> logger) =>
@@ -22,7 +22,7 @@ public static class CreateMissionEndpoint
                     result.Id, result.Title);
 
                 return Results.Created(
-                    $"/admin/missions/{result.Id}",
+                    $"/missions/{result.Id}",
                     new
                     {
                         id = result.Id,

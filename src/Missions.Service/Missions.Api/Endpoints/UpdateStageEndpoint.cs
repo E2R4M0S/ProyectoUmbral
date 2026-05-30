@@ -8,7 +8,7 @@ public static class UpdateStageEndpoint
 {
     public static void MapUpdateStageEndpoint(this WebApplication app)
     {
-        app.MapPut("/admin/missions/{id:guid}/stages/{stageId:guid}", async (
+        app.MapPut("/missions/{id:guid}/stages/{stageId:guid}", async (
             [FromRoute] Guid id,
             [FromRoute] Guid stageId,
             [FromBody] UpdateStageCommand command,
@@ -76,7 +76,7 @@ public static class UpdateStageEndpoint
                     message = ex.Message
                 });
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("already exists") || ex.Message.Contains("is in use"))
+            catch (InvalidOperationException ex) when (ex.Message.Contains("already exists") || ex.Message.Contains("is in use") || ex.Message.Contains("Ya existe"))
             {
                 logger.LogWarning(
                     "Stage update conflict: {Message}", ex.Message);

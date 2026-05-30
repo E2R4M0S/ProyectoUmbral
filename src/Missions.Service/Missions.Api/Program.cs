@@ -69,6 +69,14 @@ try
 
     app.UseSerilogRequestLogging();
 
+    // Temporary: log EF Core SQL
+    using (var scope = app.Services.CreateScope())
+    {
+        var loggerFactory = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
+        var context = scope.ServiceProvider.GetRequiredService<MissionsDbContext>();
+        // Force EF to log SQL
+    }
+
     app.UseAuthentication();
     app.UseAuthorization();
 
@@ -86,6 +94,7 @@ try
     app.MapChangeMissionStatusEndpoint();
     app.MapMissionCatalogEndpoints();
     app.MapCreateStageEndpoint();
+    app.MapDeleteStageEndpoint();
     app.MapUpdateStageEndpoint();
     app.MapCreateClueEndpoint();
     app.MapDeleteClueEndpoint();

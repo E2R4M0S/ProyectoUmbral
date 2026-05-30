@@ -1,3 +1,4 @@
+using Missions.Application.Common.Proxy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,12 +9,15 @@ namespace Missions.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructureServices(
+        this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<MissionsDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
-        services.AddScoped<IMissionRepository, MissionRepository>();
+        services.AddScoped<MissionRepository>();
+        services.AddScoped<IMissionRepository>(sp =>
+            new MissionAccessProxy(sp.GetRequiredService<MissionRepository>()));
 
         return services;
     }

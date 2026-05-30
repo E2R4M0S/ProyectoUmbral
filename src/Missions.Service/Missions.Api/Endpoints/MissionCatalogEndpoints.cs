@@ -8,7 +8,7 @@ public static class MissionCatalogEndpoints
 {
     public static void MapMissionCatalogEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/missions").WithTags("Mission Catalog");
+        var group = app.MapGroup("/").WithTags("Mission Catalog");
 
         // Register /active BEFORE /{id:guid} to prevent "active" from being parsed as a GUID
         group.MapGet("/active", async (
