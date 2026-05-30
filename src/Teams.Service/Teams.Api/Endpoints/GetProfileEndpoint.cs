@@ -14,7 +14,8 @@ public static class GetProfileEndpoint
             CancellationToken ct) =>
         {
             var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-            var keycloakUserId = context.User.FindFirst("sub")?.Value;
+            var keycloakUserId = context.User.FindFirst("sub")?.Value
+                ?? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(keycloakUserId))
             {

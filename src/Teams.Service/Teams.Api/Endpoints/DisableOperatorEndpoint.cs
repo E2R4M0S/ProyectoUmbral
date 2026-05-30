@@ -7,7 +7,7 @@ public static class DisableOperatorEndpoint
 {
     public static void MapDisableOperatorEndpoint(this WebApplication app)
     {
-        app.MapPost("/admin/operators/disable", async (
+        app.MapPost("/operators/disable", async (
             DisableOperatorCommand command,
             IMediator mediator,
             ILogger<Program> logger) =>

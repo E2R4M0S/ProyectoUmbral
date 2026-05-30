@@ -38,6 +38,6 @@ public static class GetUserByIdEndpoint
             }
         })
         .WithName("GetUserById")
-        .RequireAuthorization("admin");
+        .RequireAuthorization("operator_or_admin");
     }
 }

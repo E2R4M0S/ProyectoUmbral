@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
+import { useAuth } from "react-oidc-context";
 import { getUsers, ApiError } from "../../services/adminUsuariosApi";
 import type { UserListItem, GetUsersParams } from "../../types/usuario";
 
@@ -8,6 +9,15 @@ const ROLE_OPTIONS = [
   { value: "operator", label: "Operador" },
   { value: "participant", label: "Participante" },
 ];
+
+function getRoles(accessToken: string): string[] {
+  try {
+    const payload = JSON.parse(atob(accessToken.split(".")[1]));
+    return payload.realm_access?.roles ?? [];
+  } catch {
+    return [];
+  }
+}
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -108,6 +118,9 @@ function formatDate(dateStr: string): string {
 }
 
 export function ListadoUsuarios() {
+  const auth = useAuth();
+  const isAdmin = auth.user?.access_token ? getRoles(auth.user.access_token).includes("admin") : false;
+
   const [items, setItems] = useState<UserListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -186,6 +199,7 @@ export function ListadoUsuarios() {
             />
           </div>
 
+          {isAdmin && (
           <div style={filterGroupStyle}>
             <label htmlFor="role" style={labelStyle}>Rol</label>
             <select
@@ -199,6 +213,7 @@ export function ListadoUsuarios() {
               ))}
             </select>
           </div>
+          )}
 
           <div style={filterGroupStyle}>
             <label htmlFor="enabled" style={labelStyle}>Estado</label>

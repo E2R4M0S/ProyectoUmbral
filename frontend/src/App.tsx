@@ -134,6 +134,7 @@ function AdminPanel() {
       <div style={sidebarSectionStyle}>Usuarios</div>
       <Link to="/admin/usuarios" style={sidebarLinkStyle}>📋 Listado</Link>
       <Link to="/admin/operadores/nuevo" style={sidebarLinkStyle}>➕ Crear Operador</Link>
+      <Link to="/admin/operadores/desactivar" style={sidebarLinkStyle}>🚫 Desactivar Operador</Link>
     </Sidebar>
   );
 }
@@ -148,6 +149,8 @@ function OperatorPanel() {
       <Link to="/operator/sesiones/crear" style={sidebarLinkStyle}>➕ Crear Sesión</Link>
       <div style={sidebarSectionStyle}>Equipos</div>
       <Link to="/operator/equipos" style={sidebarLinkStyle}>📋 Listado</Link>
+      <div style={sidebarSectionStyle}>Usuarios</div>
+      <Link to="/operator/usuarios" style={sidebarLinkStyle}>📋 Listado</Link>
     </Sidebar>
   );
 }
@@ -225,6 +228,7 @@ function App() {
             <Route path="sesiones" element={<ListadoSesiones />} />
             <Route path="sesiones/crear" element={<CrearSesion />} />
             <Route path="equipos" element={<ListadoEquipos />} />
+            <Route path="usuarios" element={<ListadoUsuarios />} />
           </Route>
         </Route>
         <Route path="/participant" element={<ProtectedRoute requiredRole="participant" />}>

@@ -1,48 +1,50 @@
 import { useState } from "react";
 import { RegistroForm } from "../../components/RegistroForm";
-import { userManager } from "../../auth/keycloak";
+import { Link } from "react-router-dom";
 
 export function Registro() {
   const [registered, setRegistered] = useState(false);
 
   function handleSuccess() {
     setRegistered(true);
-    // Iniciar flujo OIDC inmediatamente después del registro exitoso.
-    // El usuario será redirigido a Keycloak y podrá ingresar sus credenciales.
-    userManager.signinRedirect({
-      extraQueryParams: { audience: "umbral-gateway" },
-    });
   }
 
   if (registered) {
     return (
-      <div style={{ textAlign: "center", padding: "2rem" }}>
-        <h2>¡Registro exitoso!</h2>
-        <p>Redirigiendo al inicio de sesión...</p>
+      <div style={{
+        minHeight: "100vh", backgroundColor: "#1a1a2e", color: "white",
+        display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", fontFamily: "sans-serif"
+      }}>
+        <h2 style={{ color: "#e94560", marginBottom: "0.5rem" }}>Registro exitoso</h2>
+        <p style={{ color: "#aaa" }}>Ya podés iniciar sesion.</p>
+        <Link to="/" style={{ marginTop: "1rem", color: "#e94560", fontWeight: 600 }}>
+          Volver al inicio
+        </Link>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 500, margin: "0 auto", padding: "2rem" }}>
-      <h1 style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-        Registro de Participante
-      </h1>
-      <RegistroForm onSuccess={handleSuccess} />
-      <p style={{ textAlign: "center", marginTop: "1.25rem", fontSize: 14 }}>
-        ¿Ya tenés cuenta?{" "}
-        <a
-          href="/login"
-          onClick={(e) => {
-            e.preventDefault();
-            userManager.signinRedirect({
-              extraQueryParams: { audience: "umbral-gateway" },
-            });
-          }}
-        >
-          Iniciá sesión
-        </a>
-      </p>
+    <div style={{
+      minHeight: "100vh", backgroundColor: "#1a1a2e", color: "white",
+      fontFamily: "sans-serif", padding: "3rem 1rem"
+    }}>
+      <div style={{ maxWidth: 420, margin: "0 auto" }}>
+        <h1 style={{ textAlign: "center", marginBottom: "0.5rem", fontSize: "1.8rem" }}>
+          Registro de Participante
+        </h1>
+        <p style={{ textAlign: "center", color: "#999", marginBottom: "2rem", fontSize: 14 }}>
+          Crea tu cuenta para unirte a las experiencias
+        </p>
+        <RegistroForm onSuccess={handleSuccess} />
+        <p style={{ textAlign: "center", marginTop: "1.5rem", fontSize: 14, color: "#999" }}>
+          Ya tenes cuenta?{" "}
+          <Link to="/" style={{ color: "#e94560", fontWeight: 600, textDecoration: "none" }}>
+            Inicia sesion
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
