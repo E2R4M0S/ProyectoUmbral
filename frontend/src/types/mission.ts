@@ -37,6 +37,22 @@ export interface MissionDetail {
   timeMinutes: number;
   type: string;
   status: string;
+  stages: Stage[];
+}
+
+export interface Stage {
+  id: string;
+  name: string;
+  description: string;
+  order: number;
+  clues: Clue[];
+}
+
+export interface Clue {
+  id: string;
+  content: string;
+  penalty: number | null;
+  releaseType: string;
 }
 
 export interface GetMissionsParams {

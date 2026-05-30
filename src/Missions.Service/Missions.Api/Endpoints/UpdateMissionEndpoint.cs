@@ -8,7 +8,7 @@ public static class UpdateMissionEndpoint
 {
     public static void MapUpdateMissionEndpoint(this WebApplication app)
     {
-        app.MapPut("/admin/missions/{id:guid}", async (
+        app.MapPut("/missions/{id:guid}", async (
             [FromRoute] Guid id,
             [FromBody] UpdateMissionCommand command,
             IMediator mediator,

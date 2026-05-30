@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Missions.Application.Common.Interfaces;
 using Missions.Domain.Entities;
 using Missions.Domain.Enums;
+using Missions.Domain.Entities;
+using Missions.Domain.Enums;
 
 namespace Missions.Infrastructure.Persistence;
 
@@ -67,12 +69,39 @@ public class MissionRepository : IMissionRepository
     {
         return await _context.Missions
             .Include(m => m.Stages)
+                .ThenInclude(s => s.Clues)
             .FirstOrDefaultAsync(m => m.Id == id, ct);
     }
 
     public async Task UpdateAsync(Mission mission, CancellationToken ct)
     {
-        _context.Missions.Update(mission);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task AddStageAsync(Mission mission, CancellationToken ct)
+    {
+        _context.Missions.Attach(mission);
+        var stage = mission.Stages.Last();
+        await _context.Set<MissionStage>().AddAsync(stage, ct);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task AddClueAsync(Mission mission, Guid stageId, CancellationToken ct)
+    {
+        _context.Missions.Attach(mission);
+        var stage = mission.Stages.First(s => s.Id == stageId);
+        var clue = stage.Clues.Last();
+        await _context.Set<MissionClue>().AddAsync(clue, ct);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public void RemoveStage(Mission mission, MissionStage stage)
+    {
+        _context.Set<MissionStage>().Remove(stage);
+    }
+
+    public async Task SaveChangesAsync(CancellationToken ct)
+    {
         await _context.SaveChangesAsync(ct);
     }
 }

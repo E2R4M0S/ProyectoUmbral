@@ -65,7 +65,12 @@ public class Mission
     {
         if (_stages.Any(s => s.Order == order))
         {
-            throw new InvalidOperationException($"A stage with Order {order} already exists");
+            throw new InvalidOperationException($"Ya existe una etapa con el orden {order}");
+        }
+
+        if (_stages.Any(s => s.Name.Equals(name.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException($"Ya existe una etapa con el nombre '{name.Trim()}'");
         }
 
         var stage = new MissionStage(Id, name, description, order);
@@ -82,7 +87,12 @@ public class Mission
 
         if (_stages.Any(s => s.Id != stageId && s.Order == order))
         {
-            throw new InvalidOperationException($"A stage with Order {order} already exists");
+            throw new InvalidOperationException($"Ya existe una etapa con el orden {order}");
+        }
+
+        if (_stages.Any(s => s.Id != stageId && s.Name.Equals(name.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException($"Ya existe una etapa con el nombre '{name.Trim()}'");
         }
 
         stage.Update(name, description, order);

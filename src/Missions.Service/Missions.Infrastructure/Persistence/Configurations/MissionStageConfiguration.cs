@@ -26,11 +26,6 @@ public class MissionStageConfiguration : IEntityTypeConfiguration<MissionStage>
         builder.HasIndex(s => new { s.MissionId, s.Order })
             .IsUnique();
 
-        builder.HasOne(s => s.Mission)
-            .WithMany()
-            .HasForeignKey(s => s.MissionId)
-            .OnDelete(DeleteBehavior.Cascade);
-
         builder.HasMany(s => s.Clues)
             .WithOne()
             .HasForeignKey(c => c.StageId)

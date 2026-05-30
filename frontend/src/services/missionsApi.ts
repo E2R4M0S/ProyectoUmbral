@@ -34,6 +34,91 @@ export async function createMission(
   return response.json();
 }
 
+export async function changeMissionStatus(
+  id: string,
+  newStatus: string,
+): Promise<void> {
+  const response = await fetchWithAuth(`/api/admin/missions/${id}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: newStatus }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new ApiError(response.status, errorBody);
+  }
+}
+
+export async function createStage(
+  missionId: string,
+  data: { name: string; description: string; order: number },
+): Promise<void> {
+  const response = await fetchWithAuth(`/api/admin/missions/${missionId}/stages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...data, missionId }),
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    let msg = body;
+    try { const j = JSON.parse(body); msg = j.detail || j.message || j.title || body; } catch {}
+    throw new ApiError(response.status, msg);
+  }
+}
+
+export async function updateStage(
+  missionId: string,
+  stageId: string,
+  data: { name: string; description: string; order: number },
+): Promise<void> {
+  const response = await fetchWithAuth(`/api/admin/missions/${missionId}/stages/${stageId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...data, missionId }),
+  });
+  if (!response.ok) throw new ApiError(response.status, await response.text());
+}
+
+export async function createClue(
+  missionId: string,
+  stageId: string,
+  data: { content: string; penalty?: number; releaseType?: string },
+): Promise<void> {
+  const response = await fetchWithAuth(`/api/admin/missions/${missionId}/stages/${stageId}/clues`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...data, missionId, stageId, releaseType: "Manual" }),
+  });
+  if (!response.ok) throw new ApiError(response.status, await response.text());
+}
+
+export async function deleteClue(
+  missionId: string,
+  stageId: string,
+  clueId: string,
+): Promise<void> {
+  const response = await fetchWithAuth(`/api/admin/missions/${missionId}/stages/${stageId}/clues/${clueId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) throw new ApiError(response.status, await response.text());
+}
+
+export async function deleteStage(
+  missionId: string,
+  stageId: string,
+): Promise<void> {
+  const response = await fetchWithAuth(`/api/admin/missions/${missionId}/stages/${stageId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    let msg = body;
+    try { const j = JSON.parse(body); msg = j.error || j.message || body; } catch {}
+    throw new ApiError(response.status, msg);
+  }
+}
+
 export async function listMissions(
   params: GetMissionsParams,
 ): Promise<GetMissionsResponse> {
@@ -91,6 +176,10 @@ export async function updateMission(
   if (!response.ok) {
     const errorBody = await response.text().catch(() => "");
     throw new ApiError(response.status, errorBody);
+  }
+
+  if (response.status === 204) {
+    return { id } as MissionResponse;
   }
 
   return response.json();
