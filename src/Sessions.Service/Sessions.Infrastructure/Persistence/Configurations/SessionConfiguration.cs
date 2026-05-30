@@ -20,6 +20,10 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
         builder.Property(s => s.MissionId)
             .IsRequired();
 
+        builder.Property(s => s.MissionTitle)
+            .HasMaxLength(200)
+            .IsRequired();
+
         builder.Property(s => s.Pin)
             .HasMaxLength(6)
             .IsRequired();

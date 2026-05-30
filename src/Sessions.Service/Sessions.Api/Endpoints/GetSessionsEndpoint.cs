@@ -8,7 +8,7 @@ public static class GetSessionsEndpoint
 {
     public static void MapGetSessionsEndpoint(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/sessions").WithTags("Sessions");
+        var group = app.MapGroup("/").WithTags("Sessions");
 
         group.MapGet("/", async (
             [FromQuery] string? search,

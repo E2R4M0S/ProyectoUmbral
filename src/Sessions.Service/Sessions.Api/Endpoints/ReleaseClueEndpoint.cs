@@ -9,7 +9,7 @@ public static class ReleaseClueEndpoint
 {
     public static void MapReleaseClueEndpoint(this WebApplication app)
     {
-        app.MapPost("/api/sessions/{id:guid}/clues/release", async (
+        app.MapPost("/{id:guid}/clues/release", async (
             [FromRoute] Guid id,
             [FromBody] ReleaseClueRequest request,
             IMediator mediator,
@@ -20,6 +20,8 @@ public static class ReleaseClueEndpoint
             {
                 var command = new ReleaseClueCommand(id, request.ClueId, request.TeamId);
                 await mediator.Send(command);
+
+                await notifier.NotifyClueReleased(id, request.TeamId, new { text = "Pista liberada por el operador" });
 
                 logger.LogInformation(
                     "Clue released successfully: SessionId={SessionId}, ClueId={ClueId}",

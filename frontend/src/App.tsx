@@ -17,6 +17,7 @@ import { ListadoEquipos } from "./pages/admin/ListadoEquipos";
 import { EquipoDetalle } from "./pages/admin/EquipoDetalle";
 import { EditarEquipo } from "./pages/admin/EditarEquipo";
 import { CrearSesion } from "./pages/admin/CrearSesion";
+import { PanelSesion } from "./pages/admin/PanelSesion";
 import { ListadoSesiones } from "./pages/admin/ListadoSesiones";
 import { DetalleMision } from "./pages/admin/DetalleMision";
 
@@ -222,6 +223,7 @@ function App() {
             <Route path="equipos/:id/editar" element={<EditarEquipo />} />
             <Route path="sesiones" element={<ListadoSesiones />} />
             <Route path="sesiones/crear" element={<CrearSesion />} />
+            <Route path="sesiones/:id/panel" element={<PanelSesion />} />
           </Route>
         </Route>
         <Route path="/operator" element={<ProtectedRoute requiredRole="operator" />}>
@@ -230,6 +232,7 @@ function App() {
             <Route path="misiones" element={<CatalogoMisiones />} />
             <Route path="sesiones" element={<ListadoSesiones />} />
             <Route path="sesiones/crear" element={<CrearSesion />} />
+            <Route path="sesiones/:id/panel" element={<PanelSesion />} />
             <Route path="equipos" element={<ListadoEquipos />} />
             <Route path="equipos/crear" element={<CrearEquipo />} />
             <Route path="equipos/:id" element={<EquipoDetalle />} />

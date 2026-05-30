@@ -41,6 +41,7 @@ try
 
     // Transform Keycloak realm_access.roles into ClaimTypes.Role claims
     builder.Services.AddScoped<IClaimsTransformation, KeycloakRolesTransformer>();
+    builder.Services.AddHttpContextAccessor();
 
     builder.Services.AddAuthorization(options =>
     {

@@ -5,4 +5,5 @@ namespace Sessions.Application.Sessions.Create;
 
 public record CreateSessionCommand(
     string Name,
-    Guid MissionId) : IRequest<CreateSessionCommandResult>;
+    Guid MissionId,
+    string MissionTitle) : IRequest<CreateSessionCommandResult>;

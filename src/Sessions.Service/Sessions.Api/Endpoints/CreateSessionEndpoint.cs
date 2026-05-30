@@ -8,7 +8,7 @@ public static class CreateSessionEndpoint
 {
     public static void MapCreateSessionEndpoint(this WebApplication app)
     {
-        app.MapPost("/api/sessions", async (
+        app.MapPost("/", async (
             [FromBody] CreateSessionCommand command,
             IMediator mediator,
             ILogger<Program> logger) =>
@@ -22,7 +22,7 @@ public static class CreateSessionEndpoint
                     result.Id, result.Name, result.Pin);
 
                 return Results.Created(
-                    $"/api/sessions/{result.Id}",
+                    $"/{result.Id}",
                     new
                     {
                         id = result.Id,

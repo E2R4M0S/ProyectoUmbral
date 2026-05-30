@@ -22,12 +22,19 @@ public class SessionRepository : ISessionRepository
 
     public async Task<Session?> GetByIdAsync(Guid id, CancellationToken ct)
     {
-        return await _context.Sessions.FindAsync(new object[] { id }, ct);
+        return await _context.Sessions
+            .Include(s => s.Participants)
+            .FirstOrDefaultAsync(s => s.Id == id, ct);
     }
 
     public async Task<Session?> GetByPinAsync(string pin, CancellationToken ct)
     {
         return await _context.Sessions.FirstOrDefaultAsync(s => s.Pin == pin, ct);
+    }
+
+    public async Task<Session?> GetByNameAsync(string name, CancellationToken ct)
+    {
+        return await _context.Sessions.FirstOrDefaultAsync(s => s.Name == name, ct);
     }
 
     public async Task<bool> IsPinUniqueAsync(string pin, CancellationToken ct)
@@ -75,7 +82,12 @@ public class SessionRepository : ISessionRepository
 
     public async Task UpdateAsync(Session session, CancellationToken ct)
     {
-        _context.Sessions.Update(session);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task AddParticipantAsync(SessionParticipant participant, CancellationToken ct)
+    {
+        await _context.Set<SessionParticipant>().AddAsync(participant, ct);
         await _context.SaveChangesAsync(ct);
     }
 }

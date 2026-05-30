@@ -9,7 +9,7 @@ public static class TransitionSessionEndpoint
 {
     public static void MapTransitionSessionEndpoint(this WebApplication app)
     {
-        app.MapPatch("/api/sessions/{id:guid}/status", async (
+        app.MapPatch("/{id:guid}/status", async (
             [FromRoute] Guid id,
             [FromBody] TransitionSessionCommand command,
             IMediator mediator,

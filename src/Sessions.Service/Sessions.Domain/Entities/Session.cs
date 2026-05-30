@@ -17,6 +17,7 @@ public class Session
     public Guid Id { get; private set; }
     public string Name { get; private set; } = null!;
     public Guid MissionId { get; private set; }
+    public string MissionTitle { get; private set; } = null!;
     public string Pin { get; private set; } = null!;
     public SessionStatus Status { get; private set; }
     public DateTime? StartedAt { get; private set; }
@@ -26,15 +27,14 @@ public class Session
     private readonly List<SessionParticipant> _participants = new();
     public IReadOnlyList<SessionParticipant> Participants => _participants.AsReadOnly();
 
-    private Session() { } // EF Core
-
-    public static Session Create(string name, Guid missionId, string pin)
+    public static Session Create(string name, Guid missionId, string missionTitle, string pin)
     {
         return new Session
         {
             Id = Guid.NewGuid(),
             Name = name.Trim(),
             MissionId = missionId,
+            MissionTitle = missionTitle.Trim(),
             Pin = pin,
             Status = SessionStatus.Scheduled,
             CreatedAt = DateTime.UtcNow
