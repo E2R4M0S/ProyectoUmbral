@@ -8,7 +8,7 @@ public static class CreateClueEndpoint
 {
     public static void MapCreateClueEndpoint(this WebApplication app)
     {
-        app.MapPost("/admin/missions/{id:guid}/stages/{stageId:guid}/clues", async (
+        app.MapPost("/missions/{id:guid}/stages/{stageId:guid}/clues", async (
             [FromRoute] Guid id,
             [FromRoute] Guid stageId,
             [FromBody] CreateClueCommand command,
@@ -48,7 +48,7 @@ public static class CreateClueEndpoint
                     result.Id, stageId, id);
 
                 return Results.Created(
-                    $"/admin/missions/{id}/stages/{stageId}/clues/{result.Id}",
+                    $"/missions/{id}/stages/{stageId}/clues/{result.Id}",
                     new
                     {
                         id = result.Id,

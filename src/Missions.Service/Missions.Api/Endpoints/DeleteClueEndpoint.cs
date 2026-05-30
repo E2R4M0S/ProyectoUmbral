@@ -8,7 +8,7 @@ public static class DeleteClueEndpoint
 {
     public static void MapDeleteClueEndpoint(this WebApplication app)
     {
-        app.MapDelete("/admin/missions/{id:guid}/stages/{stageId:guid}/clues/{clueId:guid}", async (
+        app.MapDelete("/missions/{id:guid}/stages/{stageId:guid}/clues/{clueId:guid}", async (
             [FromRoute] Guid id,
             [FromRoute] Guid stageId,
             [FromRoute] Guid clueId,

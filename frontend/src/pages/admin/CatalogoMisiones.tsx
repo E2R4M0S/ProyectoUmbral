@@ -1,5 +1,7 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { listMissions, ApiError } from "../../services/missionsApi";
+import { Link } from "react-router-dom";
+import { useAuth } from "react-oidc-context";
+import { listMissions, changeMissionStatus, ApiError } from "../../services/missionsApi";
 import type { MissionListItem, GetMissionsParams } from "../../types/mission";
 
 const DIFFICULTY_OPTIONS = [
@@ -13,6 +15,7 @@ const STATUS_OPTIONS = [
   { value: "", label: "Todos los estados" },
   { value: "Draft", label: "Borrador" },
   { value: "Active", label: "Activa" },
+  { value: "Inactive", label: "Inactiva" },
 ];
 
 const inputStyle: React.CSSProperties = {
@@ -101,6 +104,7 @@ const statusBadgeColor = (status: string): string => {
   switch (status) {
     case "Active": return "#007bff";
     case "Draft": return "#6c757d";
+    case "Inactive": return "#dc3545";
     default: return "#6c757d";
   }
 };
@@ -135,6 +139,9 @@ const errorStyle: React.CSSProperties = {
 };
 
 export function CatalogoMisiones() {
+  const auth = useAuth();
+  const isAdmin = auth.user?.access_token ? (() => { try { const p = JSON.parse(atob(auth.user.access_token.split(".")[1])); return p.realm_access?.roles?.includes("admin") ?? false; } catch { return false; } })() : false;
+
   const [items, setItems] = useState<MissionListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -299,16 +306,35 @@ export function CatalogoMisiones() {
                     <td style={tdStyle}>{item.type}</td>
                     <td style={tdStyle}>
                       <span style={badgeStyle(statusBadgeColor(item.status))}>
-                        {item.status === "Active" ? "Activa" : item.status === "Draft" ? "Borrador" : item.status}
+                        {item.status === "Active" ? "Activa" : item.status === "Draft" ? "Borrador" : item.status === "Inactive" ? "Inactiva" : item.status}
                       </span>
                     </td>
                     <td style={tdStyle}>
-                      <a
-                        href={`/admin/misiones/${item.id}/editar`}
-                        style={actionBtnStyle}
+                      {isAdmin && (
+                      <>
+                      <Link to={`/admin/misiones/${item.id}`} style={actionBtnStyle}>
+                        Ver
+                      </Link>
+                      <Link
+                        to={`/admin/misiones/${item.id}/editar`}
+                        style={{ ...actionBtnStyle, marginLeft: 8 }}
                       >
                         Editar
-                      </a>
+                      </Link>
+                      <button
+                        onClick={async () => {
+                          const newStatus = item.status === "Active" ? "Inactive" : "Active";
+                          try {
+                            await changeMissionStatus(item.id, newStatus);
+                            loadMissions();
+                          } catch (e) { alert(e instanceof ApiError ? e.body : "Error al cambiar estado"); }
+                        }}
+                        style={{ ...actionBtnStyle, marginLeft: 8, backgroundColor: item.status === "Active" ? "#dc3545" : "#28a745" }}
+                      >
+                        {item.status === "Active" ? "Desactivar" : "Activar"}
+                      </button>
+                      </>
+                      )}
                     </td>
                   </tr>
                 ))

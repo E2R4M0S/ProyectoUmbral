@@ -218,8 +218,8 @@ export function ListadoEquipos() {
                       </code>
                     </td>
                     <td style={tdStyle}>
-                      <a
-                        href={`/admin/equipos/${item.id}`}
+                      {base && (
+                      <Link to={`${base}/equipos/${item.id}`}
                         style={{
                           ...buttonStyle(true),
                           textDecoration: "none",
@@ -227,7 +227,8 @@ export function ListadoEquipos() {
                         }}
                       >
                         Ver Detalle
-                      </a>
+                      </Link>
+                      )}
                     </td>
                   </tr>
                 ))

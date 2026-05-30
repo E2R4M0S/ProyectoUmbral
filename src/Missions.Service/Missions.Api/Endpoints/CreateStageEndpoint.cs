@@ -8,7 +8,7 @@ public static class CreateStageEndpoint
 {
     public static void MapCreateStageEndpoint(this WebApplication app)
     {
-        app.MapPost("/admin/missions/{id:guid}/stages", async (
+        app.MapPost("/missions/{id:guid}/stages", async (
             [FromRoute] Guid id,
             [FromBody] CreateStageCommand command,
             IMediator mediator,
@@ -35,7 +35,7 @@ public static class CreateStageEndpoint
                     result.Id, id);
 
                 return Results.Created(
-                    $"/admin/missions/{id}/stages/{result.Id}",
+                    $"/missions/{id}/stages/{result.Id}",
                     new
                     {
                         id = result.Id,
@@ -71,7 +71,7 @@ public static class CreateStageEndpoint
                     message = ex.Message
                 });
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("already exists"))
+            catch (InvalidOperationException ex) when (ex.Message.Contains("already exists") || ex.Message.Contains("Ya existe"))
             {
                 logger.LogWarning(
                     "Stage creation conflict: Order already exists — {Message}", ex.Message);

@@ -39,7 +39,7 @@ public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionSt
         if (newStatus == MissionStatus.Active &&
             !await _stageValidator.HasAtLeastOneStageAsync(command.Id, ct))
         {
-            throw new InvalidOperationException($"Mission must have at least one stage to be activated");
+            throw new InvalidOperationException($"La misión debe tener al menos una etapa para ser activada");
         }
 
         if (await _lockService.IsMissionInUseAsync(command.Id, ct))

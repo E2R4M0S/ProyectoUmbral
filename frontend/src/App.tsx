@@ -18,6 +18,7 @@ import { EquipoDetalle } from "./pages/admin/EquipoDetalle";
 import { EditarEquipo } from "./pages/admin/EditarEquipo";
 import { CrearSesion } from "./pages/admin/CrearSesion";
 import { ListadoSesiones } from "./pages/admin/ListadoSesiones";
+import { DetalleMision } from "./pages/admin/DetalleMision";
 
 import { useAuth } from "react-oidc-context";
 
@@ -209,6 +210,7 @@ function App() {
             <Route path="misiones" element={<CatalogoMisiones />} />
             <Route path="misiones/crear" element={<CrearMision />} />
             <Route path="misiones/:id/editar" element={<EditarMision />} />
+            <Route path="misiones/:id" element={<DetalleMision />} />
             <Route path="usuarios" element={<ListadoUsuarios />} />
             <Route path="usuarios/:id" element={<DetalleUsuario />} />
             <Route path="operadores/nuevo" element={<CrearOperador />} />
