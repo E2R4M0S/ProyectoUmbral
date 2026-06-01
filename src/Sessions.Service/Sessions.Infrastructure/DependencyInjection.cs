@@ -22,6 +22,11 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(configuration["RealTimeHub:Url"] ?? "http://localhost:5005");
         });
 
+        services.AddHttpClient<IEventPublisher, Sessions.Infrastructure.Messaging.HttpEventPublisher>(client =>
+        {
+            client.BaseAddress = new Uri(configuration["RealTimeHub:Url"] ?? "http://localhost:5005");
+        });
+
         return services;
     }
 }

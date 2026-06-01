@@ -13,6 +13,7 @@ export function Timer() {
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
+      // The global tick still increments elapsedSeconds, but CountdownTimer is independent
       dispatch({ type: "TICK" });
     }, 1000);
 

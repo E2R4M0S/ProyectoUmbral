@@ -1,7 +1,10 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Trivia.Application.Trivias.Clues;
+<<<<<<< HEAD
 using Trivia.Application.Trivias.Answers;
+=======
+>>>>>>> 61b3cec (feat(hu-39): countdown timer frontend + backend endpoints and skeleton for answer submission and RabbitMQ consumer)
 
 namespace Trivia.Api.Endpoints;
 
@@ -14,7 +17,11 @@ public static class AnsweringEndpoints
         {
             try
             {
+<<<<<<< HEAD
                 // Delegate to SubmitAnswerCommand which persists the answer and publishes an integration event
+=======
+                // Delegate to SubmitAnswerCommand which publishes an integration event
+>>>>>>> 61b3cec (feat(hu-39): countdown timer frontend + backend endpoints and skeleton for answer submission and RabbitMQ consumer)
                 await mediator.Send(new Trivia.Application.Trivias.Answers.SubmitAnswerCommand(req.QuizId, req.TeamId, req.QuestionId, req.AnswerId, req.Timestamp));
                 return Results.Ok(new { received = true });
             }

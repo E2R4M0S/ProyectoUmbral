@@ -1,6 +1,7 @@
 import { useGame } from "../../../contexts/GameContext";
 import { Timer } from "../../../components/game/Timer";
 import { ClueCard } from "../../../components/game/ClueCard";
+import { CountdownTimer } from "../../../components/game/CountdownTimer";
 
 export function ActiveGame() {
   const { state } = useGame();
@@ -13,6 +14,13 @@ export function ActiveGame() {
       margin: "0 auto",
     }}>
       <Timer />
+      {/* Example: if the current clue contains a TimeLimitSeconds property, show countdown */}
+      {state.clues.length > 0 && typeof state.clues[0] === "object" && (state.clues[0] as any).timeLimitSeconds && (
+        <CountdownTimer timeLimitSeconds={(state.clues[0] as any).timeLimitSeconds} onExpired={() => {
+          // when expired, dispatch an action to disable answers
+          dispatch({ type: "SET_SCORE", score: state.score });
+        }} />
+      )}
 
       {state.clues.length === 0 ? (
         <div style={{ textAlign: "center", color: "#999", marginTop: "2rem" }}>
