@@ -1,28 +1,21 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Trivia.Application.Trivias.Clues;
-<<<<<<< HEAD
 using Trivia.Application.Trivias.Answers;
-=======
->>>>>>> 61b3cec (feat(hu-39): countdown timer frontend + backend endpoints and skeleton for answer submission and RabbitMQ consumer)
 
 namespace Trivia.Api.Endpoints;
 
 public static class AnsweringEndpoints
 {
-    // Placeholder HTTP endpoint for publishing participant responses via SignalR/HTTP bridge
+    // HTTP endpoint for participant answers
     public static void MapAnsweringEndpoints(this WebApplication app)
     {
         app.MapPost("/api/trivia/answers", async ([FromBody] ParticipantAnswerRequest req, IMediator mediator, ILogger<Program> logger) =>
         {
             try
             {
-<<<<<<< HEAD
                 // Delegate to SubmitAnswerCommand which persists the answer and publishes an integration event
-=======
-                // Delegate to SubmitAnswerCommand which publishes an integration event
->>>>>>> 61b3cec (feat(hu-39): countdown timer frontend + backend endpoints and skeleton for answer submission and RabbitMQ consumer)
-                await mediator.Send(new Trivia.Application.Trivias.Answers.SubmitAnswerCommand(req.QuizId, req.TeamId, req.QuestionId, req.AnswerId, req.Timestamp));
+                await mediator.Send(new SubmitAnswerCommand(req.QuizId, req.TeamId, req.QuestionId, req.AnswerId, req.Timestamp));
                 return Results.Ok(new { received = true });
             }
             catch (Exception ex)
