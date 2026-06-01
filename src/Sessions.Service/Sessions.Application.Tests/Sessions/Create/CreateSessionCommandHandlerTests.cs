@@ -24,7 +24,7 @@ public class CreateSessionCommandHandlerTests
     public async Task Handle_WithValidCommand_ShouldCreateSessionWithSixDigitPin()
     {
         // Arrange
-        var command = new CreateSessionCommand("Test Session", Guid.NewGuid());
+        var command = new CreateSessionCommand("Test Session", Guid.NewGuid(), "Test Mission");
 
         _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
@@ -53,7 +53,7 @@ public class CreateSessionCommandHandlerTests
     public async Task Handle_WhenPinCollisionOccurs_ShouldRegeneratePinAndSucceed()
     {
         // Arrange
-        var command = new CreateSessionCommand("Collision Session", Guid.NewGuid());
+        var command = new CreateSessionCommand("Collision Session", Guid.NewGuid(), "Test Mission");
 
         _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(false, false, false, false, false, false, false, false, false, true);
@@ -75,7 +75,7 @@ public class CreateSessionCommandHandlerTests
     public async Task Handle_WhenPinCollisionExceedsMaxAttempts_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var command = new CreateSessionCommand("Max Collision Session", Guid.NewGuid());
+        var command = new CreateSessionCommand("Max Collision Session", Guid.NewGuid(), "Test Mission");
 
         // Always return false (always collision)
         _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -97,7 +97,7 @@ public class CreateSessionCommandHandlerTests
     public async Task Handle_WithValidCommand_ShouldLogSessionCreation()
     {
         // Arrange
-        var command = new CreateSessionCommand("Log Test Session", Guid.NewGuid());
+        var command = new CreateSessionCommand("Log Test Session", Guid.NewGuid(), "Test Mission");
 
         _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);

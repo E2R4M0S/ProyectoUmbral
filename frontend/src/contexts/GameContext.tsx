@@ -95,4 +95,4 @@ function useGame(): GameContextValue {
   return ctx;
 }
 
-export { GameProvider, useGame };
+export { GameProvider, useGame, GameContext };

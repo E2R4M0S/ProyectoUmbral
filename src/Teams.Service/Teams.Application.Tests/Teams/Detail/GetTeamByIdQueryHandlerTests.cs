@@ -10,11 +10,12 @@ namespace Teams.Application.Tests.Teams.Detail;
 public class GetTeamByIdQueryHandlerTests
 {
     private readonly ITeamRepository _repository = Substitute.For<ITeamRepository>();
+    private readonly IKeycloakAdminService _keycloak = Substitute.For<IKeycloakAdminService>();
     private readonly GetTeamByIdQueryHandler _sut;
 
     public GetTeamByIdQueryHandlerTests()
     {
-        _sut = new GetTeamByIdQueryHandler(_repository);
+        _sut = new GetTeamByIdQueryHandler(_repository, _keycloak);
     }
 
     [Fact]

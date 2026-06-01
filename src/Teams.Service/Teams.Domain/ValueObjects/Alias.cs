@@ -10,16 +10,18 @@ public partial record Alias
 
     public static Alias Create(string value)
     {
-        if (string.IsNullOrWhiteSpace(value))
+        var trimmed = value?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(trimmed))
             throw new ArgumentException("Alias cannot be empty", nameof(value));
 
-        if (value.Length < 3 || value.Length > 50)
+        if (trimmed.Length < 3 || trimmed.Length > 50)
             throw new ArgumentException("Alias must be between 3 and 50 characters", nameof(value));
 
-        if (!AliasRegex().IsMatch(value))
+        if (!AliasRegex().IsMatch(trimmed))
             throw new ArgumentException("Alias must be alphanumeric with underscores only", nameof(value));
 
-        return new Alias(value.Trim());
+        return new Alias(trimmed);
     }
 
     public static implicit operator string(Alias alias) => alias.Value;

@@ -24,8 +24,8 @@ public class GetSessionsQueryHandlerTests
         // Arrange
         var sessions = new List<Session>
         {
-            Session.Create("Session A", Guid.NewGuid(), "111111"),
-            Session.Create("Session B", Guid.NewGuid(), "222222"),
+            Session.Create("Session A", Guid.NewGuid(), "Test Mission", "111111"),
+            Session.Create("Session B", Guid.NewGuid(), "Test Mission", "222222"),
         };
 
         _repository.GetSessionsAsync(null, null, null, 1, 10, Arg.Any<CancellationToken>())
@@ -49,7 +49,7 @@ public class GetSessionsQueryHandlerTests
         // Arrange
         var sessions = new List<Session>
         {
-            Session.Create("Team Alpha Session", Guid.NewGuid(), "333333"),
+            Session.Create("Team Alpha Session", Guid.NewGuid(), "Test Mission", "333333"),
         };
 
         _repository.GetSessionsAsync("alpha", null, null, 1, 10, Arg.Any<CancellationToken>())
@@ -72,7 +72,7 @@ public class GetSessionsQueryHandlerTests
     public async Task Handle_AppliesStatusFilter()
     {
         // Arrange
-        var session = Session.Create("Active Session", Guid.NewGuid(), "444444");
+        var session = Session.Create("Active Session", Guid.NewGuid(), "Test Mission", "444444");
         typeof(Session).GetProperty("Status")!.SetValue(session, SessionStatus.Active);
 
         var sessions = new List<Session> { session };
@@ -100,7 +100,7 @@ public class GetSessionsQueryHandlerTests
         var missionId = Guid.NewGuid();
         var sessions = new List<Session>
         {
-            Session.Create("Mission Session", missionId, "555555"),
+            Session.Create("Mission Session", missionId, "Test Mission", "555555"),
         };
 
         _repository.GetSessionsAsync(null, null, missionId, 1, 10, Arg.Any<CancellationToken>())
@@ -126,7 +126,7 @@ public class GetSessionsQueryHandlerTests
         var sessions = new List<Session>();
         for (int i = 0; i < 5; i++)
         {
-            sessions.Add(Session.Create($"Session {i}", Guid.NewGuid(), $"{100000 + i}"));
+            sessions.Add(Session.Create($"Session {i}", Guid.NewGuid(), "Test Mission", $"{100000 + i}"));
         }
 
         _repository.GetSessionsAsync(null, null, null, 2, 10, Arg.Any<CancellationToken>())
@@ -167,7 +167,7 @@ public class GetSessionsQueryHandlerTests
         // Arrange
         var sessions = new List<Session>
         {
-            Session.Create("Session A", Guid.NewGuid(), "666666"),
+            Session.Create("Session A", Guid.NewGuid(), "Test Mission", "666666"),
         };
 
         _repository.GetSessionsAsync(null, null, null, 1, 10, Arg.Any<CancellationToken>())
@@ -191,7 +191,7 @@ public class GetSessionsQueryHandlerTests
         // Arrange
         var sessions = new List<Session>
         {
-            Session.Create("Session A", Guid.NewGuid(), "777777"),
+            Session.Create("Session A", Guid.NewGuid(), "Test Mission", "777777"),
         };
 
         _repository.GetSessionsAsync(null, null, null, 1, 10, Arg.Any<CancellationToken>())

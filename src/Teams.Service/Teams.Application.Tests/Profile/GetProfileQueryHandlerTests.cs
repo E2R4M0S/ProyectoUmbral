@@ -10,11 +10,12 @@ namespace Teams.Application.Tests.Profile;
 public class GetProfileQueryHandlerTests
 {
     private readonly IParticipantRepository _participantRepository = Substitute.For<IParticipantRepository>();
+    private readonly IKeycloakAdminService _keycloakAdmin = Substitute.For<IKeycloakAdminService>();
     private readonly GetProfileQueryHandler _sut;
 
     public GetProfileQueryHandlerTests()
     {
-        _sut = new GetProfileQueryHandler(_participantRepository);
+        _sut = new GetProfileQueryHandler(_participantRepository, _keycloakAdmin);
     }
 
     [Fact]
