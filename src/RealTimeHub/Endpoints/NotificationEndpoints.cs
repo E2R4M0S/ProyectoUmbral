@@ -42,6 +42,21 @@ public static class NotificationEndpoints
             }
             return Results.Ok();
         });
+
+        // Leaderboard update broadcast endpoint
+        app.MapPost("/internal/events/LeaderboardUpdated", async (
+            [FromBody] List<LeaderboardEntryDto> leaderboard,
+            IHubContext<GameHub> hubContext) =>
+        {
+            if (leaderboard == null) return Results.BadRequest();
+            if (!leaderboard.Any()) return Results.Ok();
+
+            // assume all entries share QuizId; send to group by QuizId
+            var sessionId = leaderboard.First().QuizId.ToString();
+            await hubContext.Clients.Group(sessionId)
+                .SendAsync("LeaderboardUpdated", leaderboard, CancellationToken.None);
+            return Results.Ok();
+        });
     }
 }
 
