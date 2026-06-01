@@ -2,6 +2,8 @@ using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 
 namespace Trivia.Infrastructure.Messaging.RabbitMQ;
 
@@ -13,8 +15,8 @@ namespace Trivia.Infrastructure.Messaging.RabbitMQ;
 public class TriviaAnswerSubmittedConsumer : BackgroundService
 {
     private readonly ILogger<TriviaAnswerSubmittedConsumer> _logger;
-    private IConnection? _connection;
-    private IModel? _channel;
+    private object? _connection;
+    private object? _channel;
 
     public TriviaAnswerSubmittedConsumer(ILogger<TriviaAnswerSubmittedConsumer> logger)
     {
@@ -25,25 +27,28 @@ public class TriviaAnswerSubmittedConsumer : BackgroundService
     {
         try
         {
-            var factory = new ConnectionFactory() { HostName = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "rabbitmq" };
-            _connection = factory.CreateConnection();
-            _channel = _connection.CreateModel();
+            var factory = new global::RabbitMQ.Client.ConnectionFactory() { HostName = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "rabbitmq" };
+            var conn = factory.CreateConnection();
+            var ch = conn.CreateModel();
+            _connection = conn;
+            _channel = ch;
 
-            _channel.ExchangeDeclare("trivia", ExchangeType.Topic, durable: true);
-            _channel.QueueDeclare(queue: "trivia.answer.submitted", durable: true, exclusive: false, autoDelete: false, arguments: null);
-            _channel.QueueBind("trivia.answer.submitted", "trivia", "answer.submitted");
+            dynamic _ch = _channel;
+            _ch.ExchangeDeclare("trivia", global::RabbitMQ.Client.ExchangeType.Topic, durable: true);
+            _ch.QueueDeclare(queue: "trivia.answer.submitted", durable: true, exclusive: false, autoDelete: false, arguments: null);
+            _ch.QueueBind("trivia.answer.submitted", "trivia", "answer.submitted");
 
-            var consumer = new EventingBasicConsumer(_channel);
+            var consumer = new global::RabbitMQ.Client.Events.EventingBasicConsumer(_ch);
             consumer.Received += (model, ea) =>
             {
                 var body = ea.Body.ToArray();
                 var message = Encoding.UTF8.GetString(body);
                 _logger.LogInformation("Received TriviaAnswerSubmittedEvent: {msg}", message);
                 // TODO: Deserialize and update leaderboard
-                _channel.BasicAck(ea.DeliveryTag, false);
+                _ch.BasicAck(ea.DeliveryTag, false);
             };
 
-            _channel.BasicConsume(queue: "trivia.answer.submitted", autoAck: false, consumer: consumer);
+            _ch.BasicConsume(queue: "trivia.answer.submitted", autoAck: false, consumer: consumer);
         }
         catch (Exception ex)
         {
