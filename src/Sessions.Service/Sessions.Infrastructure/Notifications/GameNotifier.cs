@@ -47,20 +47,37 @@ public class GameNotifier : IGameNotifier
         }
     }
 
-    public async Task NotifyClueReleased(Guid sessionId, Guid? teamId, object clueData, CancellationToken ct = default)
-    {
-        try
+        public async Task NotifyClueReleased(Guid sessionId, Guid? teamId, object clueData, CancellationToken ct = default)
         {
-            await _httpClient.PostAsJsonAsync($"/internal/notifications/clue-released", new
+            try
             {
-                SessionId = sessionId,
-                TeamId = teamId,
-                ClueData = clueData
-            }, ct);
+                await _httpClient.PostAsJsonAsync($"/internal/notifications/clue-released", new
+                {
+                    SessionId = sessionId,
+                    TeamId = teamId,
+                    ClueData = clueData
+                }, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send clue release notification for {SessionId}", sessionId);
+            }
         }
-        catch (Exception ex)
+
+        public async Task NotifyQuestionResults(Guid quizId, Guid questionId, object results, CancellationToken ct = default)
         {
-            _logger.LogWarning(ex, "Failed to send clue release notification for {SessionId}", sessionId);
+            try
+            {
+                await _httpClient.PostAsJsonAsync($"/internal/notifications/question-results", new
+                {
+                    QuizId = quizId,
+                    QuestionId = questionId,
+                    Results = results
+                }, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send question results notification for QuizId={QuizId} QuestionId={QuestionId}", quizId, questionId);
+            }
         }
-    }
 }
