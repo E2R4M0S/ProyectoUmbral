@@ -3,6 +3,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
+using global::RabbitMQ.Client;
+using global::RabbitMQ.Client.Events;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
@@ -22,8 +24,8 @@ namespace Trivia.Infrastructure.Messaging.RabbitMQ;
 public class TriviaAnswerSubmittedConsumer : BackgroundService
 {
     private readonly ILogger<TriviaAnswerSubmittedConsumer> _logger;
-    private object? _connection;
-    private object? _model;
+    private dynamic? _connection;
+    private dynamic? _model;
     private readonly IServiceProvider _serviceProvider;
 
     public TriviaAnswerSubmittedConsumer(ILogger<TriviaAnswerSubmittedConsumer> logger, IServiceProvider serviceProvider)
@@ -41,7 +43,7 @@ public class TriviaAnswerSubmittedConsumer : BackgroundService
     {
         try
         {
-            // Try to locate RabbitMQ's ConnectionFactory type via reflection
+            // Use reflection to create the ConnectionFactory and connection to avoid dynamic binder mismatches
             var factoryType = Type.GetType("RabbitMQ.Client.ConnectionFactory, RabbitMQ.Client");
             if (factoryType == null)
             {
@@ -50,83 +52,142 @@ public class TriviaAnswerSubmittedConsumer : BackgroundService
             }
 
             var factory = Activator.CreateInstance(factoryType)!;
-            // Set HostName property if present
             var hostProp = factoryType.GetProperty("HostName");
             hostProp?.SetValue(factory, Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "rabbitmq");
 
-            // Create connection and model
-            var createConn = factoryType.GetMethod("CreateConnection", Type.EmptyTypes);
-            var conn = createConn?.Invoke(factory, null);
+            // Find any CreateConnection method (sync or async) and invoke it, tolerating different signatures
+            var createConn = factoryType.GetMethods().FirstOrDefault(m => m.Name.StartsWith("CreateConnection", StringComparison.Ordinal));
+            if (createConn == null)
+            {
+                // Log available methods for debugging reflection mismatches
+                try
+                {
+                    var methods = factoryType.GetMethods();
+                    _logger.LogWarning("CreateConnection not found on ConnectionFactory ({Type}). Available methods: {Methods}", factoryType.FullName, string.Join(", ", methods.Select(m => m.ToString())));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed enumerating methods on ConnectionFactory");
+                }
+
+                _logger.LogWarning("ConnectionFactory.CreateConnection method not found; cannot start consumer.");
+                return;
+            }
+
+            object? conn;
+            var createConnParams = createConn.GetParameters();
+            if (createConnParams.Length == 0)
+            {
+                conn = createConn.Invoke(factory, null);
+            }
+            else
+            {
+                // Build null args for reference types and default for value types
+                var args = new object?[createConnParams.Length];
+                for (int i = 0; i < createConnParams.Length; i++)
+                {
+                    var p = createConnParams[i];
+                    if (p.ParameterType.IsValueType) args[i] = Activator.CreateInstance(p.ParameterType);
+                    else args[i] = null;
+                }
+                conn = createConn.Invoke(factory, args);
+            }
+
             if (conn == null)
             {
-                _logger.LogWarning("Unable to create RabbitMQ connection via reflection.");
+                _logger.LogWarning("CreateConnection invocation returned null; cannot start consumer.");
                 return;
             }
 
-            var connType = conn.GetType();
-            var createModel = connType.GetMethod("CreateModel", Type.EmptyTypes);
-            var model = createModel?.Invoke(conn, null);
-            if (model == null)
+            // If the CreateConnection returned a Task (CreateConnectionAsync), wait and extract the Result
+            var connObj = conn;
+            var taskType = typeof(System.Threading.Tasks.Task);
+            var connType = connObj.GetType();
+            if (taskType.IsAssignableFrom(connType))
             {
-                _logger.LogWarning("Unable to create RabbitMQ model/channel via reflection.");
+                // Try to get Result property (Task<T>)
+                var resultProp = connType.GetProperty("Result");
+                if (resultProp != null)
+                {
+                    connObj = resultProp.GetValue(connObj)!;
+                }
+                else
+                {
+                    // Non-generic Task: synchronously wait
+                    var getAwaiter = connType.GetMethod("GetAwaiter");
+                    var awaiter = getAwaiter!.Invoke(connObj, null)!;
+                    var getResult = awaiter.GetType().GetMethod("GetResult");
+                    getResult!.Invoke(awaiter, null);
+                    _logger.LogWarning("CreateConnection returned non-generic Task with no result; cannot start consumer.");
+                    return;
+                }
+
+                connType = connObj.GetType();
+            }
+
+            dynamic connDyn = connObj;
+
+            // Find any CreateModel method (sync/async or different overloads)
+            var createModel = connType.GetMethods().FirstOrDefault(m => m.Name.StartsWith("CreateModel", StringComparison.Ordinal));
+            if (createModel == null)
+            {
+                try
+                {
+                    var methods = connType.GetMethods();
+                    _logger.LogWarning("CreateModel not found on Connection ({Type}). Available methods: {Methods}", connType.FullName, string.Join(", ", methods.Select(m => m.ToString())));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed enumerating methods on Connection");
+                }
+
+                _logger.LogWarning("Connection.CreateModel method not found; cannot start consumer.");
                 return;
             }
 
-            _connection = conn;
+            var modelParams = createModel.GetParameters();
+            var modelArgs = modelParams.Length == 0 ? null : new object?[modelParams.Length];
+            for (int i = 0; i < (modelArgs?.Length ?? 0); i++)
+            {
+                var p = modelParams[i];
+                modelArgs![i] = p.ParameterType.IsValueType ? Activator.CreateInstance(p.ParameterType) : null;
+            }
+
+            dynamic model = createModel.Invoke(connObj, modelArgs)!;
+
+            // Declare exchange/queue/binding
+            model.ExchangeDeclare("trivia", "topic", true);
+            model.QueueDeclare("trivia.answer.submitted", true, false, false, null);
+            model.QueueBind("trivia.answer.submitted", "trivia", "answer.submitted", null);
+
+            _connection = connObj;
             _model = model;
 
-            // Declare exchange and queue using IModel methods via reflection
-            var modelType = model.GetType();
-            var exchangeDeclare = modelType.GetMethod("ExchangeDeclare", new Type[] { typeof(string), typeof(string), typeof(bool) });
-            exchangeDeclare?.Invoke(model, new object[] { "trivia", "topic", true });
-
-            var queueDeclare = modelType.GetMethod("QueueDeclare", new Type[] { typeof(string), typeof(bool), typeof(bool), typeof(bool), typeof(IDictionary<string, object>) });
-            queueDeclare?.Invoke(model, new object[] { "trivia.answer.submitted", true, false, false, null });
-
-            var queueBind = modelType.GetMethod("QueueBind", new Type[] { typeof(string), typeof(string), typeof(string), typeof(IDictionary<string, object>) });
-            if (queueBind != null)
-            {
-                queueBind.Invoke(model, new object[] { "trivia.answer.submitted", "trivia", "answer.submitted", null });
-            }
-
-            _logger.LogInformation("Started RabbitMQ polling consumer for trivia.answer.submitted");
-
-            // Poll loop using BasicGet to avoid needing IBasicConsumer types at compile time
-            var basicGetMethod = modelType.GetMethod("BasicGet", new Type[] { typeof(string), typeof(bool) });
-            var basicAckMethod = modelType.GetMethod("BasicAck", new Type[] { typeof(ulong), typeof(bool) });
+            _logger.LogInformation("Started RabbitMQ polling consumer for trivia.answer.submitted (dynamic)");
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
-                    var result = basicGetMethod?.Invoke(model, new object[] { "trivia.answer.submitted", false });
+                    dynamic result = model.BasicGet("trivia.answer.submitted", false);
                     if (result != null)
                     {
-                        var resultType = result.GetType();
-                        // Body may be byte[] or ReadOnlyMemory<byte>
-                        var bodyProp = resultType.GetProperty("Body");
                         byte[] bytes = Array.Empty<byte>();
-                        if (bodyProp != null)
+                        try
                         {
-                            var bodyVal = bodyProp.GetValue(result);
-                            if (bodyVal is byte[] bArr)
+                            var body = result.Body;
+                            if (body is byte[] b) bytes = b;
+                            else
                             {
-                                bytes = bArr;
-                            }
-                            else if (bodyVal != null)
-                            {
-                                var toArray = bodyVal.GetType().GetMethod("ToArray", Type.EmptyTypes);
-                                if (toArray != null)
-                                {
-                                    bytes = (byte[])toArray.Invoke(bodyVal, null)!;
-                                }
+                                var toArray = body.GetType().GetMethod("ToArray", Type.EmptyTypes);
+                                if (toArray != null) bytes = (byte[])toArray.Invoke(body, null)!;
                             }
                         }
+                        catch { }
 
-                        string message = bytes.Length > 0 ? Encoding.UTF8.GetString(bytes) : "";
+                        var message = bytes.Length > 0 ? Encoding.UTF8.GetString(bytes) : string.Empty;
                         _logger.LogInformation("Received TriviaAnswerSubmittedEvent: {msg}", message);
 
-                        // Deserialize message and update leaderboard
                         try
                         {
                             var doc = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonDocument>(message);
@@ -137,45 +198,30 @@ public class TriviaAnswerSubmittedConsumer : BackgroundService
                                 var teamId = root.GetProperty("teamId").GetGuid();
                                 var isCorrect = root.GetProperty("isCorrect").GetBoolean();
 
-                                // Simple scoring: +10 per correct answer
                                 int delta = isCorrect ? 10 : 0;
 
-                                // Update leaderboard in DB using repository via scoped service provider
-                                try
+                                using var scope = _serviceProvider.CreateScope();
+                                var leaderboardRepo = scope.ServiceProvider.GetService<Trivia.Application.Common.Interfaces.ILeaderboardRepository>();
+                                if (leaderboardRepo != null)
                                 {
-                                    using var scope = _serviceProvider.CreateScope();
-                                    var leaderboardRepo = scope.ServiceProvider.GetService<Trivia.Application.Common.Interfaces.ILeaderboardRepository>();
-                                    if (leaderboardRepo != null)
+                                    var existing = leaderboardRepo.GetByTeamAsync(quizId, teamId).GetAwaiter().GetResult();
+                                    if (existing == null)
                                     {
-                                        var existing = leaderboardRepo.GetByTeamAsync(quizId, teamId).GetAwaiter().GetResult();
-                                        if (existing == null)
-                                        {
-                                            var entry = new Trivia.Domain.Entities.LeaderboardEntry
-                                            {
-                                                QuizId = quizId,
-                                                TeamId = teamId,
-                                                Score = delta,
-                                            };
-                                            leaderboardRepo.AddOrUpdateAsync(entry).GetAwaiter().GetResult();
-                                        }
-                                        else
-                                        {
-                                            existing.Score += delta;
-                                            leaderboardRepo.AddOrUpdateAsync(existing).GetAwaiter().GetResult();
-                                        }
-
-                                        // Broadcast updated leaderboard to RealTimeHub via HTTP publisher
-                                        var publisher = scope.ServiceProvider.GetService<Trivia.Application.Common.Interfaces.IEventPublisher>();
-                                        if (publisher != null)
-                                        {
-                                            var leaderboard = leaderboardRepo.GetByQuizAsync(quizId).GetAwaiter().GetResult();
-                                            publisher.PublishAsync("LeaderboardUpdated", leaderboard).GetAwaiter().GetResult();
-                                        }
+                                        var entry = new Trivia.Domain.Entities.LeaderboardEntry { QuizId = quizId, TeamId = teamId, Score = delta };
+                                        leaderboardRepo.AddOrUpdateAsync(entry).GetAwaiter().GetResult();
                                     }
-                                }
-                                catch (Exception ex)
-                                {
-                                    _logger.LogError(ex, "Failed to update leaderboard for Quiz {QuizId}", quizId);
+                                    else
+                                    {
+                                        existing.Score += delta;
+                                        leaderboardRepo.AddOrUpdateAsync(existing).GetAwaiter().GetResult();
+                                    }
+
+                                    var publisher = scope.ServiceProvider.GetService<Trivia.Application.Common.Interfaces.IEventPublisher>();
+                                    if (publisher != null)
+                                    {
+                                        var leaderboard = leaderboardRepo.GetByQuizAsync(quizId).GetAwaiter().GetResult();
+                                        publisher.PublishAsync("LeaderboardUpdated", leaderboard).GetAwaiter().GetResult();
+                                    }
                                 }
                             }
                         }
@@ -184,14 +230,12 @@ public class TriviaAnswerSubmittedConsumer : BackgroundService
                             _logger.LogError(ex, "Failed to deserialize/handle TriviaAnswerSubmittedEvent");
                         }
 
-                        // Acknowledge
-                        var deliveryTagProp = resultType.GetProperty("DeliveryTag");
-                        if (deliveryTagProp != null && basicAckMethod != null)
+                        try
                         {
-                            var tag = deliveryTagProp.GetValue(result);
-                            // DeliveryTag is ulong
-                            basicAckMethod.Invoke(model, new object[] { Convert.ToUInt64(tag), false });
+                            var tag = result.DeliveryTag;
+                            model.BasicAck((ulong)tag, false);
                         }
+                        catch { }
                     }
                 }
                 catch (Exception ex)

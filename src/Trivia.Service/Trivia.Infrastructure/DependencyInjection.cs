@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Trivia.Infrastructure;
 
@@ -8,32 +9,69 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        // Use Postgres provider per project skills
-        services.AddDbContext<TriviaDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+        // Support using an in-memory database for local testing: set UseInMemoryDatabase=true
+        var useInMemory = string.Equals(configuration["UseInMemoryDatabase"], "true", StringComparison.OrdinalIgnoreCase)
+            || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("USE_INMEMORY_DB"));
+
+        if (useInMemory)
+        {
+            services.AddDbContext<TriviaDbContext>(options => options.UseInMemoryDatabase("TriviaInMemory"));
+        }
+        else
+        {
+            // Use Postgres provider per project skills
+            services.AddDbContext<TriviaDbContext>(options =>
+                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+        }
 
         // Repositories
         services.AddScoped<Trivia.Application.Common.Interfaces.IQuizRepository, Trivia.Infrastructure.Persistence.QuizRepository>();
         services.AddScoped<Trivia.Application.Common.Interfaces.IParticipantAnswerRepository, Trivia.Infrastructure.Persistence.ParticipantAnswerRepository>();
         services.AddScoped<Trivia.Application.Common.Interfaces.IAnswerRepository, Trivia.Infrastructure.Persistence.AnswerRepository>();
         services.AddScoped<Trivia.Application.Common.Interfaces.ILeaderboardRepository, Trivia.Infrastructure.Persistence.LeaderboardRepository>();
+        // Application command handlers (register MediatR handlers in DI container via assemblies elsewhere; if manual registration needed, add here)
 
-        // Http-based event publisher to RealTimeHub (keeps microservice decoupling)
-        // Prefer RabbitMQ publisher when RABBITMQ_HOST is present, otherwise fallback to HTTP bridge
+        // Configure an HTTP client that can be used as a fallback publisher to RealTimeHub
+        services.AddHttpClient("RealTimeHub", client =>
+        {
+            client.BaseAddress = new Uri(configuration["RealTimeHub:Url"] ?? "http://localhost:5005");
+        });
+
+        // Prefer RabbitMQ publisher when RABBITMQ_HOST is present. If construction fails at startup
+        // (library/version mismatch, connectivity), fall back to HTTP publisher so the service remains usable.
         if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RABBITMQ_HOST")))
         {
-            services.AddSingleton<Trivia.Application.Common.Interfaces.IEventPublisher, Trivia.Infrastructure.Messaging.RabbitMQ.RabbitMqEventPublisher>();
+            services.AddSingleton<Trivia.Application.Common.Interfaces.IEventPublisher>(sp =>
+            {
+                try
+                {
+                    // Try to construct RabbitMqEventPublisher; it may throw if RabbitMQ client isn't compatible
+                    return ActivatorUtilities.CreateInstance<Trivia.Infrastructure.Messaging.RabbitMQ.RabbitMqEventPublisher>(sp, configuration);
+                }
+                catch (Exception ex)
+                {
+                    // Log and fallback to HTTP-based publisher
+                    var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Trivia.Infrastructure.Messaging.HttpEventPublisher>>();
+                    logger.LogWarning(ex, "Falling back to HttpEventPublisher because RabbitMQ publisher failed to initialize");
+                    var clientFactory = sp.GetRequiredService<System.Net.Http.IHttpClientFactory>();
+                    var httpClient = clientFactory.CreateClient("RealTimeHub");
+                    return new Trivia.Infrastructure.Messaging.HttpEventPublisher(httpClient, sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Trivia.Infrastructure.Messaging.HttpEventPublisher>>());
+                }
+            });
         }
         else
         {
-            services.AddHttpClient<Trivia.Application.Common.Interfaces.IEventPublisher, Trivia.Infrastructure.Messaging.HttpEventPublisher>(client =>
+            // No RabbitMQ requested; use HTTP publisher
+            services.AddSingleton<Trivia.Application.Common.Interfaces.IEventPublisher>(sp =>
             {
-                client.BaseAddress = new Uri(configuration["RealTimeHub:Url"] ?? "http://localhost:5005");
+                var clientFactory = sp.GetRequiredService<System.Net.Http.IHttpClientFactory>();
+                var httpClient = clientFactory.CreateClient("RealTimeHub");
+                return new Trivia.Infrastructure.Messaging.HttpEventPublisher(httpClient, sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Trivia.Infrastructure.Messaging.HttpEventPublisher>>());
             });
         }
 
-        // RabbitMQ consumer for leaderboard updates
-        services.AddHostedService<Trivia.Infrastructure.Messaging.RabbitMQ.TriviaAnswerSubmittedConsumer>();
+        // RabbitMQ consumer for leaderboard updates: prefer typed implementation
+        services.AddHostedService<Trivia.Infrastructure.Messaging.RabbitMQ.TypedTriviaAnswerSubmittedConsumer>();
 
         return services;
     }

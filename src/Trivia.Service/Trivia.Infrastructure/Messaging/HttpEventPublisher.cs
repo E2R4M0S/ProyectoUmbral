@@ -9,7 +9,7 @@ namespace Trivia.Infrastructure.Messaging;
 /// This keeps the Trivia service decoupled while allowing real-time notifications without introducing
 /// a message broker at this stage.
 /// </summary>
-public class HttpEventPublisher : IEventPublisher
+public class HttpEventPublisher : IEventPublisher, Trivia.Application.Common.Interfaces.IRealTimePublisher
 {
     private readonly HttpClient _client;
     private readonly ILogger<HttpEventPublisher> _logger;

@@ -24,6 +24,30 @@ public static class AnsweringEndpoints
                 return Results.Problem("Failed to register participant answer", statusCode: 500);
             }
         }).RequireAuthorization();
+
+        // Internal test endpoint: useful for local CI/manual tests when authentication is not available.
+        // Enabled only when environment variable ENABLE_INTERNAL_TESTS is set to "true".
+        try
+        {
+            var enable = string.Equals(Environment.GetEnvironmentVariable("ENABLE_INTERNAL_TESTS"), "true", StringComparison.OrdinalIgnoreCase);
+            if (enable)
+            {
+                app.MapPost("/internal/test/trivia/answers", async ([FromBody] ParticipantAnswerRequest req, IMediator mediator, ILogger<Program> logger) =>
+                {
+                    try
+                    {
+                        await mediator.Send(new SubmitAnswerCommand(req.QuizId, req.TeamId, req.QuestionId, req.AnswerId, req.Timestamp));
+                        return Results.Ok(new { received = true, test = true });
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to register participant answer (internal test)");
+                        return Results.Problem("Failed to register participant answer", statusCode: 500);
+                    }
+                });
+            }
+        }
+        catch { }
     }
 
     public record ParticipantAnswerRequest(Guid QuizId, Guid TeamId, Guid QuestionId, Guid AnswerId, DateTime Timestamp);

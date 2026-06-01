@@ -157,6 +157,10 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:80
       RABBITMQ_HOST: rabbitmq
+      # Use in-memory EF Core provider inside container to avoid native provider versioning
+      # issues during local testing. This flips the service to use InMemory DB.
+      USE_INMEMORY_DB: "true"
+      ENABLE_INTERNAL_TESTS: "true"
     depends_on:
       trivia-db:
         condition: service_started
@@ -167,6 +171,8 @@ services:
       context: ./src/RealTimeHub
     ports:
       - "5005:80"
+    extra_hosts:
+      - "realtimehub:127.0.0.1"
     networks:
       - umbral-network
     environment:

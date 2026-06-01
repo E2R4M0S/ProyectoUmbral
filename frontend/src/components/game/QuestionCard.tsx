@@ -15,6 +15,8 @@ export function QuestionCard({ question }: Props) {
   const handleAnswer = async (answerId: string) => {
     if (disabled || sent || state.answersDisabled) return;
     setDisabled(true);
+    // Optimistically disable answers at global level
+    try { dispatch({ type: "SET_ANSWERS_DISABLED", disabled: true }); } catch { }
     setError(null);
     try {
       const payload = {
@@ -39,13 +41,11 @@ export function QuestionCard({ question }: Props) {
       }
 
       setSent(true);
-      // Optionally close UI or keep it blocked until next question
-      setTimeout(() => {
-        setDisabled(true);
-      }, 100);
+      // keep UI blocked until next question; the global `answersDisabled` will be reset when a new clue is released
     } catch (ex: any) {
       setError(ex?.message ?? "Network error");
       setDisabled(false);
+      try { dispatch({ type: "SET_ANSWERS_DISABLED", disabled: false }); } catch { }
     }
   };
 

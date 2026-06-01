@@ -42,6 +42,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         clues: [...state.clues, action.clue],
+        answersDisabled: false,
       };
 
     case "CONNECTION_STATE_CHANGED":
@@ -63,6 +64,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         score: action.score,
+      };
+
+    case "SET_ANSWERS_DISABLED":
+      return {
+        ...state,
+        answersDisabled: action.disabled,
       };
 
     default:

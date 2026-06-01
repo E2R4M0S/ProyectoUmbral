@@ -18,8 +18,8 @@ export function ActiveGame() {
       {/* Example: if the current clue contains a TimeLimitSeconds property, show countdown */}
       {state.clues.length > 0 && typeof state.clues[0] === "object" && (state.clues[0] as any).timeLimitSeconds && (
         <CountdownTimer timeLimitSeconds={(state.clues[0] as any).timeLimitSeconds} onExpired={() => {
-          // when expired, dispatch an action to disable answers
-          dispatch({ type: "SET_SCORE", score: state.score });
+          // when expired, dispatch an action to disable answers globally
+          dispatch({ type: "SET_ANSWERS_DISABLED", disabled: true });
         }} />
       )}
 

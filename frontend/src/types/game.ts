@@ -16,6 +16,7 @@ export interface GameState {
   clues: unknown[];
   score: number;
   connectionState: ConnectionState;
+  answersDisabled?: boolean;
 }
 
 export type GameAction =

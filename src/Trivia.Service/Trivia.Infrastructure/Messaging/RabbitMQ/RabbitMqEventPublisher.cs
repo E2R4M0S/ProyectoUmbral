@@ -1,29 +1,31 @@
 using System.Text;
 using System.Text.Json;
-using RabbitMQ.Client;
 using Microsoft.Extensions.Configuration;
 using Trivia.Application.Common.Interfaces;
+using global::RabbitMQ.Client;
+using System.Linq;
 
 namespace Trivia.Infrastructure.Messaging.RabbitMQ;
 
 public class RabbitMqEventPublisher : IEventPublisher, IDisposable
 {
-    private readonly object _connection;
-    private readonly object _channel;
+    private readonly IConnection _connection;
+    private readonly IModel _channel;
 
     public RabbitMqEventPublisher(IConfiguration configuration)
     {
-        dynamic factory = new global::RabbitMQ.Client.ConnectionFactory()
+        // Use the typed RabbitMQ client directly (package pinned in the infra project)
+        var factory = new ConnectionFactory()
         {
-            HostName = configuration["RABBITMQ_HOST"] ?? "rabbitmq"
+            HostName = configuration["RABBITMQ_HOST"] ?? "rabbitmq",
+            AutomaticRecoveryEnabled = true
         };
-        var conn = factory.CreateConnection();
-        var ch = conn.CreateModel();
-        _connection = conn;
-        _channel = ch;
-        // Use dynamic to avoid compile-time dependency on IModel signatures in certain SDKs
-        dynamic _ch = _channel;
-        _ch.ExchangeDeclare("trivia", global::RabbitMQ.Client.ExchangeType.Topic, durable: true);
+
+        _connection = factory.CreateConnection();
+        _channel = _connection.CreateModel();
+
+        // Declare exchange (topic)
+        _channel.ExchangeDeclare("trivia", ExchangeType.Topic, true);
     }
 
     public Task PublishAsync(string eventName, object payload, CancellationToken ct = default)
@@ -35,26 +37,28 @@ public class RabbitMqEventPublisher : IEventPublisher, IDisposable
         };
 
         var body = JsonSerializer.SerializeToUtf8Bytes(payload, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-        dynamic _ch = _channel;
-        var props = _ch.CreateBasicProperties();
-        props.Persistent = true;
-        _ch.BasicPublish(exchange: "trivia", routingKey: routingKey, basicProperties: props, body: body);
+
+        // Use reflection to create basic properties and publish
+        var modelType = _channel.GetType();
+        var createProps = modelType.GetMethod("CreateBasicProperties", Type.EmptyTypes);
+        var props = createProps?.Invoke(_channel, null);
+        if (props != null)
+        {
+            var persistentProp = props.GetType().GetProperty("Persistent");
+            persistentProp?.SetValue(props, true);
+        }
+
+        var basicPublish = modelType.GetMethod("BasicPublish", new Type[] { typeof(string), typeof(string), props?.GetType() ?? typeof(object), typeof(byte[]) });
+        if (basicPublish != null)
+        {
+            basicPublish.Invoke(_channel, new object[] { "trivia", routingKey, props, body });
+        }
         return Task.CompletedTask;
     }
 
     public void Dispose()
     {
-        try
-        {
-            dynamic _ch = _channel;
-            _ch?.Close();
-        }
-        catch { }
-        try
-        {
-            dynamic _conn = _connection;
-            _conn?.Close();
-        }
-        catch { }
+        try { dynamic d = _channel; d?.Close(); } catch { }
+        try { dynamic d2 = _connection; d2?.Close(); } catch { }
     }
 }
