@@ -13,7 +13,7 @@ public class RabbitMqEventPublisher : IEventPublisher, IDisposable
 
     public RabbitMqEventPublisher(IConfiguration configuration)
     {
-        var factory = new global::RabbitMQ.Client.ConnectionFactory()
+        dynamic factory = new global::RabbitMQ.Client.ConnectionFactory()
         {
             HostName = configuration["RABBITMQ_HOST"] ?? "rabbitmq"
         };

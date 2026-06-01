@@ -27,7 +27,7 @@ public class TriviaAnswerSubmittedConsumer : BackgroundService
     {
         try
         {
-            var factory = new global::RabbitMQ.Client.ConnectionFactory() { HostName = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "rabbitmq" };
+            dynamic factory = new global::RabbitMQ.Client.ConnectionFactory() { HostName = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "rabbitmq" };
             var conn = factory.CreateConnection();
             var ch = conn.CreateModel();
             _connection = conn;
