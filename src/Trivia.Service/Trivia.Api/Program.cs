@@ -1,6 +1,7 @@
 ﻿using Trivia.Application;
 using Trivia.Infrastructure;
 using Serilog;
+using Trivia.Api.Endpoints;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
