@@ -23,10 +23,12 @@ public class TriviaAnswerSubmittedConsumer : BackgroundService
     private readonly ILogger<TriviaAnswerSubmittedConsumer> _logger;
     private object? _connection;
     private object? _model;
+    private readonly IServiceProvider _serviceProvider;
 
-    public TriviaAnswerSubmittedConsumer(ILogger<TriviaAnswerSubmittedConsumer> logger)
+    public TriviaAnswerSubmittedConsumer(ILogger<TriviaAnswerSubmittedConsumer> logger, IServiceProvider serviceProvider)
     {
         _logger = logger;
+        _serviceProvider = serviceProvider;
     }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -123,7 +125,63 @@ public class TriviaAnswerSubmittedConsumer : BackgroundService
                         string message = bytes.Length > 0 ? Encoding.UTF8.GetString(bytes) : "";
                         _logger.LogInformation("Received TriviaAnswerSubmittedEvent: {msg}", message);
 
-                        // TODO: deserialize message and update leaderboard and DB here
+                        // Deserialize message and update leaderboard
+                        try
+                        {
+                            var doc = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonDocument>(message);
+                            if (doc?.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+                            {
+                                var root = doc.RootElement;
+                                var quizId = root.GetProperty("quizId").GetGuid();
+                                var teamId = root.GetProperty("teamId").GetGuid();
+                                var isCorrect = root.GetProperty("isCorrect").GetBoolean();
+
+                                // Simple scoring: +10 per correct answer
+                                int delta = isCorrect ? 10 : 0;
+
+                                // Update leaderboard in DB using repository via scoped service provider
+                                try
+                                {
+                                    using var scope = _serviceProvider.CreateScope();
+                                    var leaderboardRepo = scope.ServiceProvider.GetService<Trivia.Application.Common.Interfaces.ILeaderboardRepository>();
+                                    if (leaderboardRepo != null)
+                                    {
+                                        var existing = leaderboardRepo.GetByTeamAsync(quizId, teamId).GetAwaiter().GetResult();
+                                        if (existing == null)
+                                        {
+                                            var entry = new Trivia.Domain.Entities.LeaderboardEntry
+                                            {
+                                                QuizId = quizId,
+                                                TeamId = teamId,
+                                                Score = delta,
+                                            };
+                                            leaderboardRepo.AddOrUpdateAsync(entry).GetAwaiter().GetResult();
+                                        }
+                                        else
+                                        {
+                                            existing.Score += delta;
+                                            leaderboardRepo.AddOrUpdateAsync(existing).GetAwaiter().GetResult();
+                                        }
+
+                                        // Broadcast updated leaderboard to RealTimeHub via HTTP publisher
+                                        var publisher = scope.ServiceProvider.GetService<Trivia.Application.Common.Interfaces.IEventPublisher>();
+                                        if (publisher != null)
+                                        {
+                                            var leaderboard = leaderboardRepo.GetByQuizAsync(quizId).GetAwaiter().GetResult();
+                                            publisher.PublishAsync("LeaderboardUpdated", leaderboard).GetAwaiter().GetResult();
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, "Failed to update leaderboard for Quiz {QuizId}", quizId);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to deserialize/handle TriviaAnswerSubmittedEvent");
+                        }
 
                         // Acknowledge
                         var deliveryTagProp = resultType.GetProperty("DeliveryTag");

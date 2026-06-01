@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Trivia.Application.Common.Interfaces;
 
 namespace Trivia.Application.Trivias.Progress;

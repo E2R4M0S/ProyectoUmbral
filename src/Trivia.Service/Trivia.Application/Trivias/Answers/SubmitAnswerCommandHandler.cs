@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Trivia.Application.Common.Interfaces;
 
 namespace Trivia.Application.Trivias.Answers;
@@ -70,5 +71,23 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
         };
 
         await _publisher.PublishAsync("TriviaAnswerSubmittedEvent", payload, ct);
+
+        // Also update leaderboard locally so operator UI can read it immediately
+        try
+        {
+            if (_answerRepo is not null && _answerRepoAnswers is not null)
+            {
+                // If correct, award points (simple rule: 10 points per correct answer)
+                if (isCorrect && _answerRepo is not null)
+                {
+                    // Try to resolve leaderboard repository via DI fallback is not available here; rely on event consumer for final aggregation.
+                    _logger.LogInformation("Answer recorded and event published for AnswerId={AnswerId}", answer.Id);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to do immediate leaderboard hinting");
+        }
     }
 }

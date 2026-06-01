@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<Trivia.Application.Common.Interfaces.IQuizRepository, Trivia.Infrastructure.Persistence.QuizRepository>();
         services.AddScoped<Trivia.Application.Common.Interfaces.IParticipantAnswerRepository, Trivia.Infrastructure.Persistence.ParticipantAnswerRepository>();
         services.AddScoped<Trivia.Application.Common.Interfaces.IAnswerRepository, Trivia.Infrastructure.Persistence.AnswerRepository>();
+        services.AddScoped<Trivia.Application.Common.Interfaces.ILeaderboardRepository, Trivia.Infrastructure.Persistence.LeaderboardRepository>();
 
         // Http-based event publisher to RealTimeHub (keeps microservice decoupling)
         // Prefer RabbitMQ publisher when RABBITMQ_HOST is present, otherwise fallback to HTTP bridge

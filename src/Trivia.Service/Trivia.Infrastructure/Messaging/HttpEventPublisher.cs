@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Trivia.Application.Common.Interfaces;
 
 namespace Trivia.Infrastructure.Messaging;
