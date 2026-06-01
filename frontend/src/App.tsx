@@ -1,3 +1,4 @@
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Outlet, Link, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Registro } from "./pages/public/Registro";
@@ -226,9 +227,14 @@ function App() {
             <Route path="sesiones/:id/panel" element={<PanelSesion />} />
           </Route>
         </Route>
-        <Route path="/operator" element={<ProtectedRoute requiredRole="operator" />}>
-          <Route element={<OperatorPanel />}>
-            <Route index element={<h2>Panel de Operador</h2>} />
+          <Route path="/operator" element={<ProtectedRoute requiredRole="operator" />}>
+            <Route element={<OperatorPanel />}>
+              <Route index element={<h2>Panel de Operador</h2>} />
+              <Route path="question-results" element={
+                <Suspense fallback={<div>Cargando resultados...</div>}>
+                  {React.createElement(React.lazy(() => import('./pages/operator/QuestionResults')) as any)}
+                </Suspense>
+              } />
             <Route path="misiones" element={<CatalogoMisiones />} />
             <Route path="sesiones" element={<ListadoSesiones />} />
             <Route path="sesiones/crear" element={<CrearSesion />} />
