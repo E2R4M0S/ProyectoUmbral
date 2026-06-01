@@ -13,6 +13,7 @@ obj/
 *.vs/
 .DS_Store
 *.DotSettings.user
+TestResults/
 
 # ─── Node / Frontend ─────────────────────────────────────────
 node_modules/

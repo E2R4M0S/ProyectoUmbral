@@ -3,4 +3,5 @@
   <Project Path="Missions.Application/Missions.Application.csproj" />
   <Project Path="Missions.Domain/Missions.Domain.csproj" />
   <Project Path="Missions.Infrastructure/Missions.Infrastructure.csproj" />
+  <Project Path="Missions.Domain.Tests/Missions.Domain.Tests.csproj" />
 </Solution>

@@ -2,7 +2,7 @@ using Missions.Domain.Enums;
 
 namespace Missions.Domain.Entities;
 
-public class MissionStage
+public class MissionStage : IMissionComponent
 {
     public Guid Id { get; private set; }
     public Guid MissionId { get; private set; }
@@ -48,4 +48,41 @@ public class MissionStage
         }
         _clues.Remove(clue);
     }
+
+    public ValidationResult Validate()
+    {
+        var errors = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            errors.Add("Stage name cannot be empty");
+        }
+
+        if (string.IsNullOrWhiteSpace(Description))
+        {
+            errors.Add("Stage description cannot be empty");
+        }
+
+        if (_clues.Count == 0)
+        {
+            errors.Add("Stage requires at least one clue");
+        }
+
+        foreach (var clue in _clues)
+        {
+            var clueResult = clue.Validate();
+            if (!clueResult.IsValid)
+            {
+                errors.AddRange(clueResult.Errors);
+            }
+        }
+
+        return errors.Count > 0
+            ? new ValidationResult(errors)
+            : ValidationResult.Success();
+    }
+
+    public int GetTotalPenalty() => _clues.Sum(c => c.GetTotalPenalty());
+
+    public int GetLeafCount() => _clues.Sum(c => c.GetLeafCount());
 }
