@@ -32,7 +32,7 @@ public class CreateClueCommandHandlerTests
 
         _repository.GetByIdAsync(mission.Id, Arg.Any<CancellationToken>())
             .Returns(mission);
-        _repository.UpdateAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>())
+        _repository.AddClueAsync(Arg.Any<Mission>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         // Act
@@ -45,7 +45,7 @@ public class CreateClueCommandHandlerTests
         result.ReleaseType.Should().Be("Auto");
 
         await _repository.Received(1).GetByIdAsync(mission.Id, Arg.Any<CancellationToken>());
-        await _repository.Received(1).UpdateAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>());
+        await _repository.Received(1).AddClueAsync(Arg.Any<Mission>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class CreateClueCommandHandlerTests
             .WithMessage($"*not found*");
 
         await _repository.Received(1).GetByIdAsync(missionId, Arg.Any<CancellationToken>());
-        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().AddClueAsync(Arg.Any<Mission>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class CreateClueCommandHandlerTests
 
         _repository.GetByIdAsync(mission.Id, Arg.Any<CancellationToken>())
             .Returns(mission);
-        _repository.UpdateAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>())
+        _repository.AddClueAsync(Arg.Any<Mission>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         // Act

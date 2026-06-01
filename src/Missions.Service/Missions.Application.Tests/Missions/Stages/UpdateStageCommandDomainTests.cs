@@ -71,7 +71,7 @@ public class UpdateStageCommandDomainTests
 
         // Assert
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage($"*already exists*");
+            .WithMessage($"*ya existe*");
     }
 
     [Fact]

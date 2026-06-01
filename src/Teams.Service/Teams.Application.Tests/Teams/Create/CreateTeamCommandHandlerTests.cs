@@ -50,7 +50,7 @@ public class CreateTeamCommandHandlerTests
         result.Name.Should().Be("Los Leones");
         result.Description.Should().Be("Equipo de desarrollo");
         result.LeaderId.Should().Be("leader-123");
-        result.MemberIds.Should().HaveCount(2);
+        result.MemberIds.Should().HaveCount(3); // leader + 2 members
         result.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
 
         await _repository.Received(1).AddAsync(Arg.Any<Team>(), Arg.Any<CancellationToken>());
@@ -150,7 +150,7 @@ public class CreateTeamCommandHandlerTests
         var result = await _sut.Handle(command, CancellationToken.None);
 
         // Assert
-        result.MemberIds.Should().BeEmpty();
+        result.MemberIds.Should().HaveCount(1); // leader is always added as member
         await _repository.Received(1).AddAsync(Arg.Any<Team>(), Arg.Any<CancellationToken>());
     }
 

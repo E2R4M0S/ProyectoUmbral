@@ -26,7 +26,6 @@ public class JoinTeamCommandHandlerTests
     private static Team CreateTeamWithJoinCode(string joinCode)
     {
         var team = Team.Create("Test Team", "Test Description", "leader-123");
-        // Use reflection to set the JoinCode since it has a private setter
         typeof(Team).GetProperty("JoinCode")!.SetValue(team, joinCode);
         return team;
     }
@@ -51,20 +50,17 @@ public class JoinTeamCommandHandlerTests
     public async Task Handle_HappyPath_ShouldJoinTeamSuccessfully()
     {
         // Arrange
-        var teamId = Guid.NewGuid();
         var userId = "user-456";
         var joinCode = "ABC123";
-        var command = new JoinTeamCommand(teamId, joinCode);
+        var command = new JoinTeamCommand(joinCode);
 
         var team = CreateTeamWithJoinCode(joinCode);
-        // Use reflection to set the team Id since it's private set
-        typeof(Team).GetProperty("Id")!.SetValue(team, teamId);
 
         SetupUserContext(userId);
 
-        _repository.GetByIdWithMembersAsync(teamId, Arg.Any<CancellationToken>())
+        _repository.GetByJoinCodeAsync(joinCode, Arg.Any<CancellationToken>())
             .Returns(team);
-        _repository.UpdateAsync(Arg.Any<Team>(), Arg.Any<CancellationToken>())
+        _repository.AddMemberAsync(team, Arg.Any<TeamMember>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         // Act
@@ -73,23 +69,22 @@ public class JoinTeamCommandHandlerTests
         // Assert
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeTrue();
-        result.TeamId.Should().Be(teamId);
+        result.TeamId.Should().Be(team.Id);
 
-        await _repository.Received(1).GetByIdWithMembersAsync(teamId, Arg.Any<CancellationToken>());
-        await _repository.Received(1).UpdateAsync(Arg.Any<Team>(), Arg.Any<CancellationToken>());
+        await _repository.Received(1).GetByJoinCodeAsync(joinCode, Arg.Any<CancellationToken>());
+        await _repository.Received(1).AddMemberAsync(team, Arg.Any<TeamMember>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_TeamNotFound_ShouldThrowInvalidOperationException()
+    public async Task Handle_InvalidJoinCode_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var teamId = Guid.NewGuid();
-        var joinCode = "ABC123";
-        var command = new JoinTeamCommand(teamId, joinCode);
+        var joinCode = "INVALID";
+        var command = new JoinTeamCommand(joinCode);
 
         SetupUserContext("user-456");
 
-        _repository.GetByIdWithMembersAsync(teamId, Arg.Any<CancellationToken>())
+        _repository.GetByJoinCodeAsync(joinCode, Arg.Any<CancellationToken>())
             .Returns((Team?)null);
 
         // Act
@@ -97,54 +92,25 @@ public class JoinTeamCommandHandlerTests
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*not found*");
+            .WithMessage("*Invalid join code*");
 
-        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Team>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_InvalidJoinCode_ShouldThrowInvalidOperationException()
-    {
-        // Arrange
-        var teamId = Guid.NewGuid();
-        var teamJoinCode = "ABC123";
-        var wrongJoinCode = "WRONG1";
-        var command = new JoinTeamCommand(teamId, wrongJoinCode);
-
-        var team = CreateTeamWithJoinCode(teamJoinCode);
-        typeof(Team).GetProperty("Id")!.SetValue(team, teamId);
-
-        SetupUserContext("user-456");
-
-        _repository.GetByIdWithMembersAsync(teamId, Arg.Any<CancellationToken>())
-            .Returns(team);
-
-        // Act
-        Func<Task> act = async () => await _sut.Handle(command, CancellationToken.None);
-
-        // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*invalid*join*code*");
-
-        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Team>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().AddMemberAsync(Arg.Any<Team>(), Arg.Any<TeamMember>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_AlreadyMember_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var teamId = Guid.NewGuid();
         var userId = "user-456";
         var joinCode = "ABC123";
-        var command = new JoinTeamCommand(teamId, joinCode);
+        var command = new JoinTeamCommand(joinCode);
 
         var team = CreateTeamWithJoinCode(joinCode);
-        typeof(Team).GetProperty("Id")!.SetValue(team, teamId);
         team.AddMember(userId); // User is already a member
 
         SetupUserContext(userId);
 
-        _repository.GetByIdWithMembersAsync(teamId, Arg.Any<CancellationToken>())
+        _repository.GetByJoinCodeAsync(joinCode, Arg.Any<CancellationToken>())
             .Returns(team);
 
         // Act
@@ -154,6 +120,23 @@ public class JoinTeamCommandHandlerTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*already*a*member*");
 
-        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Team>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().AddMemberAsync(Arg.Any<Team>(), Arg.Any<TeamMember>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_NoUserClaim_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var joinCode = "ABC123";
+        var command = new JoinTeamCommand(joinCode);
+
+        SetupUserContext(string.Empty);
+
+        // Act
+        Func<Task> act = async () => await _sut.Handle(command, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*User ID not found*");
     }
 }

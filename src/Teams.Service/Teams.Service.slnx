@@ -1,7 +1,10 @@
 <Solution>
+  <Project Path="Teams.Api.Tests/Teams.Api.Tests.csproj" />
   <Project Path="Teams.Api/Teams.Api.csproj" />
   <Project Path="Teams.Application/Teams.Application.csproj" />
   <Project Path="Teams.Domain/Teams.Domain.csproj" />
+  <Project Path="Teams.Infrastructure.Tests/Teams.Infrastructure.Tests.csproj" />
   <Project Path="Teams.Infrastructure/Teams.Infrastructure.csproj" />
   <Project Path="Teams.Application.Tests/Teams.Application.Tests.csproj" />
+  <Project Path="Teams.Domain.Tests/Teams.Domain.Tests.csproj" />
 </Solution>
