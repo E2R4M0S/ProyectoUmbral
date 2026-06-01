@@ -156,6 +156,7 @@ services:
       - umbral-network
     environment:
       ASPNETCORE_URLS: http://+:80
+      RABBITMQ_HOST: rabbitmq
     depends_on:
       trivia-db:
         condition: service_started

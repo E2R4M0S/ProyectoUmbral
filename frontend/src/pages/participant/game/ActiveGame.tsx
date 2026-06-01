@@ -2,6 +2,7 @@ import { useGame } from "../../../contexts/GameContext";
 import { Timer } from "../../../components/game/Timer";
 import { ClueCard } from "../../../components/game/ClueCard";
 import { CountdownTimer } from "../../../components/game/CountdownTimer";
+import { QuestionCard } from "../../../components/game/QuestionCard";
 
 export function ActiveGame() {
   const { state } = useGame();
@@ -28,8 +29,9 @@ export function ActiveGame() {
         </div>
       ) : (
         <div style={{ marginTop: "1rem" }}>
-          {state.clues.map((clue: unknown, index: number) => (
-            <ClueCard key={index} clue={clue} />
+          {state.clues.map((clue: any, index: number) => (
+            // if clue includes question details, show QuestionCard else generic ClueCard
+            clue?.questionId ? <QuestionCard key={index} question={clue} /> : <ClueCard key={index} clue={clue} />
           ))}
         </div>
       )}

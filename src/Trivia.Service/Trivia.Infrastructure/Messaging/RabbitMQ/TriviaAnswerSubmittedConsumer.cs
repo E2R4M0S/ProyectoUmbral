@@ -29,7 +29,9 @@ public class TriviaAnswerSubmittedConsumer : BackgroundService
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
 
+            _channel.ExchangeDeclare("trivia", ExchangeType.Topic, durable: true);
             _channel.QueueDeclare(queue: "trivia.answer.submitted", durable: true, exclusive: false, autoDelete: false, arguments: null);
+            _channel.QueueBind("trivia.answer.submitted", "trivia", "answer.submitted");
 
             var consumer = new EventingBasicConsumer(_channel);
             consumer.Received += (model, ea) =>
