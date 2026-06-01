@@ -12,6 +12,7 @@ public class TriviaDbContext : DbContext
 <<<<<<< HEAD
     public DbSet<Trivia.Domain.Entities.Question> Questions => Set<Trivia.Domain.Entities.Question>();
     public DbSet<Trivia.Domain.Entities.ParticipantAnswer> ParticipantAnswers => Set<Trivia.Domain.Entities.ParticipantAnswer>();
+    public DbSet<Trivia.Domain.Entities.Answer> Answers => Set<Trivia.Domain.Entities.Answer>();
 =======
 >>>>>>> 61b3cec (feat(hu-39): countdown timer frontend + backend endpoints and skeleton for answer submission and RabbitMQ consumer)
 }

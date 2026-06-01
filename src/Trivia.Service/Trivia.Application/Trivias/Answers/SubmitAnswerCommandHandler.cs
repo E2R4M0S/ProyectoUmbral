@@ -6,28 +6,20 @@ namespace Trivia.Application.Trivias.Answers;
 public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
 {
     private readonly Trivia.Application.Common.Interfaces.IEventPublisher _publisher;
-<<<<<<< HEAD
     private readonly Trivia.Application.Common.Interfaces.IParticipantAnswerRepository? _answerRepo;
+    private readonly Trivia.Application.Common.Interfaces.IAnswerRepository? _answerRepoAnswers;
     private readonly ILogger<SubmitAnswerCommandHandler> _logger;
 
-    public SubmitAnswerCommandHandler(IEventPublisher publisher, ILogger<SubmitAnswerCommandHandler> logger, Trivia.Application.Common.Interfaces.IParticipantAnswerRepository? answerRepo = null)
+    public SubmitAnswerCommandHandler(IEventPublisher publisher, ILogger<SubmitAnswerCommandHandler> logger, Trivia.Application.Common.Interfaces.IParticipantAnswerRepository? answerRepo = null, Trivia.Application.Common.Interfaces.IAnswerRepository? answerRepoAnswers = null)
     {
         _publisher = publisher;
         _logger = logger;
         _answerRepo = answerRepo;
-=======
-    private readonly ILogger<SubmitAnswerCommandHandler> _logger;
-
-    public SubmitAnswerCommandHandler(IEventPublisher publisher, ILogger<SubmitAnswerCommandHandler> logger)
-    {
-        _publisher = publisher;
-        _logger = logger;
->>>>>>> 61b3cec (feat(hu-39): countdown timer frontend + backend endpoints and skeleton for answer submission and RabbitMQ consumer)
+        _answerRepoAnswers = answerRepoAnswers;
     }
 
     public async Task Handle(SubmitAnswerCommand request, CancellationToken ct)
     {
-<<<<<<< HEAD
         // Persist the participant answer locally
         var answer = new Trivia.Domain.Entities.ParticipantAnswer
         {
@@ -37,15 +29,31 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
             QuestionId = request.QuestionId,
             AnswerId = request.AnswerId,
             Timestamp = request.Timestamp,
-            IsCorrect = false // correctness check will be determined below
+            IsCorrect = false // will be computed below
         };
 
-        // Basic correctness check: try to map answer against quiz data (simplified)
-        // For now, we won't load the full question/answer model; assume correctness is checked elsewhere.
+        // Basic correctness check: load answers for question and determine correctness
+        bool isCorrect = false;
+
+        try
+        {
+            if (_answerRepoAnswers is not null)
+            {
+                var answers = await _answerRepoAnswers.GetByQuestionIdAsync(request.QuestionId, ct);
+                var matched = answers.FirstOrDefault(a => a.Id == request.AnswerId);
+                if (matched is not null)
+                    isCorrect = matched.IsCorrect;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to determine correctness for AnswerId={AnswerId}", request.AnswerId);
+        }
 
         // Save to DB
         if (_answerRepo is not null)
         {
+            answer.IsCorrect = isCorrect;
             await _answerRepo.AddAsync(answer, ct);
         }
 
@@ -57,19 +65,8 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
             answer.TeamId,
             answer.QuestionId,
             answer.AnswerId,
-            answer.Timestamp
-=======
-        // Minimal implementation: publish an integration event containing the answer details.
-        // Persistent storage (ParticipantAnswer table) and correctness check should be handled by a consumer
-        // subscribed to this event (as required by HU-41).
-        var payload = new
-        {
-            request.QuizId,
-            request.TeamId,
-            request.QuestionId,
-            request.AnswerId,
-            request.Timestamp
->>>>>>> 61b3cec (feat(hu-39): countdown timer frontend + backend endpoints and skeleton for answer submission and RabbitMQ consumer)
+            answer.Timestamp,
+            answer.IsCorrect
         };
 
         await _publisher.PublishAsync("TriviaAnswerSubmittedEvent", payload, ct);

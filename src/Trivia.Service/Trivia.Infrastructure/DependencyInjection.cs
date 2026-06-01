@@ -15,12 +15,21 @@ public static class DependencyInjection
         // Repositories
         services.AddScoped<Trivia.Application.Common.Interfaces.IQuizRepository, Trivia.Infrastructure.Persistence.QuizRepository>();
         services.AddScoped<Trivia.Application.Common.Interfaces.IParticipantAnswerRepository, Trivia.Infrastructure.Persistence.ParticipantAnswerRepository>();
+        services.AddScoped<Trivia.Application.Common.Interfaces.IAnswerRepository, Trivia.Infrastructure.Persistence.AnswerRepository>();
 
         // Http-based event publisher to RealTimeHub (keeps microservice decoupling)
-        services.AddHttpClient<Trivia.Application.Common.Interfaces.IEventPublisher, Trivia.Infrastructure.Messaging.HttpEventPublisher>(client =>
+        // Prefer RabbitMQ publisher when RABBITMQ_HOST is present, otherwise fallback to HTTP bridge
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RABBITMQ_HOST")))
         {
-            client.BaseAddress = new Uri(configuration["RealTimeHub:Url"] ?? "http://localhost:5005");
-        });
+            services.AddSingleton<Trivia.Application.Common.Interfaces.IEventPublisher, Trivia.Infrastructure.Messaging.RabbitMQ.RabbitMqEventPublisher>();
+        }
+        else
+        {
+            services.AddHttpClient<Trivia.Application.Common.Interfaces.IEventPublisher, Trivia.Infrastructure.Messaging.HttpEventPublisher>(client =>
+            {
+                client.BaseAddress = new Uri(configuration["RealTimeHub:Url"] ?? "http://localhost:5005");
+            });
+        }
 
         // RabbitMQ consumer for leaderboard updates
         services.AddHostedService<Trivia.Infrastructure.Messaging.RabbitMQ.TriviaAnswerSubmittedConsumer>();
