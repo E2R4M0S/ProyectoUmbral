@@ -32,80 +32,12 @@ public class CloseQuestionCommandHandler : IRequestHandler<CloseQuestionCommand>
 
         try
         {
-            // Try to obtain the EF Core context from the leaderboard repo implementation
-            var ctxField = _leaderboardRepo.GetType().GetProperty("Db", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-            List<Domain.Entities.ParticipantAnswer>? allAnswers = null;
-
-            // Fallback: try to get method GetByQuizAsync on participantRepo if it's implemented
-            var participantRepoType = _participantRepo.GetType();
-            var getAllMethod = participantRepoType.GetMethod("GetByQuizAsync");
-            if (getAllMethod != null)
-            {
-                var task = (Task)getAllMethod.Invoke(_participantRepo, new object[] { request.QuizId, ct })!;
-                await task;
-                var resultProp = task.GetType().GetProperty("Result");
-                allAnswers = resultProp?.GetValue(task) as List<Domain.Entities.ParticipantAnswer>;
-            }
-
-            // If the participantRepo didn't provide a reader, try reading via leaderboard repo backing context
+            // Read persisted participant answers for this quiz
+            var allAnswers = await _participantRepo.GetByQuizAsync(request.QuizId, ct);
             if (allAnswers == null)
             {
-                // Try to find a property that holds the TriviaDbContext
-                var dbProp = _leaderboardRepo.GetType().GetProperty("_db", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (dbProp != null)
-                {
-                    var db = dbProp.GetValue(_leaderboardRepo);
-                    var setMethod = db?.GetType().GetMethod("Set")?.MakeGenericMethod(typeof(Domain.Entities.ParticipantAnswer));
-                    if (setMethod != null)
-                    {
-                        var dbset = setMethod.Invoke(db, null);
-                        var toListAsync = typeof(Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions).GetMethod("ToListAsync", new[] { typeof(System.Linq.IQueryable<>).MakeGenericType(typeof(Domain.Entities.ParticipantAnswer)), typeof(CancellationToken) });
-                        if (toListAsync != null)
-                        {
-                            var queryable = dbset as System.Linq.IQueryable<Domain.Entities.ParticipantAnswer>;
-                            if (queryable != null)
-                            {
-                                var task = (Task)toListAsync.MakeGenericMethod(typeof(Domain.Entities.ParticipantAnswer)).Invoke(null, new object[] { queryable, ct })!;
-                                await task;
-                                var resultProp = task.GetType().GetProperty("Result");
-                                allAnswers = resultProp?.GetValue(task) as List<Domain.Entities.ParticipantAnswer>;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // As a last resort, try reading ParticipantAnswers via reflection on ParticipantAnswerRepository backing field
-            if (allAnswers == null)
-            {
-                var repoDbProp = _participantRepo.GetType().GetField("_db", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (repoDbProp != null)
-                {
-                    var db = repoDbProp.GetValue(_participantRepo);
-                    var setMethod = db?.GetType().GetMethod("Set")?.MakeGenericMethod(typeof(Domain.Entities.ParticipantAnswer));
-                    if (setMethod != null)
-                    {
-                        var dbset = setMethod.Invoke(db, null);
-                        var toListAsync = typeof(Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions).GetMethod("ToListAsync", new[] { typeof(System.Linq.IQueryable<>).MakeGenericType(typeof(Domain.Entities.ParticipantAnswer)), typeof(CancellationToken) });
-                        if (toListAsync != null)
-                        {
-                            var queryable = dbset as System.Linq.IQueryable<Domain.Entities.ParticipantAnswer>;
-                            if (queryable != null)
-                            {
-                                var task = (Task)toListAsync.MakeGenericMethod(typeof(Domain.Entities.ParticipantAnswer)).Invoke(null, new object[] { queryable.Where(a => a.QuizId == request.QuizId), ct })!;
-                                await task;
-                                var resultProp = task.GetType().GetProperty("Result");
-                                allAnswers = resultProp?.GetValue(task) as List<Domain.Entities.ParticipantAnswer>;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (allAnswers == null)
-            {
-                _logger.LogWarning("Could not read participant answers when closing question for quiz {QuizId}", request.QuizId);
-                return;
+                _logger.LogWarning("ParticipantAnswer repository returned null list for quiz {QuizId}", request.QuizId);
+                allAnswers = new List<Domain.Entities.ParticipantAnswer>();
             }
 
             // Filter answers for this quiz and compute per-team deltas

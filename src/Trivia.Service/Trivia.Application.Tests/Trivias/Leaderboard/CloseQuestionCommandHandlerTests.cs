@@ -33,8 +33,8 @@ public class CloseQuestionCommandHandlerTests
         // Act
         await handler.Handle(new CloseQuestionCommand(Guid.NewGuid()), CancellationToken.None);
 
-        // Assert: since handler couldn't read answers, it should not throw and should not call AddOrUpdateAsync
+        // Assert: no leaderboard updates (no deltas), but final snapshot should be published
         await leaderboardRepo.DidNotReceiveWithAnyArgs().AddOrUpdateAsync(default!, default);
-        await publisher.DidNotReceiveWithAnyArgs().PublishAsync(default!, default);
+        await publisher.Received(1).PublishAsync("LeaderboardUpdated", Arg.Any<object>(), Arg.Any<CancellationToken>());
     }
 }
