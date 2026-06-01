@@ -15,6 +15,7 @@ public class TypedTriviaAnswerSubmittedConsumer : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private global::RabbitMQ.Client.IConnection? _connection;
     private global::RabbitMQ.Client.IModel? _channel;
+    private EventingBasicConsumer? _consumer;
 
     public TypedTriviaAnswerSubmittedConsumer(ILogger<TypedTriviaAnswerSubmittedConsumer> logger, IServiceProvider serviceProvider)
     {
@@ -48,22 +49,19 @@ public class TypedTriviaAnswerSubmittedConsumer : BackgroundService
             _channel.QueueBind("trivia.answer.submitted", "trivia", "answer.submitted", null);
 
             // Use EventingBasicConsumer for reliable behavior across RabbitMQ.Client versions
-            var consumer = new EventingBasicConsumer(_channel);
-            consumer.Registered += (sender, ea) => _logger.LogInformation("EventingBasicConsumer registered");
-            consumer.Unregistered += (sender, ea) => _logger.LogInformation("EventingBasicConsumer unregistered");
-            consumer.ConsumerCancelled += (sender, ea) => _logger.LogWarning("EventingBasicConsumer cancelled (reason)");
-            consumer.Shutdown += (sender, ea) => _logger.LogWarning("EventingBasicConsumer shutdown: {ReplyText}", ea.ReplyText);
-            consumer.Received += (model, ea) =>
-            {
-                // Log at info level immediately so we can see deliveries even when debug is disabled
-                try { _logger.LogInformation("Consumer callback invoked for deliveryTag={Tag}", ea.DeliveryTag); } catch { }
+            _consumer = new EventingBasicConsumer(_channel);
+            _consumer.Registered += (sender, ea) => _logger.LogInformation("EventingBasicConsumer registered");
+            _consumer.Unregistered += (sender, ea) => _logger.LogInformation("EventingBasicConsumer unregistered");
+            _consumer.ConsumerCancelled += (sender, ea) => _logger.LogWarning("EventingBasicConsumer cancelled");
+            _consumer.Shutdown += (sender, ea) => _logger.LogWarning("EventingBasicConsumer shutdown");
 
-                // Run the async handler on the threadpool and capture/log failures so they surface in logs
+            _consumer.Received += (model, ea) =>
+            {
+                try { _logger.LogInformation("EventingBasicConsumer callback invoked for deliveryTag={Tag}", ea.DeliveryTag); } catch { }
                 _ = Task.Run(async () =>
                 {
                     try
                     {
-                        _logger.LogDebug("EventingBasicConsumer received deliveryTag={Tag} (background)", ea.DeliveryTag);
                         await OnMessageReceivedAsync(model, ea);
                     }
                     catch (Exception ex)
@@ -76,7 +74,7 @@ public class TypedTriviaAnswerSubmittedConsumer : BackgroundService
             string consumerTag = string.Empty;
             try
             {
-                consumerTag = _channel.BasicConsume("trivia.answer.submitted", false, consumer);
+                consumerTag = _channel.BasicConsume("trivia.answer.submitted", false, _consumer);
                 _logger.LogInformation("BasicConsume called for queue trivia.answer.submitted; consumerTag={Tag}", consumerTag);
             }
             catch (Exception ex)
@@ -85,103 +83,7 @@ public class TypedTriviaAnswerSubmittedConsumer : BackgroundService
             }
             _logger.LogInformation("Started typed RabbitMQ consumer for trivia.answer.submitted against host {Host}", host);
 
-            // Also start a simple polling fallback to BasicGet so we can drain messages and surface logs
-            // in environments where the eventing consumer callbacks appear not to run reliably.
-            _ = Task.Run(async () =>
-            {
-                _logger.LogInformation("Starting BasicGet polling fallback for trivia.answer.submitted");
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    try
-                    {
-                        var result = _channel.BasicGet("trivia.answer.submitted", false);
-                        if (result != null)
-                        {
-                            byte[] bytes = Array.Empty<byte>();
-                            try
-                            {
-                                var body = result.Body;
-                                if (body is byte[] b) bytes = b;
-                                else
-                                {
-                                    var toArray = body.GetType().GetMethod("ToArray", Type.EmptyTypes);
-                                    if (toArray != null) bytes = (byte[])toArray.Invoke(body, null)!;
-                                }
-                            }
-                            catch { }
-
-                            var message = bytes.Length > 0 ? Encoding.UTF8.GetString(bytes) : string.Empty;
-                            _logger.LogInformation("[BasicGet] Received TriviaAnswerSubmittedEvent: {msg}", message);
-
-                            try
-                            {
-                                using var doc = JsonDocument.Parse(message);
-                                var root = doc.RootElement;
-                                if (root.ValueKind == JsonValueKind.Object)
-                                {
-                                    var quizId = root.GetProperty("quizId").GetGuid();
-                                    var teamId = root.GetProperty("teamId").GetGuid();
-                                    var isCorrect = root.GetProperty("isCorrect").GetBoolean();
-                                    int delta = isCorrect ? 10 : 0;
-
-                                    using var scope2 = _serviceProvider.CreateScope();
-                                    var leaderboardRepo2 = scope2.ServiceProvider.GetService<ILeaderboardRepository>();
-                                    var publisher2 = scope2.ServiceProvider.GetService<IEventPublisher>();
-
-                                    if (leaderboardRepo2 != null)
-                                    {
-                                        var existing = await leaderboardRepo2.GetByTeamAsync(quizId, teamId);
-                                        if (existing == null)
-                                        {
-                                            var entry = new Trivia.Domain.Entities.LeaderboardEntry { QuizId = quizId, TeamId = teamId, Score = delta };
-                                            await leaderboardRepo2.AddOrUpdateAsync(entry);
-                                        }
-                                        else
-                                        {
-                                            existing.Score += delta;
-                                            await leaderboardRepo2.AddOrUpdateAsync(existing);
-                                        }
-
-                                        if (publisher2 != null)
-                                        {
-                                            var leaderboard = await leaderboardRepo2.GetByQuizAsync(quizId);
-                                            try
-                                            {
-                                                await publisher2.PublishAsync("LeaderboardUpdated", leaderboard);
-                                                _logger.LogInformation("[BasicGet] Published LeaderboardUpdated snapshot after processing event for quiz {QuizId}", quizId);
-                                            }
-                                            catch (Exception ex)
-                                            {
-                                                _logger.LogWarning(ex, "[BasicGet] Failed to publish LeaderboardUpdated after processing event");
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogError(ex, "[BasicGet] Failed to deserialize/handle TriviaAnswerSubmittedEvent");
-                            }
-
-                            try
-                            {
-                                _channel.BasicAck(result.DeliveryTag, false);
-                                _logger.LogInformation("[BasicGet] Acked message (deliveryTag={Tag})", result.DeliveryTag);
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning(ex, "[BasicGet] Failed to ack message (deliveryTag={Tag})", result.DeliveryTag);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "[BasicGet] Error while polling RabbitMQ");
-                    }
-
-                    await Task.Delay(500, cancellationToken);
-                }
-            }, cancellationToken);
+            // No polling fallback: this service is pure event-driven. Do not add BasicGet workarounds.
         }
         catch (Exception ex)
         {
@@ -295,6 +197,7 @@ public class TypedTriviaAnswerSubmittedConsumer : BackgroundService
 
     public override Task StopAsync(CancellationToken cancellationToken)
     {
+        try { /* AsyncEventingBasicConsumer unsubscribes automatically on channel close */ } catch { }
         try { _channel?.Close(); } catch { }
         try { _connection?.Close(); } catch { }
         return base.StopAsync(cancellationToken);
