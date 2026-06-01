@@ -42,9 +42,20 @@ public static class NotificationEndpoints
             }
             return Results.Ok();
         });
+
+        // Question results broadcast endpoint
+        app.MapPost("/internal/notifications/question-results", async (
+            [FromBody] QuestionResultsNotification notification,
+            IHubContext<GameHub> hubContext) =>
+        {
+            await hubContext.Clients.Group(notification.QuizId.ToString())
+                .SendAsync("QuestionResultsUpdated", notification.Results, CancellationToken.None);
+            return Results.Ok();
+        });
     }
 }
 
 public record SessionStatusNotification(Guid SessionId, string Status);
 public record ProgressNotification(Guid SessionId, object ProgressData);
 public record ClueReleasedNotification(Guid SessionId, Guid? TeamId, object ClueData);
+public record QuestionResultsNotification(Guid QuizId, Guid QuestionId, object Results);
