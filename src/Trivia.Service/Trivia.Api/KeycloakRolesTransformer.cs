@@ -7,7 +7,7 @@ namespace Trivia.Api;
 /// <summary>
 /// Maps Keycloak's realm_access.roles claim into ClaimTypes.Role so role-based policies work.
 /// </summary>
-file sealed class KeycloakRolesTransformer : IClaimsTransformation
+public sealed class KeycloakRolesTransformer : IClaimsTransformation
 {
     public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
