@@ -14,11 +14,12 @@ public class TransitionSessionCommandHandlerTests
     private readonly ISessionRepository _repository = Substitute.For<ISessionRepository>();
     private readonly ILogger<TransitionSessionCommandHandler> _logger =
         Substitute.For<ILogger<TransitionSessionCommandHandler>>();
+    private readonly IEventPublisher _publisher = Substitute.For<IEventPublisher>();
     private readonly TransitionSessionCommandHandler _sut;
 
     public TransitionSessionCommandHandlerTests()
     {
-        _sut = new TransitionSessionCommandHandler(_repository, _logger);
+        _sut = new TransitionSessionCommandHandler(_repository, _logger, _publisher);
     }
 
     [Fact]

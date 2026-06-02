@@ -11,13 +11,16 @@ public class TransitionSessionCommandHandler
 {
     private readonly ISessionRepository _repository;
     private readonly ILogger<TransitionSessionCommandHandler> _logger;
+    private readonly IEventPublisher _eventPublisher;
 
     public TransitionSessionCommandHandler(
         ISessionRepository repository,
-        ILogger<TransitionSessionCommandHandler> logger)
+        ILogger<TransitionSessionCommandHandler> logger,
+        IEventPublisher eventPublisher)
     {
         _repository = repository;
         _logger = logger;
+        _eventPublisher = eventPublisher;
     }
 
     public async Task Handle(TransitionSessionCommand command, CancellationToken ct)
@@ -36,5 +39,15 @@ public class TransitionSessionCommandHandler
         _logger.LogInformation(
             "Session status transitioned: Id={SessionId}, Status={Status}",
             session.Id, session.Status);
+
+        // publish domain event for external systems when session is finished
+        if (session.Status == SessionStatus.Finished)
+        {
+            await _eventPublisher.PublishAsync("session.status.changed", new
+            {
+                SessionId = session.Id,
+                Status = session.Status.ToString()
+            });
+        }
     }
 }
