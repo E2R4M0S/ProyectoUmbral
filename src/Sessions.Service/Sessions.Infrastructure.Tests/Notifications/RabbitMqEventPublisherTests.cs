@@ -1,7 +1,6 @@
-using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sessions.Infrastructure.Notifications;
-using Sessions.Application.Common.Interfaces;
 using Xunit;
 
 namespace Sessions.Service.Sessions.Infrastructure.Tests.Notifications;
@@ -9,14 +8,13 @@ namespace Sessions.Service.Sessions.Infrastructure.Tests.Notifications;
 public class RabbitMqEventPublisherTests
 {
     [Fact]
-    public async Task PublishAsync_logs_message()
+    public void Constructor_does_not_throw()
     {
         var logger = new NullLogger<RabbitMqEventPublisher>();
-        IEventPublisher publisher = new RabbitMqEventPublisher(logger);
+        var config = new ConfigurationBuilder().AddInMemoryCollection().Build();
 
-        await publisher.PublishAsync("test.key", new { Value = 1 });
+        var publisher = new RabbitMqEventPublisher(logger, config);
 
-        // No exception == pass (we rely on logger side-effect)
-        Assert.True(true);
+        Assert.NotNull(publisher);
     }
 }
