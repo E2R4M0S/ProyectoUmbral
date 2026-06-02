@@ -22,6 +22,9 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(configuration["RealTimeHub:Url"] ?? "http://localhost:5005");
         });
 
+        // Register a simple event publisher (RabbitMQ implementation placeholder)
+        services.AddSingleton<IEventPublisher, Notifications.RabbitMqEventPublisher>();
+
         return services;
     }
 }
