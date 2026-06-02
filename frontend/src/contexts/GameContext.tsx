@@ -14,6 +14,9 @@ const initialState: GameState = {
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
+    case "RESET":
+      return initialState;
+
     case "SESSION_LOADED":
       return {
         ...state,

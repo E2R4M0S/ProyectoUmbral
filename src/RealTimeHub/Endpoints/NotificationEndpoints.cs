@@ -42,6 +42,8 @@ public static class NotificationEndpoints
             }
             return Results.Ok();
         });
+
+        // Podium notification moved to a dedicated endpoint to avoid duplicate route definitions
     }
 }
 
