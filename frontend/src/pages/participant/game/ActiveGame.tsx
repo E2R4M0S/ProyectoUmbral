@@ -1,6 +1,7 @@
 import { useGame } from "../../../contexts/GameContext";
 import { Timer } from "../../../components/game/Timer";
 import { ClueCard } from "../../../components/game/ClueCard";
+import { RankingBoard } from "../../../components/game/RankingBoard";
 
 export function ActiveGame() {
   const { state } = useGame();
@@ -13,6 +14,8 @@ export function ActiveGame() {
       margin: "0 auto",
     }}>
       <Timer />
+
+      <RankingBoard ranking={state.ranking} />
 
       {state.clues.length === 0 ? (
         <div style={{ textAlign: "center", color: "#999", marginTop: "2rem" }}>

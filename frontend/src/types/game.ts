@@ -8,6 +8,12 @@ export interface JoinSessionResponse {
   joinedAt: string;
 }
 
+export interface RankingEntry {
+  position: number;
+  teamName: string;
+  score: number;
+}
+
 export interface GameState {
   sessionId: string | null;
   sessionName: string;
@@ -16,6 +22,7 @@ export interface GameState {
   clues: unknown[];
   score: number;
   connectionState: ConnectionState;
+  ranking: RankingEntry[];
 }
 
 export type GameAction =
@@ -25,4 +32,5 @@ export type GameAction =
   | { type: "CLUE_RELEASED"; clue: unknown }
   | { type: "CONNECTION_STATE_CHANGED"; state: ConnectionState }
   | { type: "TICK" }
-  | { type: "SET_SCORE"; score: number };
+  | { type: "SET_SCORE"; score: number }
+  | { type: "RANKING_UPDATED"; ranking: RankingEntry[] };
