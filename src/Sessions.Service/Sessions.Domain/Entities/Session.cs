@@ -44,6 +44,7 @@ public class Session
 
     public void TransitionTo(SessionStatus newStatus)
     {
+        _state ??= StateFactory.Create(_status);
         if (_state.Status == newStatus)
         {
             throw new InvalidOperationException($"Session is already in '{newStatus}' status");

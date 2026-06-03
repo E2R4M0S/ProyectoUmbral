@@ -83,9 +83,12 @@ export function useSignalR(callbacks: UseSignalRCallbacks): void {
     hub.onreconnecting(() => callbacksRef.current.onConnectionStateChange("Reconnecting"));
     hub.onreconnected(async () => {
       callbacksRef.current.onConnectionStateChange("Connected");
+      // Re-join session group after reconnect to ensure server groups are updated
       try {
         await hub.invoke("JoinSessionGroup", sessionId);
-      } catch { }
+      } catch {
+        // swallow - we'll rely on automatic reconnect retries
+      }
     });
 
     hub.start()

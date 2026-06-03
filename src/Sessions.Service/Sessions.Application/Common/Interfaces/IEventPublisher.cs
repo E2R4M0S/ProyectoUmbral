@@ -1,6 +1,9 @@
-namespace Sessions.Application.Common.Interfaces;
+using System.Threading.Tasks;
 
-public interface IEventPublisher
+namespace Sessions.Application.Common.Interfaces
 {
-    Task PublishAsync(string eventName, object payload, CancellationToken ct = default);
+    public interface IEventPublisher
+    {
+        Task PublishAsync(string routingKey, object payload);
+    }
 }

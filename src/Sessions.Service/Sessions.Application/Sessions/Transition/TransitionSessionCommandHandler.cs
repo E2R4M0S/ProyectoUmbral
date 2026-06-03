@@ -11,14 +11,16 @@ public class TransitionSessionCommandHandler
 {
     private readonly ISessionRepository _repository;
     private readonly ILogger<TransitionSessionCommandHandler> _logger;
-    private readonly IEventPublisher _publisher;
+    private readonly IEventPublisher _eventPublisher;
 
     public TransitionSessionCommandHandler(
         ISessionRepository repository,
-        ILogger<TransitionSessionCommandHandler> logger)
+        ILogger<TransitionSessionCommandHandler> logger,
+        IEventPublisher eventPublisher)
     {
         _repository = repository;
         _logger = logger;
+        _eventPublisher = eventPublisher;
     }
 
     // Add constructor overload for DI
@@ -45,16 +47,20 @@ public class TransitionSessionCommandHandler
             "Session status transitioned: Id={SessionId}, Status={Status}",
             session.Id, session.Status);
 
-        // Publish domain event for async processing (optional)
-        if (_publisher is not null)
+        // publish domain event for external systems when session is finished
+        if (session.Status == SessionStatus.Finished)
         {
             try
             {
-                await _publisher.PublishAsync("SessionStarted", new { SessionId = session.Id, Status = session.Status.ToString(), StartedAt = session.StartedAt }, ct);
+                await _eventPublisher.PublishAsync("session.status.changed", new
+                {
+                    SessionId = session.Id,
+                    Status = session.Status.ToString()
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to publish SessionStarted event for SessionId={SessionId}", session.Id);
+                _logger.LogWarning(ex, "Event publish failed for session {SessionId}, event was not delivered", session.Id);
             }
         }
     }

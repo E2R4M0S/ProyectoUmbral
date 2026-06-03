@@ -43,46 +43,7 @@ public static class NotificationEndpoints
             return Results.Ok();
         });
 
-        // Endpoint to broadcast question results (used by backend services)
-        app.MapPost("/internal/notifications/question-results", async (
-            [FromBody] QuestionResultsNotification notification,
-            IHubContext<GameHub> hubContext) =>
-        {
-            if (notification.QuizId != Guid.Empty)
-            {
-                await hubContext.Clients.Group(notification.QuizId.ToString())
-                    .SendAsync("QuestionResultsUpdated", notification.Results, CancellationToken.None);
-            }
-            if (notification.SessionId != null)
-            {
-                await hubContext.Clients.Group(notification.SessionId.Value.ToString())
-                    .SendAsync("QuestionResultsUpdated", notification.Results, CancellationToken.None);
-            }
-            return Results.Ok();
-        });
-
-        // Endpoint to notify participants that a question was closed and include correct answer info
-        app.MapPost("/internal/notifications/question-closed", async (
-            [FromBody] QuestionClosedNotification notification,
-            IHubContext<GameHub> hubContext) =>
-        {
-            if (notification.SessionId != Guid.Empty)
-            {
-                await hubContext.Clients.Group(notification.SessionId.ToString())
-                    .SendAsync("QuestionClosed", new { notification.QuestionId, notification.CorrectAnswerId, notification.CorrectAnswerText }, CancellationToken.None);
-            }
-            return Results.Ok();
-        });
-
-        // Endpoint to broadcast real-time ranking updates
-        app.MapPost("/internal/notifications/ranking-updated", async (
-            [FromBody] RankingUpdatedNotification notification,
-            IHubContext<GameHub> hubContext) =>
-        {
-            await hubContext.Clients.Group(notification.SessionId.ToString())
-                .SendAsync("RankingUpdated", notification, CancellationToken.None);
-            return Results.Ok();
-        });
+        // Podium notification moved to a dedicated endpoint to avoid duplicate route definitions
     }
 }
 
