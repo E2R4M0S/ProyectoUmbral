@@ -2,4 +2,4 @@ using MediatR;
 
 namespace Trivia.Application.Trivias.Leaderboard;
 
-public record CloseQuestionCommand(Guid QuizId) : IRequest;
+public record CloseQuestionCommand(Guid QuizId, Guid QuestionId) : IRequest;

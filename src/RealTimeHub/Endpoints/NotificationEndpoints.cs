@@ -42,12 +42,22 @@ public static class NotificationEndpoints
             }
             return Results.Ok();
         });
+
         app.MapPost("/internal/notifications/ranking-updated", async (
             [FromBody] RankingUpdatedNotification notification,
             IHubContext<GameHub> hubContext) =>
         {
             await hubContext.Clients.Group(notification.SessionId.ToString())
                 .SendAsync("RankingUpdated", notification, CancellationToken.None);
+            return Results.Ok();
+        });
+
+        app.MapPost("/internal/notifications/question-results", async (
+            [FromBody] QuestionResultsNotification notification,
+            IHubContext<GameHub> hubContext) =>
+        {
+            await hubContext.Clients.Group(notification.QuizId.ToString())
+                .SendAsync("QuestionResultsUpdated", notification.Results, CancellationToken.None);
             return Results.Ok();
         });
     }
@@ -58,3 +68,4 @@ public record ProgressNotification(Guid SessionId, object ProgressData);
 public record ClueReleasedNotification(Guid SessionId, Guid? TeamId, object ClueData);
 public record RankingEntryDto(int Position, string TeamName, int Score);
 public record RankingUpdatedNotification(Guid SessionId, List<RankingEntryDto> Ranking);
+public record QuestionResultsNotification(Guid QuizId, Guid QuestionId, object Results);
