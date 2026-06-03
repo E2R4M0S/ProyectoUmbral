@@ -73,6 +73,11 @@ public static class DependencyInjection
         // RabbitMQ consumer for leaderboard updates: prefer typed implementation
         services.AddHostedService<Trivia.Infrastructure.Messaging.RabbitMQ.TypedTriviaAnswerSubmittedConsumer>();
 
+        services.AddHttpClient("realTimeHub", client =>
+        {
+            client.BaseAddress = new Uri(configuration["RealTimeHub:Url"] ?? "http://localhost:5005");
+        });
+
         return services;
     }
 }

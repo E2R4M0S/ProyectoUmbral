@@ -1,7 +1,7 @@
-﻿using Trivia.Application;
+﻿using Trivia.Api.Endpoints;
+using Trivia.Application;
 using Trivia.Infrastructure;
 using Serilog;
-using Trivia.Api.Endpoints;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -19,8 +19,8 @@ try
 
     builder.Services.AddApplicationServices();
     builder.Services.AddInfrastructureServices(builder.Configuration);
-    
-    // JWT Bearer authentication — validates tokens from Keycloak (aligned with other services)
+
+    // JWT Bearer authentication — validates tokens from Keycloak
     builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
@@ -40,7 +40,6 @@ try
             };
         });
 
-    // Map Keycloak realm_access.roles into ClaimTypes.Role claims like other services
     builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, Trivia.Api.KeycloakRolesTransformer>();
     builder.Services.AddAuthorization(options =>
     {
@@ -53,12 +52,14 @@ try
 
     app.UseSerilogRequestLogging();
 
-    // Auto-create database on startup for development (keeps behavior aligned with other services)
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<Trivia.Infrastructure.TriviaDbContext>();
         db.Database.EnsureCreated();
     }
+
+    app.UseAuthentication();
+    app.UseAuthorization();
 
     if (app.Environment.IsDevelopment())
     {
@@ -69,10 +70,11 @@ try
        .WithName("Health")
        .AllowAnonymous();
 
-    // Trivia endpoints
+    app.MapGameEndpoints();
     app.MapStartTrivia();
     app.MapProgressEndpoints();
     app.MapAnsweringEndpoints();
+    app.MapRankingEndpoints();
 
     app.Run();
 }
@@ -84,4 +86,3 @@ finally
 {
     Log.CloseAndFlush();
 }
-
