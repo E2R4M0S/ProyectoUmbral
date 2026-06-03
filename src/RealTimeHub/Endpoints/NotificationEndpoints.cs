@@ -43,6 +43,38 @@ public static class NotificationEndpoints
             return Results.Ok();
         });
 
+        // Endpoint to broadcast question results (used by backend services)
+        app.MapPost("/internal/notifications/question-results", async (
+            [FromBody] QuestionResultsNotification notification,
+            IHubContext<GameHub> hubContext) =>
+        {
+            if (notification.QuizId != Guid.Empty)
+            {
+                await hubContext.Clients.Group(notification.QuizId.ToString())
+                    .SendAsync("QuestionResultsUpdated", notification.Results, CancellationToken.None);
+            }
+            if (notification.SessionId != null)
+            {
+                await hubContext.Clients.Group(notification.SessionId.Value.ToString())
+                    .SendAsync("QuestionResultsUpdated", notification.Results, CancellationToken.None);
+            }
+            return Results.Ok();
+        });
+
+        // Endpoint to notify participants that a question was closed and include correct answer info
+        app.MapPost("/internal/notifications/question-closed", async (
+            [FromBody] QuestionClosedNotification notification,
+            IHubContext<GameHub> hubContext) =>
+        {
+            if (notification.SessionId != Guid.Empty)
+            {
+                await hubContext.Clients.Group(notification.SessionId.ToString())
+                    .SendAsync("QuestionClosed", new { notification.QuestionId, notification.CorrectAnswerId, notification.CorrectAnswerText }, CancellationToken.None);
+            }
+            return Results.Ok();
+        });
+
+        // Endpoint to broadcast real-time ranking updates
         app.MapPost("/internal/notifications/ranking-updated", async (
             [FromBody] RankingUpdatedNotification notification,
             IHubContext<GameHub> hubContext) =>
@@ -51,21 +83,13 @@ public static class NotificationEndpoints
                 .SendAsync("RankingUpdated", notification, CancellationToken.None);
             return Results.Ok();
         });
-
-        app.MapPost("/internal/notifications/question-results", async (
-            [FromBody] QuestionResultsNotification notification,
-            IHubContext<GameHub> hubContext) =>
-        {
-            await hubContext.Clients.Group(notification.QuizId.ToString())
-                .SendAsync("QuestionResultsUpdated", notification.Results, CancellationToken.None);
-            return Results.Ok();
-        });
     }
 }
 
 public record SessionStatusNotification(Guid SessionId, string Status);
 public record ProgressNotification(Guid SessionId, object ProgressData);
 public record ClueReleasedNotification(Guid SessionId, Guid? TeamId, object ClueData);
+public record QuestionResultsNotification(Guid QuizId, Guid? SessionId, Guid QuestionId, object Results);
+public record QuestionClosedNotification(Guid SessionId, Guid QuestionId, Guid CorrectAnswerId, string? CorrectAnswerText);
 public record RankingEntryDto(int Position, string TeamName, int Score);
 public record RankingUpdatedNotification(Guid SessionId, List<RankingEntryDto> Ranking);
-public record QuestionResultsNotification(Guid QuizId, Guid QuestionId, object Results);

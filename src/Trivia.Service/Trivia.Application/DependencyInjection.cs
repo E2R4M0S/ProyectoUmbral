@@ -11,8 +11,11 @@ public static class DependencyInjection
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
 
-        // register application handlers in Trivia.Application
-        // (MediatR registration above will pick up handlers in this assembly)
+        // Http client used to call the RealTimeHub internal endpoints
+        services.AddHttpClient("RealTimeHub", client =>
+        {
+            client.BaseAddress = new Uri("http://localhost:5005");
+        });
 
         return services;
     }

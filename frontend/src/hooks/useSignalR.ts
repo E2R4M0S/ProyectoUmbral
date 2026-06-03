@@ -1,19 +1,21 @@
 import { useEffect, useRef } from "react";
 import { HubConnectionBuilder } from "@microsoft/signalr";
 import { userManager } from "../auth/keycloak";
-import type { ConnectionState, RankingEntry } from "../types/game";
+import type { ConnectionState, RankingEntry, TriviaQuestion } from "../types/game";
 
 const HUB_URL = "/hub/game";
 const RECONNECT_DELAYS_MS = [0, 1000, 2000, 4000, 8000, 15000, 30000];
 
-interface UseSignalRCallbacks {
-  sessionId: string;
-  onStatusChanged: (status: string) => void;
-  onProgressUpdated: (data: unknown) => void;
-  onClueReleased: (clue: unknown) => void;
-  onConnectionStateChange: (state: ConnectionState) => void;
-  onRankingUpdated?: (ranking: RankingEntry[]) => void;
-}
+  interface UseSignalRCallbacks {
+    sessionId: string;
+    onStatusChanged: (status: string) => void;
+    onProgressUpdated: (data: unknown) => void;
+    onClueReleased: (clue: unknown) => void;
+    onQuestionClosed?: (payload: { questionId: string; correctAnswerId: string; correctAnswerText?: string }) => void;
+    onConnectionStateChange: (state: ConnectionState) => void;
+    onQuestionAsked?: (question: TriviaQuestion) => void;
+    onRankingUpdated?: (ranking: RankingEntry[]) => void;
+  }
 
 export function useSignalR(callbacks: UseSignalRCallbacks): void {
   const callbacksRef = useRef(callbacks);
@@ -50,6 +52,23 @@ export function useSignalR(callbacks: UseSignalRCallbacks): void {
       const p = payload as { sessionId: string; teamId?: string; clueData: unknown };
       if (p.sessionId === sessionId) {
         callbacksRef.current.onClueReleased(p.clueData);
+      }
+    });
+
+    hub.on("QuestionClosed", (payload: unknown) => {
+      const p = payload as { sessionId?: string; questionId: string; correctAnswerId: string; correctAnswerText?: string };
+      const data = { questionId: p.questionId, correctAnswerId: p.correctAnswerId, correctAnswerText: p.correctAnswerText };
+      callbacksRef.current.onQuestionClosed?.(data);
+      try {
+        const ev = new CustomEvent("QuestionClosed", { detail: data });
+        window.dispatchEvent(ev);
+      } catch { }
+    });
+
+    hub.on("QuestionAsked", (payload: unknown) => {
+      const p = payload as TriviaQuestion;
+      if (p.sessionId === sessionId) {
+        callbacksRef.current.onQuestionAsked?.(p);
       }
     });
 

@@ -47,37 +47,38 @@ public class GameNotifier : IGameNotifier
         }
     }
 
-        public async Task NotifyClueReleased(Guid sessionId, Guid? teamId, object clueData, CancellationToken ct = default)
+    public async Task NotifyClueReleased(Guid sessionId, Guid? teamId, object clueData, CancellationToken ct = default)
+    {
+        try
         {
-            try
+            await _httpClient.PostAsJsonAsync($"/internal/notifications/clue-released", new
             {
-                await _httpClient.PostAsJsonAsync($"/internal/notifications/clue-released", new
-                {
-                    SessionId = sessionId,
-                    TeamId = teamId,
-                    ClueData = clueData
-                }, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to send clue release notification for {SessionId}", sessionId);
-            }
+                SessionId = sessionId,
+                TeamId = teamId,
+                ClueData = clueData
+            }, ct);
         }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send clue release notification for {SessionId}", sessionId);
+        }
+    }
 
-        public async Task NotifyQuestionResults(Guid quizId, Guid questionId, object results, CancellationToken ct = default)
+    public async Task NotifyQuestionClosed(Guid sessionId, Guid questionId, Guid correctAnswerId, string? correctAnswerText, CancellationToken ct = default)
+    {
+        try
         {
-            try
+            await _httpClient.PostAsJsonAsync($"/internal/notifications/question-closed", new
             {
-                await _httpClient.PostAsJsonAsync($"/internal/notifications/question-results", new
-                {
-                    QuizId = quizId,
-                    QuestionId = questionId,
-                    Results = results
-                }, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to send question results notification for QuizId={QuizId} QuestionId={QuestionId}", quizId, questionId);
-            }
+                SessionId = sessionId,
+                QuestionId = questionId,
+                CorrectAnswerId = correctAnswerId,
+                CorrectAnswerText = correctAnswerText
+            }, ct);
         }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send question closed notification for {SessionId}", sessionId);
+        }
+    }
 }
