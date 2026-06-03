@@ -3,9 +3,13 @@ using Trivia.Application;
 using Trivia.Infrastructure;
 using Serilog;
 
-Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .CreateBootstrapLogger();
+try
+{
+    Log.Logger = new LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateBootstrapLogger();
+}
+catch { }
 
 try
 {
@@ -20,7 +24,6 @@ try
     builder.Services.AddApplicationServices();
     builder.Services.AddInfrastructureServices(builder.Configuration);
 
-    // JWT Bearer authentication — validates tokens from Keycloak
     builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
@@ -52,10 +55,13 @@ try
 
     app.UseSerilogRequestLogging();
 
-    using (var scope = app.Services.CreateScope())
+    if (!app.Environment.IsEnvironment("Test"))
     {
-        var db = scope.ServiceProvider.GetRequiredService<Trivia.Infrastructure.TriviaDbContext>();
-        db.Database.EnsureCreated();
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<Trivia.Infrastructure.TriviaDbContext>();
+            db.Database.EnsureCreated();
+        }
     }
 
     app.UseAuthentication();
@@ -86,3 +92,5 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+public partial class Program { }

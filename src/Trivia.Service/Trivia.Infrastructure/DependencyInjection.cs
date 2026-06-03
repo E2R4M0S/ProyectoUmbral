@@ -70,8 +70,11 @@ public static class DependencyInjection
             });
         }
 
-        // RabbitMQ consumer for leaderboard updates: prefer typed implementation
-        services.AddHostedService<Trivia.Infrastructure.Messaging.RabbitMQ.TypedTriviaAnswerSubmittedConsumer>();
+        // RabbitMQ consumer for leaderboard updates: only register if RabbitMQ is configured
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RABBITMQ_HOST")))
+        {
+            services.AddHostedService<Trivia.Infrastructure.Messaging.RabbitMQ.TypedTriviaAnswerSubmittedConsumer>();
+        }
 
         services.AddHttpClient("realTimeHub", client =>
         {
