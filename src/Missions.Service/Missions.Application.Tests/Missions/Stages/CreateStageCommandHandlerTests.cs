@@ -30,7 +30,7 @@ public class CreateStageCommandHandlerTests
 
         _repository.GetByIdAsync(mission.Id, Arg.Any<CancellationToken>())
             .Returns(mission);
-        _repository.UpdateAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>())
+        _repository.AddStageAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         // Act
@@ -43,7 +43,7 @@ public class CreateStageCommandHandlerTests
         result.Order.Should().Be(1);
 
         await _repository.Received(1).GetByIdAsync(mission.Id, Arg.Any<CancellationToken>());
-        await _repository.Received(1).UpdateAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>());
+        await _repository.Received(1).AddStageAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class CreateStageCommandHandlerTests
             .WithMessage($"*not found*");
 
         await _repository.Received(1).GetByIdAsync(missionId, Arg.Any<CancellationToken>());
-        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().AddStageAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -84,9 +84,9 @@ public class CreateStageCommandHandlerTests
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*already exists*");
+            .WithMessage("*ya existe*");
 
         await _repository.Received(1).GetByIdAsync(mission.Id, Arg.Any<CancellationToken>());
-        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().AddStageAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>());
     }
 }

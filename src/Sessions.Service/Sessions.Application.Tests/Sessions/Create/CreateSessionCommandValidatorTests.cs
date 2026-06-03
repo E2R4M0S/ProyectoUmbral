@@ -13,7 +13,7 @@ public class CreateSessionCommandValidatorTests
     public void Validate_ValidCommand_ShouldPass()
     {
         // Arrange
-        var command = new CreateSessionCommand("Test Session", Guid.NewGuid());
+        var command = new CreateSessionCommand("Test Session", Guid.NewGuid(), "Test Mission");
 
         // Act
         var result = _sut.TestValidate(command);
@@ -26,7 +26,7 @@ public class CreateSessionCommandValidatorTests
     public void Validate_EmptyName_ShouldFail()
     {
         // Arrange
-        var command = new CreateSessionCommand("", Guid.NewGuid());
+        var command = new CreateSessionCommand("", Guid.NewGuid(), "");
 
         // Act
         var result = _sut.TestValidate(command);
@@ -41,7 +41,7 @@ public class CreateSessionCommandValidatorTests
     {
         // Arrange
         var longName = new string('A', 201);
-        var command = new CreateSessionCommand(longName, Guid.NewGuid());
+        var command = new CreateSessionCommand(longName, Guid.NewGuid(), "Test Mission");
 
         // Act
         var result = _sut.TestValidate(command);
@@ -56,7 +56,7 @@ public class CreateSessionCommandValidatorTests
     {
         // Arrange
         var name200 = new string('A', 200);
-        var command = new CreateSessionCommand(name200, Guid.NewGuid());
+        var command = new CreateSessionCommand(name200, Guid.NewGuid(), "Test Mission");
 
         // Act
         var result = _sut.TestValidate(command);
@@ -69,7 +69,7 @@ public class CreateSessionCommandValidatorTests
     public void Validate_EmptyMissionId_ShouldFail()
     {
         // Arrange
-        var command = new CreateSessionCommand("Test Session", Guid.Empty);
+        var command = new CreateSessionCommand("Test Session", Guid.Empty, "Test Mission");
 
         // Act
         var result = _sut.TestValidate(command);
@@ -86,7 +86,7 @@ public class CreateSessionCommandValidatorTests
     public void Validate_ValidNames_ShouldPass(string name)
     {
         // Arrange
-        var command = new CreateSessionCommand(name, Guid.NewGuid());
+        var command = new CreateSessionCommand(name, Guid.NewGuid(), "Test Mission");
 
         // Act
         var result = _sut.TestValidate(command);

@@ -140,6 +140,6 @@ public class UpdateStageCommandHandlerTests
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage($"*already exists*");
+            .WithMessage($"*ya existe*");
     }
 }

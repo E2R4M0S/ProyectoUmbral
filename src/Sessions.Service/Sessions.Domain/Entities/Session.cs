@@ -1,27 +1,28 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using Sessions.Domain.Enums;
+using Sessions.Domain.States;
 
 namespace Sessions.Domain.Entities;
 
 public class Session
 {
-    private static readonly Dictionary<SessionStatus, HashSet<SessionStatus>> ValidTransitions = new()
-    {
-        [SessionStatus.Scheduled] = new() { SessionStatus.Preparing, SessionStatus.Cancelled },
-        [SessionStatus.Preparing] = new() { SessionStatus.Active, SessionStatus.Cancelled },
-        [SessionStatus.Active] = new() { SessionStatus.Paused, SessionStatus.Finished, SessionStatus.Cancelled },
-        [SessionStatus.Paused] = new() { SessionStatus.Active, SessionStatus.Finished, SessionStatus.Cancelled },
-        [SessionStatus.Finished] = new() { },
-        [SessionStatus.Cancelled] = new() { }
-    };
-
     public Guid Id { get; private set; }
     public string Name { get; private set; } = null!;
     public Guid MissionId { get; private set; }
     public string MissionTitle { get; private set; } = null!;
     public string Pin { get; private set; } = null!;
-    public SessionStatus Status { get; private set; }
-    public DateTime? StartedAt { get; private set; }
-    public DateTime? EndedAt { get; private set; }
+
+    private SessionStatus _status;
+    [NotMapped] private ISessionState _state = null!;
+
+    public SessionStatus Status
+    {
+        get => _status;
+        private set { _status = value; _state = StateFactory.Create(value); }
+    }
+
+    public DateTime? StartedAt { get; internal set; }
+    public DateTime? EndedAt { get; internal set; }
     public DateTime CreatedAt { get; private set; }
 
     private readonly List<SessionParticipant> _participants = new();
@@ -43,28 +44,20 @@ public class Session
 
     public void TransitionTo(SessionStatus newStatus)
     {
-        if (Status == newStatus)
+        if (_state.Status == newStatus)
         {
-            throw new InvalidOperationException($"Session is already in '{Status}' status");
+            throw new InvalidOperationException($"Session is already in '{newStatus}' status");
         }
 
-        if (!ValidTransitions.TryGetValue(Status, out var allowed) || !allowed.Contains(newStatus))
+        if (!_state.CanTransitionTo(newStatus))
         {
             throw new InvalidOperationException(
-                $"Cannot transition session from '{Status}' to '{newStatus}'");
+                $"Cannot transition session from '{_state.Status}' to '{newStatus}'");
         }
 
-        if (newStatus == SessionStatus.Active && !StartedAt.HasValue)
-        {
-            StartedAt = DateTime.UtcNow;
-        }
-
-        if (newStatus == SessionStatus.Finished || newStatus == SessionStatus.Cancelled)
-        {
-            EndedAt = DateTime.UtcNow;
-        }
-
+        _state.OnExit(this);
         Status = newStatus;
+        _state.OnEnter(this);
     }
 
     public void AddParticipant(Guid userId)

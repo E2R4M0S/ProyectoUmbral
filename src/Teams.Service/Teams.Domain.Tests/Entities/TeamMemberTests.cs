@@ -2,9 +2,9 @@ using FluentAssertions;
 using Teams.Domain.Entities;
 using Xunit;
 
-namespace Teams.Application.Tests.Teams.Create;
+namespace Teams.Domain.Tests.Entities;
 
-public class TeamMemberEntityTests
+public class TeamMemberTests
 {
     [Fact]
     public void Create_WithValidInputs_ShouldCreateTeamMember()
@@ -23,7 +23,7 @@ public class TeamMemberEntityTests
     }
 
     [Fact]
-    public void Create_ShouldGenerateNewId()
+    public void Create_ShouldGenerateUniqueIds()
     {
         // Arrange
         var teamId = Guid.NewGuid();
@@ -35,5 +35,31 @@ public class TeamMemberEntityTests
 
         // Assert
         member1.Id.Should().NotBe(member2.Id);
+    }
+
+    [Fact]
+    public void Create_WithNullUserId_ShouldAssignNull()
+    {
+        // Arrange
+        var teamId = Guid.NewGuid();
+
+        // Act
+        var member = TeamMember.Create(teamId, null!);
+
+        // Assert
+        member.UserId.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_WithEmptyUserId_ShouldAssignEmpty()
+    {
+        // Arrange
+        var teamId = Guid.NewGuid();
+
+        // Act
+        var member = TeamMember.Create(teamId, string.Empty);
+
+        // Assert
+        member.UserId.Should().BeEmpty();
     }
 }

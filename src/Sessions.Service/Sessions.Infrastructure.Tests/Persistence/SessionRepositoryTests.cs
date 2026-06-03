@@ -26,7 +26,7 @@ public class SessionRepositoryTests
         await using var dbContext = CreateDbContext(dbName);
         var repo = new SessionRepository(dbContext);
 
-        var session = Session.Create("Test Session", Guid.NewGuid(), "123456");
+        var session = Session.Create("Test Session", Guid.NewGuid(), "Test Mission", "123456");
 
         // Act
         await repo.AddAsync(session, CancellationToken.None);
@@ -61,7 +61,7 @@ public class SessionRepositoryTests
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
 
-        var existingSession = Session.Create("Existing", Guid.NewGuid(), "111111");
+        var existingSession = Session.Create("Existing", Guid.NewGuid(), "Test Mission", "111111");
         dbContext.Sessions.Add(existingSession);
         await dbContext.SaveChangesAsync();
 
@@ -83,7 +83,7 @@ public class SessionRepositoryTests
         var repo = new SessionRepository(dbContext);
         var beforeCreate = DateTime.UtcNow;
 
-        var session = Session.Create("Timed Session", Guid.NewGuid(), "222222");
+        var session = Session.Create("Timed Session", Guid.NewGuid(), "Test Mission", "222222");
 
         // Act
         await repo.AddAsync(session, CancellationToken.None);
@@ -101,8 +101,8 @@ public class SessionRepositoryTests
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
 
-        var session1 = Session.Create("Session 1", Guid.NewGuid(), "333333");
-        var session2 = Session.Create("Session 2", Guid.NewGuid(), "444444");
+        var session1 = Session.Create("Session 1", Guid.NewGuid(), "Test Mission", "333333");
+        var session2 = Session.Create("Session 2", Guid.NewGuid(), "Test Mission", "444444");
         dbContext.Sessions.AddRange(session1, session2);
         await dbContext.SaveChangesAsync();
 

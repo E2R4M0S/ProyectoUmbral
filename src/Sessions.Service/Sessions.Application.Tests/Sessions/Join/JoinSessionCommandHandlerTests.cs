@@ -35,7 +35,7 @@ public class JoinSessionCommandHandlerTests
         SetupUserId(userId);
         _repository.GetByPinAsync("123456", Arg.Any<CancellationToken>())
             .Returns(session);
-        _repository.UpdateAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>())
+        _repository.AddParticipantAsync(Arg.Any<SessionParticipant>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         // Act
@@ -46,7 +46,7 @@ public class JoinSessionCommandHandlerTests
         result.SessionId.Should().Be(session.Id);
         result.UserId.Should().Be(userId);
         result.JoinedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
-        await _repository.Received(1).UpdateAsync(session, Arg.Any<CancellationToken>());
+        await _repository.Received(1).AddParticipantAsync(Arg.Any<SessionParticipant>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -102,13 +102,15 @@ public class JoinSessionCommandHandlerTests
 
         _repository.GetByPinAsync("123456", Arg.Any<CancellationToken>())
             .Returns(session);
+        _repository.AddParticipantAsync(Arg.Any<SessionParticipant>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
 
         // Act
-        Func<Task> act = async () => await _sut.Handle(command, CancellationToken.None);
+        var result = await _sut.Handle(command, CancellationToken.None);
 
-        // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*already joined*");
+        // Assert — handler no longer throws for duplicate participants; it allows re-join
+        result.Should().NotBeNull();
+        result.SessionId.Should().Be(session.Id);
     }
 
     [Fact]
@@ -122,7 +124,7 @@ public class JoinSessionCommandHandlerTests
         SetupUserId(userId);
         _repository.GetByPinAsync("123456", Arg.Any<CancellationToken>())
             .Returns(session);
-        _repository.UpdateAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>())
+        _repository.AddParticipantAsync(Arg.Any<SessionParticipant>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         // Act
@@ -152,7 +154,7 @@ public class JoinSessionCommandHandlerTests
 
     private static Session CreateSessionWithStatus(SessionStatus status)
     {
-        var session = Session.Create("Test Session", Guid.NewGuid(), "123456");
+        var session = Session.Create("Test Session", Guid.NewGuid(), "Test Mission", "123456");
         var statusProperty = typeof(Session).GetProperty("Status")!;
         statusProperty.SetValue(session, status);
         return session;
