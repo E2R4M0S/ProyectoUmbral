@@ -10,6 +10,7 @@ const initialState: GameState = {
   clues: [],
   score: 0,
   connectionState: "Disconnected",
+  ranking: [],
 };
 
 function gameReducer(state: GameState, action: GameAction): GameState {
@@ -70,6 +71,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         answersDisabled: action.disabled,
+      };
+
+    case "RANKING_UPDATED":
+      return {
+        ...state,
+        ranking: action.ranking,
       };
 
     default:

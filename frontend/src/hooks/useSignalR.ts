@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { HubConnectionBuilder } from "@microsoft/signalr";
 import { userManager } from "../auth/keycloak";
-import type { ConnectionState } from "../types/game";
+import type { ConnectionState, RankingEntry } from "../types/game";
 
 const HUB_URL = "/hub/game";
 const RECONNECT_DELAYS_MS = [0, 1000, 2000, 4000, 8000, 15000, 30000];
@@ -12,6 +12,7 @@ interface UseSignalRCallbacks {
   onProgressUpdated: (data: unknown) => void;
   onClueReleased: (clue: unknown) => void;
   onConnectionStateChange: (state: ConnectionState) => void;
+  onRankingUpdated?: (ranking: RankingEntry[]) => void;
 }
 
 export function useSignalR(callbacks: UseSignalRCallbacks): void {
@@ -52,9 +53,21 @@ export function useSignalR(callbacks: UseSignalRCallbacks): void {
       }
     });
 
+    hub.on("RankingUpdated", (payload: unknown) => {
+      const p = payload as { sessionId: string; ranking: RankingEntry[] };
+      if (p.sessionId === sessionId) {
+        callbacksRef.current.onRankingUpdated?.(p.ranking);
+      }
+    });
+
     hub.onclose(() => callbacksRef.current.onConnectionStateChange("Disconnected"));
     hub.onreconnecting(() => callbacksRef.current.onConnectionStateChange("Reconnecting"));
-    hub.onreconnected(() => callbacksRef.current.onConnectionStateChange("Connected"));
+    hub.onreconnected(async () => {
+      callbacksRef.current.onConnectionStateChange("Connected");
+      try {
+        await hub.invoke("JoinSessionGroup", sessionId);
+      } catch { }
+    });
 
     hub.start()
       .then(() => {

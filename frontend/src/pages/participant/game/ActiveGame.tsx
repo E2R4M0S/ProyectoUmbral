@@ -3,9 +3,10 @@ import { Timer } from "../../../components/game/Timer";
 import { ClueCard } from "../../../components/game/ClueCard";
 import { CountdownTimer } from "../../../components/game/CountdownTimer";
 import { QuestionCard } from "../../../components/game/QuestionCard";
+import { RankingBoard } from "../../../components/game/RankingBoard";
 
 export function ActiveGame() {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
 
   return (
     <div style={{
@@ -22,6 +23,8 @@ export function ActiveGame() {
           dispatch({ type: "SET_ANSWERS_DISABLED", disabled: true });
         }} />
       )}
+
+      <RankingBoard ranking={state.ranking} />
 
       {state.clues.length === 0 ? (
         <div style={{ textAlign: "center", color: "#999", marginTop: "2rem" }}>
