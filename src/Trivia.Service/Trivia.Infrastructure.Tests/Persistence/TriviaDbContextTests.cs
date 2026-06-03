@@ -1,37 +1,28 @@
 using System;
 using System.Linq;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Trivia.Domain.Entities;
-using Trivia.Infrastructure;
 using Xunit;
 
 namespace Trivia.Infrastructure.Tests.Persistence;
 
-public class TriviaDbContextTests
+public class TriviaDbContextTests : DbTestBase
 {
     [Fact]
-    public void CanCreateDatabase_UsingInMemory()
+    public void CanCreateDatabase_WithPostgres()
     {
-        var opts = new DbContextOptionsBuilder<TriviaDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
-
-using var ctx = new TriviaDbContext(opts);
-ctx.Database.EnsureCreated();
-ctx.Questions.Should().NotBeNull();
-ctx.Set<Quiz>().Should().NotBeNull();
-ctx.Answers.Should().NotBeNull();
-ctx.ParticipantAnswers.Should().NotBeNull();
-ctx.Set<LeaderboardEntry>().Should().NotBeNull();
+        using var ctx = CreateContext();
+        ctx.Questions.Should().NotBeNull();
+        ctx.Set<Quiz>().Should().NotBeNull();
+        ctx.Answers.Should().NotBeNull();
+        ctx.ParticipantAnswers.Should().NotBeNull();
+        ctx.Set<LeaderboardEntry>().Should().NotBeNull();
     }
 
     [Fact]
     public void CanSeedAndQueryQuestions()
     {
-        var opts = new DbContextOptionsBuilder<TriviaDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
-
-        using var ctx = new TriviaDbContext(opts);
+        using var ctx = CreateContext();
         ctx.Questions.Add(new Question { Id = Guid.NewGuid(), QuizId = Guid.NewGuid(), TimeLimitSeconds = 30 });
         ctx.SaveChanges();
 
@@ -41,13 +32,10 @@ ctx.Set<LeaderboardEntry>().Should().NotBeNull();
     [Fact]
     public void CanSeedAndQueryQuizzes()
     {
-        var opts = new DbContextOptionsBuilder<TriviaDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        using var ctx = CreateContext();
+        ctx.Set<Quiz>().Add(new Quiz { Id = Guid.NewGuid(), Title = "Test Quiz" });
+        ctx.SaveChanges();
 
-using var ctx = new TriviaDbContext(opts);
-ctx.Set<Quiz>().Add(new Quiz { Id = Guid.NewGuid(), Title = "Test Quiz" });
-ctx.SaveChanges();
-
-ctx.Set<Quiz>().Count().Should().Be(1);
+        ctx.Set<Quiz>().Count().Should().Be(1);
     }
 }

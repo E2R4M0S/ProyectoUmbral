@@ -9,20 +9,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        // Support using an in-memory database for local testing: set UseInMemoryDatabase=true
-        var useInMemory = string.Equals(configuration["UseInMemoryDatabase"], "true", StringComparison.OrdinalIgnoreCase)
-            || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("USE_INMEMORY_DB"));
-
-        if (useInMemory)
-        {
-            services.AddDbContext<TriviaDbContext>(options => options.UseInMemoryDatabase("TriviaInMemory"));
-        }
-        else
-        {
-            // Use Postgres provider per project skills
-            services.AddDbContext<TriviaDbContext>(options =>
-                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
-        }
+        // Use PostgreSQL exclusively
+        services.AddDbContext<TriviaDbContext>(options =>
+            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
         // Repositories
         services.AddScoped<Trivia.Application.Common.Interfaces.IQuizRepository, Trivia.Infrastructure.Persistence.QuizRepository>();

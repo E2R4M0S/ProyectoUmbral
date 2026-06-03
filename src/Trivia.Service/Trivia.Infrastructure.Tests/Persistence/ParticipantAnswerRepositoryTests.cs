@@ -1,24 +1,15 @@
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Trivia.Domain.Entities;
-using Trivia.Infrastructure;
 using Trivia.Infrastructure.Persistence;
 using Xunit;
 
 namespace Trivia.Infrastructure.Tests.Persistence;
 
-public class ParticipantAnswerRepositoryTests
+public class ParticipantAnswerRepositoryTests : DbTestBase
 {
-    private static TriviaDbContext CreateContext()
-    {
-        var opts = new DbContextOptionsBuilder<TriviaDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
-        return new TriviaDbContext(opts);
-    }
-
     [Fact]
     public async Task AddAsync_PersistsAnswer()
     {

@@ -10,15 +10,8 @@ using Xunit;
 
 namespace Trivia.Infrastructure.Tests.Persistence;
 
-public class AnswerRepositoryTests
+public class AnswerRepositoryTests : DbTestBase
 {
-    private static TriviaDbContext CreateContext()
-    {
-        var opts = new DbContextOptionsBuilder<TriviaDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
-        return new TriviaDbContext(opts);
-    }
-
     [Fact]
     public async Task GetByQuestionIdAsync_ReturnsAnswers()
     {

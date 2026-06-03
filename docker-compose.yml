@@ -69,10 +69,13 @@ services:
 
   trivia-db:
     image: postgres:16-alpine
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: trivia
       POSTGRES_USER: trivia
       POSTGRES_PASSWORD: trivia123
+      POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - trivia-db-data:/var/lib/postgresql/data
     networks:
@@ -164,9 +167,6 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:80
       RABBITMQ_HOST: rabbitmq
-      # Use in-memory EF Core provider inside container to avoid native provider versioning
-      # issues during local testing. This flips the service to use InMemory DB.
-      USE_INMEMORY_DB: "true"
       ENABLE_INTERNAL_TESTS: "true"
     depends_on:
       trivia-db:
