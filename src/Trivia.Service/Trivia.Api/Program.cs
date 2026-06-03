@@ -81,6 +81,8 @@ try
     app.MapProgressEndpoints();
     app.MapAnsweringEndpoints();
     app.MapRankingEndpoints();
+    app.MapInternalCloseQuestion();
+    app.MapInternalQuestionResults();
 
     app.Run();
 }
