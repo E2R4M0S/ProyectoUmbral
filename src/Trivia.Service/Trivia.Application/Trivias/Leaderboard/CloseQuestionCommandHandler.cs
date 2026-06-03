@@ -1,7 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;
-using Sessions.Application.Common.Interfaces;
 
 namespace Trivia.Application.Trivias.Leaderboard;
 

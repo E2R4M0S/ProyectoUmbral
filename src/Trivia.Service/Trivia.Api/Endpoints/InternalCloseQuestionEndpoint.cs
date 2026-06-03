@@ -1,3 +1,4 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Trivia.Application.Trivias.Leaderboard;
 
@@ -7,16 +8,16 @@ public static class InternalCloseQuestionEndpoint
 {
     public static void MapInternalCloseQuestion(this WebApplication app)
     {
-        app.MapPost("/internal/trivia/{quizId:guid}/close-question", async ([FromRoute] Guid quizId, IMediator mediator, ILogger<Program> logger) =>
+        app.MapPost("/internal/trivia/{sessionId:guid}/questions/{questionId:guid}/close", async ([FromRoute] Guid sessionId, [FromRoute] Guid questionId, IMediator mediator, ILogger<Program> logger) =>
         {
             try
             {
-                await mediator.Send(new CloseQuestionCommand(quizId));
+                await mediator.Send(new CloseQuestionCommand(sessionId, questionId));
                 return Results.Ok();
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to close question for quiz {QuizId}", quizId);
+                logger.LogError(ex, "Failed to close question {QuestionId} for session {SessionId}", questionId, sessionId);
                 return Results.Problem("Failed to close question", statusCode: 500);
             }
         }).WithTags("internal");
