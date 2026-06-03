@@ -43,11 +43,18 @@ public class TransitionSessionCommandHandler
         // publish domain event for external systems when session is finished
         if (session.Status == SessionStatus.Finished)
         {
-            await _eventPublisher.PublishAsync("session.status.changed", new
+            try
             {
-                SessionId = session.Id,
-                Status = session.Status.ToString()
-            });
+                await _eventPublisher.PublishAsync("session.status.changed", new
+                {
+                    SessionId = session.Id,
+                    Status = session.Status.ToString()
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Event publish failed for session {SessionId}, event was not delivered", session.Id);
+            }
         }
     }
 }

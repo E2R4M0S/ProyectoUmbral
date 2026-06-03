@@ -126,8 +126,15 @@ services:
       - umbral-network
     environment:
       ASPNETCORE_URLS: http://+:80
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__User: guest
+      RabbitMq__Password: guest
+      RabbitMq__Exchange: trivia.exchange
     depends_on:
       sessions-db:
+        condition: service_started
+      rabbitmq:
         condition: service_started
 
   # ─── Teams.Service ────────────────────────────────────────
