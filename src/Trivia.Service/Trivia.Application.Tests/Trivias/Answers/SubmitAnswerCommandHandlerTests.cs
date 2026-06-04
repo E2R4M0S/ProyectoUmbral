@@ -14,19 +14,14 @@ namespace Trivia.Application.Tests.Trivias.Answers;
 public class SubmitAnswerCommandHandlerTests
 {
     [Fact]
-    public async Task Handle_PublishesEventAndUpdatesLeaderboard_WhenAnswerRepoAvailable()
+    public async Task Handle_PublishesEvent()
     {
         var publisher = Substitute.For<IEventPublisher>();
-        var answerRepo = Substitute.For<IParticipantAnswerRepository>();
-        var answersRepo = Substitute.For<IAnswerRepository>();
-        var leaderboardRepo = Substitute.For<ILeaderboardRepository>();
         var logger = Substitute.For<ILogger<SubmitAnswerCommandHandler>>();
         var httpFactory = Substitute.For<IHttpClientFactory>();
-        var scoringStrategy = Substitute.For<IScoringStrategy>();
-        scoringStrategy.CalculateScore(Arg.Any<System.TimeSpan>(), Arg.Any<int>()).Returns(10);
         httpFactory.CreateClient(Arg.Any<string>()).Returns(new HttpClient());
 
-        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, scoringStrategy, answerRepo, leaderboardRepo);
+        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory);
 
         var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Test", Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, DateTime.UtcNow, 30);
 

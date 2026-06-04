@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Trivia.Application.Common.Interfaces;
-using Trivia.Application.Common.Strategies;
+using Trivia.Application.Trivias.Questions;
 
 namespace Trivia.Application.Trivias.Answers;
 
@@ -12,28 +12,29 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
     private readonly IParticipantAnswerRepository? _answerRepo;
     private readonly ILeaderboardRepository? _leaderboardRepo;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IScoringStrategy _scoringStrategy;
     private readonly ILogger<SubmitAnswerCommandHandler> _logger;
 
     public SubmitAnswerCommandHandler(
         IEventPublisher publisher,
         ILogger<SubmitAnswerCommandHandler> logger,
         IHttpClientFactory httpClientFactory,
-        IScoringStrategy scoringStrategy,
         IParticipantAnswerRepository? answerRepo = null,
         ILeaderboardRepository? leaderboardRepo = null)
     {
         _publisher = publisher;
         _logger = logger;
         _httpClientFactory = httpClientFactory;
-        _scoringStrategy = scoringStrategy;
         _answerRepo = answerRepo;
         _leaderboardRepo = leaderboardRepo;
     }
 
     public async Task Handle(SubmitAnswerCommand request, CancellationToken ct)
     {
-        bool isCorrect = true;
+        // Check if the answer is correct using the stored correct answer index
+        var correctIndex = AskQuestionCommandHandler.CorrectAnswers.GetValueOrDefault(request.QuestionId, -1);
+        var selectedIndex = int.TryParse(request.AnswerId.ToString()?.Last().ToString(), out var idx) ? idx : -1;
+        bool isCorrect = correctIndex >= 0 && selectedIndex == correctIndex;
+
         var answer = new Trivia.Domain.Entities.ParticipantAnswer
         {
             Id = Guid.NewGuid(),
@@ -51,7 +52,7 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
             await _answerRepo.AddAsync(answer, ct);
         }
 
-        // Publish integration event for other services (leaderboard consumer)
+        // Publish integration event
         var payload = new
         {
             answer.Id,
@@ -62,21 +63,43 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
             answer.Timestamp,
             answer.IsCorrect
         };
-
         await _publisher.PublishAsync("TriviaAnswerSubmittedEvent", payload, ct);
 
-        // Also update leaderboard locally so operator UI can read it immediately when no broker is available
+        // Update leaderboard: only add points for correct answers
         try
         {
-            if (_leaderboardRepo is not null)
+            if (_leaderboardRepo is not null && isCorrect)
             {
-                var timeElapsed = request.Timestamp - request.AskedAt;
-                var delta = _scoringStrategy.CalculateScore(timeElapsed, request.TimeLimitSeconds);
+                // Calculate score based on answer order (first correct = more points)
+                var timestamps = AskQuestionCommandHandler.CorrectAnswerTimestamps
+                    .GetOrAdd(request.QuestionId, _ => new List<DateTime>());
+
+                int position;
+                lock (timestamps)
+                {
+                    timestamps.Add(request.Timestamp);
+                    timestamps.Sort();
+                    position = timestamps.IndexOf(request.Timestamp) + 1;
+                }
+
+                var delta = position switch
+                {
+                    1 => 30,
+                    2 => 20,
+                    3 => 10,
+                    _ => 5
+                };
 
                 var existing = await _leaderboardRepo.GetByTeamAsync(request.QuizId, request.TeamId, ct);
                 if (existing == null)
                 {
-                    var entry = new Trivia.Domain.Entities.LeaderboardEntry { QuizId = request.QuizId, TeamId = request.TeamId, TeamName = request.TeamName, Score = delta };
+                    var entry = new Trivia.Domain.Entities.LeaderboardEntry
+                    {
+                        QuizId = request.QuizId,
+                        TeamId = request.TeamId,
+                        TeamName = request.TeamName,
+                        Score = delta
+                    };
                     await _leaderboardRepo.AddOrUpdateAsync(entry, ct);
                 }
                 else
@@ -86,7 +109,7 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
                     await _leaderboardRepo.AddOrUpdateAsync(existing, ct);
                 }
 
-                // Publish immediate leaderboard snapshot so realtime hub can broadcast
+                // Publish immediate leaderboard snapshot
                 try
                 {
                     var leaderboard = await _leaderboardRepo.GetByQuizAsync(request.QuizId, ct);
@@ -98,9 +121,10 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
                     _logger.LogWarning(ex, "Failed to publish immediate LeaderboardUpdated event");
                 }
             }
-            else
+            else if (isCorrect == false)
             {
-                _logger.LogInformation("Answer recorded and event published for AnswerId={AnswerId}", answer.Id);
+                _logger.LogInformation("Incorrect answer for QuestionId={QuestionId}: correct={Correct}, selected={Selected}",
+                    request.QuestionId, correctIndex, selectedIndex);
             }
         }
         catch (Exception ex)

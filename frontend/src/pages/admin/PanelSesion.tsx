@@ -294,6 +294,7 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
           questionText: q.text,
           options: q.answers.map(a => a.text),
           timeLimitSeconds: 30,
+          correctAnswerIndex: q.answers.findIndex(a => a.isCorrect),
         }),
       });
       if (!resp.ok) throw new Error(await resp.text());

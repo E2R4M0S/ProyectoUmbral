@@ -6,5 +6,6 @@ public record AskQuestionCommand(
     Guid SessionId,
     string QuestionText,
     string[] Options,
-    int TimeLimitSeconds
+    int TimeLimitSeconds,
+    int CorrectAnswerIndex
 ) : IRequest<Guid>;

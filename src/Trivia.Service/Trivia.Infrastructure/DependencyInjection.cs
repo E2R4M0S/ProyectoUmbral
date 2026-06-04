@@ -16,7 +16,6 @@ public static class DependencyInjection
         // Repositories
         services.AddScoped<Trivia.Application.Common.Interfaces.IQuizRepository, Trivia.Infrastructure.Persistence.QuizRepository>();
         services.AddScoped<Trivia.Application.Common.Interfaces.IQuestionRepository, Trivia.Infrastructure.Persistence.QuestionRepository>();
-        services.AddScoped<Trivia.Application.Common.Interfaces.IScoringStrategy, Trivia.Application.Common.Strategies.TimeBasedScoringStrategy>();
         services.AddScoped<Trivia.Application.Common.Interfaces.IParticipantAnswerRepository, Trivia.Infrastructure.Persistence.ParticipantAnswerRepository>();
         services.AddScoped<Trivia.Application.Common.Interfaces.IAnswerRepository, Trivia.Infrastructure.Persistence.AnswerRepository>();
         services.AddScoped<Trivia.Application.Common.Interfaces.ILeaderboardRepository, Trivia.Infrastructure.Persistence.LeaderboardRepository>();
