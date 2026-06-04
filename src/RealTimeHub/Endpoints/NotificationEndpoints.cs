@@ -78,7 +78,7 @@ public record LeaderboardEntryDto(Guid Id, Guid QuizId, Guid TeamId, string? Tea
 public record SessionStatusNotification(Guid SessionId, string Status);
 public record ProgressNotification(Guid SessionId, object ProgressData);
 public record ClueReleasedNotification(Guid SessionId, Guid? TeamId, object ClueData);
-public record QuestionAskedNotification(Guid SessionId, Guid QuestionId, string QuestionText, string[] Options, int TimeLimitSeconds);
+public record QuestionAskedNotification(Guid SessionId, Guid QuestionId, string QuestionText, string[] Options, int TimeLimitSeconds, DateTime AskedAt);
 public record QuestionResultsNotification(Guid QuizId, Guid? SessionId, Guid QuestionId, object Results);
 public record QuestionClosedNotification(Guid SessionId, Guid QuestionId, Guid CorrectAnswerId, string? CorrectAnswerText);
 public record RankingEntryDto(int Position, string TeamName, int Score);

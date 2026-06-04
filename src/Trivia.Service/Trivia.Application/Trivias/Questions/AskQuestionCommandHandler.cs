@@ -18,6 +18,7 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Gui
     public async Task<Guid> Handle(AskQuestionCommand command, CancellationToken ct)
     {
         var questionId = Guid.NewGuid();
+        var askedAt = DateTime.UtcNow;
         var client = _httpClientFactory.CreateClient("realTimeHub");
         var response = await client.PostAsJsonAsync("/internal/notifications/question-asked", new
         {
@@ -25,7 +26,8 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Gui
             QuestionId = questionId,
             QuestionText = command.QuestionText,
             Options = command.Options,
-            TimeLimitSeconds = command.TimeLimitSeconds
+            TimeLimitSeconds = command.TimeLimitSeconds,
+            AskedAt = askedAt
         }, ct);
 
         if (!response.IsSuccessStatusCode)

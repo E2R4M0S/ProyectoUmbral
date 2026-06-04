@@ -52,6 +52,8 @@ export function QuestionCard({ question }: Props) {
         questionId: question.questionId,
         answerId: "00000000-0000-0000-0000-00000000000" + index,
         timestamp: new Date().toISOString(),
+        askedAt: question.askedAt,
+        timeLimitSeconds: question.timeLimitSeconds,
       };
 
       const resp = await fetchWithAuth("/api/trivia/answers", {

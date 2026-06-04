@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Trivia.Application.Common.Interfaces;
+using Trivia.Application.Common.Strategies;
 
 namespace Trivia.Application.Trivias.Answers;
 
@@ -11,25 +12,27 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
     private readonly IParticipantAnswerRepository? _answerRepo;
     private readonly ILeaderboardRepository? _leaderboardRepo;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IScoringStrategy _scoringStrategy;
     private readonly ILogger<SubmitAnswerCommandHandler> _logger;
 
     public SubmitAnswerCommandHandler(
         IEventPublisher publisher,
         ILogger<SubmitAnswerCommandHandler> logger,
         IHttpClientFactory httpClientFactory,
+        IScoringStrategy scoringStrategy,
         IParticipantAnswerRepository? answerRepo = null,
         ILeaderboardRepository? leaderboardRepo = null)
     {
         _publisher = publisher;
         _logger = logger;
         _httpClientFactory = httpClientFactory;
+        _scoringStrategy = scoringStrategy;
         _answerRepo = answerRepo;
         _leaderboardRepo = leaderboardRepo;
     }
 
     public async Task Handle(SubmitAnswerCommand request, CancellationToken ct)
     {
-        // Treat every submitted answer as correct (10 points) for the demo scoring
         bool isCorrect = true;
         var answer = new Trivia.Domain.Entities.ParticipantAnswer
         {
@@ -67,7 +70,9 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
         {
             if (_leaderboardRepo is not null)
             {
-                var delta = 10;
+                var timeElapsed = request.Timestamp - request.AskedAt;
+                var delta = _scoringStrategy.CalculateScore(timeElapsed, request.TimeLimitSeconds);
+
                 var existing = await _leaderboardRepo.GetByTeamAsync(request.QuizId, request.TeamId, ct);
                 if (existing == null)
                 {
@@ -85,7 +90,6 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
                 try
                 {
                     var leaderboard = await _leaderboardRepo.GetByQuizAsync(request.QuizId, ct);
-                    // Direct HTTP call to RealTimeHub leaderboard endpoint
                     var client = _httpClientFactory.CreateClient("realTimeHub");
                     await client.PostAsJsonAsync("/internal/events/LeaderboardUpdated", leaderboard, ct);
                 }

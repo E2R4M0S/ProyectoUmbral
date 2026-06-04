@@ -22,11 +22,13 @@ public class SubmitAnswerCommandHandlerTests
         var leaderboardRepo = Substitute.For<ILeaderboardRepository>();
         var logger = Substitute.For<ILogger<SubmitAnswerCommandHandler>>();
         var httpFactory = Substitute.For<IHttpClientFactory>();
+        var scoringStrategy = Substitute.For<IScoringStrategy>();
+        scoringStrategy.CalculateScore(Arg.Any<System.TimeSpan>(), Arg.Any<int>()).Returns(10);
         httpFactory.CreateClient(Arg.Any<string>()).Returns(new HttpClient());
 
-        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, answerRepo, leaderboardRepo);
+        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, scoringStrategy, answerRepo, leaderboardRepo);
 
-        var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Test", Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
+        var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Test", Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, DateTime.UtcNow, 30);
 
         await handler.Handle(cmd, CancellationToken.None);
 
