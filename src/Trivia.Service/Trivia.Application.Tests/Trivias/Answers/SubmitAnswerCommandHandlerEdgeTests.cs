@@ -21,9 +21,9 @@ public class SubmitAnswerCommandHandlerEdgeTests
         var logger = Substitute.For<ILogger<SubmitAnswerCommandHandler>>();
         var httpFactory = Substitute.For<IHttpClientFactory>();
         httpFactory.CreateClient(Arg.Any<string>()).Returns(new HttpClient());
-        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, null, null);
+        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory);
 
-        var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Test", Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
+        var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Test", Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, DateTime.UtcNow, 30);
 
         await handler.Invoking(h => h.Handle(cmd, CancellationToken.None))
             .Should().NotThrowAsync();
@@ -41,9 +41,9 @@ public class SubmitAnswerCommandHandlerEdgeTests
         answerRepo.When(x => x.AddAsync(Arg.Any<ParticipantAnswer>(), Arg.Any<CancellationToken>()))
             .Throw(new Exception("DB error"));
 
-        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, answerRepo, null);
+        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, answerRepo);
 
-        var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Test", Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
+        var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Test", Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, DateTime.UtcNow, 30);
 
         await handler.Invoking(h => h.Handle(cmd, CancellationToken.None))
             .Should().ThrowAsync<Exception>();

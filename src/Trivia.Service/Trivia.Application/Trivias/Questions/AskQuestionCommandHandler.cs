@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -9,6 +10,10 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Gui
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<AskQuestionCommandHandler> _logger;
 
+    // Tracks correct answers and answer timings per question
+    public static readonly ConcurrentDictionary<Guid, int> CorrectAnswers = new();
+    public static readonly ConcurrentDictionary<Guid, List<DateTime>> CorrectAnswerTimestamps = new();
+
     public AskQuestionCommandHandler(IHttpClientFactory httpClientFactory, ILogger<AskQuestionCommandHandler> logger)
     {
         _httpClientFactory = httpClientFactory;
@@ -18,6 +23,12 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Gui
     public async Task<Guid> Handle(AskQuestionCommand command, CancellationToken ct)
     {
         var questionId = Guid.NewGuid();
+        var askedAt = DateTime.UtcNow;
+
+        // Store the correct answer index for later verification
+        CorrectAnswers[questionId] = command.CorrectAnswerIndex;
+        CorrectAnswerTimestamps[questionId] = new List<DateTime>();
+
         var client = _httpClientFactory.CreateClient("realTimeHub");
         var response = await client.PostAsJsonAsync("/internal/notifications/question-asked", new
         {
@@ -25,7 +36,8 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Gui
             QuestionId = questionId,
             QuestionText = command.QuestionText,
             Options = command.Options,
-            TimeLimitSeconds = command.TimeLimitSeconds
+            TimeLimitSeconds = command.TimeLimitSeconds,
+            AskedAt = askedAt
         }, ct);
 
         if (!response.IsSuccessStatusCode)
@@ -33,7 +45,8 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Gui
             _logger.LogWarning("RealTimeHub returned {StatusCode} for question-asked", response.StatusCode);
         }
 
-        _logger.LogInformation("Question asked for session {SessionId}: QuestionId={QuestionId}", command.SessionId, questionId);
+        _logger.LogInformation("Question asked for session {SessionId}: QuestionId={QuestionId}, CorrectAnswer={CorrectIndex}",
+            command.SessionId, questionId, command.CorrectAnswerIndex);
         return questionId;
     }
 }
