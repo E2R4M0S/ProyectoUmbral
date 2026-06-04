@@ -256,16 +256,6 @@ function QuizQuestionSender({ sessionId, quizId }: { sessionId: string; quizId: 
       .then(data => setQuestions(data.questions || []))
       .catch(() => setMsg("Error al cargar preguntas"));
   }, [quizId]);
-    setMsg("");
-    try {
-      const resp = await fetchWithAuth(`/api/quizzes/${quizId}`);
-      if (!resp.ok) throw new Error();
-      const data = await resp.json();
-      setQuestions(data.questions || []);
-    } catch {
-      setMsg("Error al cargar preguntas");
-    }
-  };
 
   const sendCurrentQuestion = async () => {
     if (questions.length === 0) return;
