@@ -9,6 +9,7 @@ public class LeaderboardEntry
 
     public Guid QuizId { get; set; }
     public Guid TeamId { get; set; }
+    public string? TeamName { get; set; }
     public int Score { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

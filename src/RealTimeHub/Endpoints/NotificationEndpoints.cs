@@ -61,7 +61,7 @@ public static class NotificationEndpoints
             var ranking = entries.Select((e, i) => new
             {
                 position = i + 1,
-                teamName = e.TeamId.ToString()?.Substring(0, 8) ?? $"Team {i + 1}",
+                teamName = e.TeamName ?? e.TeamId.ToString()?.Substring(0, 8) ?? $"Jugador {i + 1}",
                 score = e.Score
             }).ToList();
 
@@ -73,7 +73,7 @@ public static class NotificationEndpoints
     }
 }
 
-public record LeaderboardEntryDto(Guid Id, Guid QuizId, Guid TeamId, int Score, DateTime UpdatedAt);
+public record LeaderboardEntryDto(Guid Id, Guid QuizId, Guid TeamId, string? TeamName, int Score, DateTime UpdatedAt);
 
 public record SessionStatusNotification(Guid SessionId, string Status);
 public record ProgressNotification(Guid SessionId, object ProgressData);

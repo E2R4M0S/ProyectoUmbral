@@ -71,12 +71,13 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
                 var existing = await _leaderboardRepo.GetByTeamAsync(request.QuizId, request.TeamId, ct);
                 if (existing == null)
                 {
-                    var entry = new Trivia.Domain.Entities.LeaderboardEntry { QuizId = request.QuizId, TeamId = request.TeamId, Score = delta };
+                    var entry = new Trivia.Domain.Entities.LeaderboardEntry { QuizId = request.QuizId, TeamId = request.TeamId, TeamName = request.TeamName, Score = delta };
                     await _leaderboardRepo.AddOrUpdateAsync(entry, ct);
                 }
                 else
                 {
                     existing.Score += delta;
+                    existing.TeamName = request.TeamName;
                     await _leaderboardRepo.AddOrUpdateAsync(existing, ct);
                 }
 

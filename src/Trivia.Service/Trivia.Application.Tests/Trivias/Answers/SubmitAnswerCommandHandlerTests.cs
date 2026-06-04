@@ -26,7 +26,7 @@ public class SubmitAnswerCommandHandlerTests
 
         var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, answerRepo, leaderboardRepo);
 
-        var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
+        var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Test", Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
 
         await handler.Handle(cmd, CancellationToken.None);
 

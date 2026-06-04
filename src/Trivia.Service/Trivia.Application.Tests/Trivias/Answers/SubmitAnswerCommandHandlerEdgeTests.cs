@@ -23,7 +23,7 @@ public class SubmitAnswerCommandHandlerEdgeTests
         httpFactory.CreateClient(Arg.Any<string>()).Returns(new HttpClient());
         var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, null, null);
 
-        var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
+        var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Test", Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
 
         await handler.Invoking(h => h.Handle(cmd, CancellationToken.None))
             .Should().NotThrowAsync();
@@ -43,7 +43,7 @@ public class SubmitAnswerCommandHandlerEdgeTests
 
         var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, answerRepo, null);
 
-        var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
+        var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Test", Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
 
         await handler.Invoking(h => h.Handle(cmd, CancellationToken.None))
             .Should().ThrowAsync<Exception>();

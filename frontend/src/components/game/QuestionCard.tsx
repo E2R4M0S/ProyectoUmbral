@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { fetchWithAuth } from "../../services/api";
 import { useGame } from "../../contexts/GameContext";
+import { userManager } from "../../auth/keycloak";
 import type { TriviaQuestion } from "../../types/game";
 
 interface Props {
@@ -42,9 +43,12 @@ export function QuestionCard({ question }: Props) {
     setError(null);
 
     try {
+      const user = await userManager.getUser();
+      const teamName = user?.profile?.name || user?.profile?.preferred_username || "Participante";
       const payload = {
         quizId: question.sessionId,
-        teamId: question.sessionId,
+        teamId: user?.profile?.sub || question.sessionId,
+        teamName,
         questionId: question.questionId,
         answerId: "00000000-0000-0000-0000-00000000000" + index,
         timestamp: new Date().toISOString(),
