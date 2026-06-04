@@ -197,6 +197,111 @@ export function PanelSesion() {
           </>
         )}
       </div>
+
+      {/* Trivia: Send Question */}
+      {progress.status === "Active" && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <h3 style={s.section}>Enviar Pregunta de Trivia</h3>
+          <QuizQuestionSender sessionId={id!} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuizQuestionSender({ sessionId }: { sessionId: string }) {
+  const [quizzes, setQuizzes] = useState<{ id: string; title: string; questionCount: number }[]>([]);
+  const [selectedQuizId, setSelectedQuizId] = useState("");
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [questions, setQuestions] = useState<{ id: string; text: string; answers: { id: string; text: string; isCorrect: boolean }[] }[]>([]);
+  const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    fetchWithAuth("/api/quizzes").then(r => r.json()).then(setQuizzes).catch(() => {});
+  }, []);
+
+  const loadQuiz = async (quizId: string) => {
+    setSelectedQuizId(quizId);
+    setCurrentQuestionIndex(0);
+    setMsg("");
+    try {
+      const resp = await fetchWithAuth(`/api/quizzes/${quizId}`);
+      if (!resp.ok) throw new Error();
+      const data = await resp.json();
+      setQuestions(data.questions || []);
+    } catch {
+      setMsg("Error al cargar preguntas");
+    }
+  };
+
+  const sendCurrentQuestion = async () => {
+    if (questions.length === 0) return;
+    const q = questions[currentQuestionIndex];
+    setSending(true);
+    setMsg("");
+    try {
+      const resp = await fetchWithAuth("/api/trivia/questions/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          questionText: q.text,
+          options: q.answers.map(a => a.text),
+          timeLimitSeconds: 30,
+        }),
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      setMsg(`Pregunta ${currentQuestionIndex + 1}/${questions.length} enviada`);
+      if (currentQuestionIndex < questions.length - 1) {
+        setTimeout(() => setCurrentQuestionIndex(i => i + 1), 1000);
+      } else {
+        setMsg("¡Todas las preguntas enviadas!");
+      }
+    } catch (ex: any) {
+      setMsg("Error: " + (ex?.message || "desconocido"));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const selectStyle: React.CSSProperties = {
+    width: "100%", padding: "8px", borderRadius: 4, border: "1px solid #0f3460",
+    backgroundColor: "#16213e", color: "white", fontSize: "0.9rem", marginBottom: "0.75rem",
+  };
+
+  const btnStyle = (disabled: boolean): React.CSSProperties => ({
+    padding: "8px 16px", backgroundColor: disabled ? "#999" : "#e94560", color: "white",
+    border: "none", borderRadius: 6, cursor: disabled ? "not-allowed" : "pointer",
+    fontSize: 14, fontWeight: 600,
+  });
+
+  return (
+    <div>
+      <select value={selectedQuizId} onChange={e => loadQuiz(e.target.value)} style={selectStyle}>
+        <option value="">Seleccionar quiz...</option>
+        {quizzes.map(q => (
+          <option key={q.id} value={q.id}>{q.title} ({q.questionCount} preg.)</option>
+        ))}
+      </select>
+
+      {questions.length > 0 && (
+        <div style={{ backgroundColor: "#16213e", borderRadius: 8, padding: "1rem", marginTop: "0.5rem", border: "1px solid #0f3460" }}>
+          <div style={{ color: "#e94560", fontWeight: 600, marginBottom: "0.5rem" }}>
+            Pregunta {currentQuestionIndex + 1} de {questions.length}
+          </div>
+          <div style={{ color: "white", marginBottom: "0.75rem" }}>{questions[currentQuestionIndex]?.text}</div>
+          <div style={{ color: "#999", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+            Opciones: {questions[currentQuestionIndex]?.answers.map(a => a.text).join(", ")}
+          </div>
+          <button onClick={sendCurrentQuestion} disabled={sending} style={btnStyle(sending)}>
+            {sending ? "Enviando..." : currentQuestionIndex < questions.length - 1 ? "Enviar Siguiente" : "Enviar Última"}
+          </button>
+          {msg && (
+            <p style={{ marginTop: "0.5rem", color: msg.includes("Error") ? "#e94560" : "#28a745", fontSize: "0.85rem" }}>{msg}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

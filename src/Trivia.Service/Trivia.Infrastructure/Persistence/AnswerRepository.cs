@@ -17,4 +17,10 @@ public class AnswerRepository : IAnswerRepository
     {
         return await _db.Set<Answer>().Where(a => a.QuestionId == questionId).ToListAsync(ct);
     }
+
+    public async Task AddRangeAsync(List<Answer> answers, CancellationToken ct = default)
+    {
+        await _db.Set<Answer>().AddRangeAsync(answers, ct);
+        await _db.SaveChangesAsync(ct);
+    }
 }

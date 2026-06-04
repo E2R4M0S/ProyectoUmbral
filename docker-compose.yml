@@ -76,6 +76,11 @@ services:
       POSTGRES_USER: trivia
       POSTGRES_PASSWORD: trivia123
       POSTGRES_HOST_AUTH_METHOD: trust
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trivia -d trivia"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
       - trivia-db-data:/var/lib/postgresql/data
     networks:
@@ -171,7 +176,7 @@ services:
       ENABLE_INTERNAL_TESTS: "true"
     depends_on:
       trivia-db:
-        condition: service_started
+        condition: service_healthy
 
   # ─── RealTimeHub (SignalR) ────────────────────────────────
   realtimehub:

@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Registro } from "./pages/public/Registro";
 import { MiPerfil } from "./pages/participant/MiPerfil";
 import { UnirseEquipo } from "./pages/participant/UnirseEquipo";
+import { QuizBank } from "./pages/admin/QuizBank";
 import { UnirseSesion } from "./pages/participant/UnirseSesion";
 import { GameView } from "./pages/participant/game/GameView";
 import { CrearOperador } from "./pages/admin/CrearOperador";
@@ -128,6 +129,8 @@ function AdminPanel() {
       <div style={sidebarSectionStyle}>Misiones</div>
       <Link to="/admin/misiones" style={sidebarLinkStyle}>📋 Catálogo</Link>
       <Link to="/admin/misiones/crear" style={sidebarLinkStyle}>➕ Crear Misión</Link>
+      <div style={sidebarSectionStyle}>Trivia</div>
+      <Link to="/admin/quiz" style={sidebarLinkStyle}>📝 Banco de Preguntas</Link>
       <div style={sidebarSectionStyle}>Sesiones</div>
       <Link to="/admin/sesiones" style={sidebarLinkStyle}>📋 Listado</Link>
       <Link to="/admin/sesiones/crear" style={sidebarLinkStyle}>➕ Crear Sesión</Link>
@@ -147,6 +150,8 @@ function OperatorPanel() {
     <Sidebar role="Operador">
       <div style={sidebarSectionStyle}>Misiones</div>
       <Link to="/operator/misiones" style={sidebarLinkStyle}>📋 Catálogo</Link>
+      <div style={sidebarSectionStyle}>Trivia</div>
+      <Link to="/operator/quiz" style={sidebarLinkStyle}>📝 Banco de Preguntas</Link>
       <div style={sidebarSectionStyle}>Sesiones</div>
       <Link to="/operator/sesiones" style={sidebarLinkStyle}>📋 Listado</Link>
       <Link to="/operator/sesiones/crear" style={sidebarLinkStyle}>➕ Crear Sesión</Link>
@@ -214,6 +219,7 @@ function App() {
             <Route path="misiones/crear" element={<CrearMision />} />
             <Route path="misiones/:id/editar" element={<EditarMision />} />
             <Route path="misiones/:id" element={<DetalleMision />} />
+            <Route path="quiz" element={<QuizBank />} />
             <Route path="usuarios" element={<ListadoUsuarios />} />
             <Route path="usuarios/:id" element={<DetalleUsuario />} />
             <Route path="operadores/nuevo" element={<CrearOperador />} />

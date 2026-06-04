@@ -81,6 +81,7 @@ try
     app.MapProgressEndpoints();
     app.MapAnsweringEndpoints();
     app.MapRankingEndpoints();
+    app.MapQuizBankEndpoints();
     app.MapInternalCloseQuestion();
     app.MapInternalQuestionResults();
 

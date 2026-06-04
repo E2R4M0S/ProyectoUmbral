@@ -4,5 +4,6 @@ namespace Trivia.Application.Common.Interfaces;
 
 public interface IAnswerRepository
 {
-    Task<List<Trivia.Domain.Entities.Answer>> GetByQuestionIdAsync(Guid questionId, CancellationToken ct = default);
+    Task<List<Answer>> GetByQuestionIdAsync(Guid questionId, CancellationToken ct = default);
+    Task AddRangeAsync(List<Answer> answers, CancellationToken ct = default);
 }

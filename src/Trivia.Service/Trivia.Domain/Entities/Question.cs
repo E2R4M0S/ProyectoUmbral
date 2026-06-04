@@ -9,6 +9,8 @@ public class Question
 
     public Guid QuizId { get; set; }
 
+    public string? Text { get; set; }
+
     public int TimeLimitSeconds { get; set; }
 
     public DateTime? ReleasedAt { get; set; }
