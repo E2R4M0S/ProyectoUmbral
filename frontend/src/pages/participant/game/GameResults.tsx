@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGame } from "../../../contexts/GameContext";
+import { RankingBoard } from "../../../components/game/RankingBoard";
 
 export function GameResults() {
   const { state, dispatch } = useGame();
@@ -8,12 +9,16 @@ export function GameResults() {
 
   const isFinished = state.sessionStatus === "Finished";
 
-  // Restore score from sessionStorage
+  // Restore score and ranking from sessionStorage
   useEffect(() => {
     if (state.sessionId) {
       const saved = sessionStorage.getItem(`score_${state.sessionId}`);
       if (saved) {
         dispatch({ type: "SET_SCORE", score: parseInt(saved, 10) });
+      }
+      const savedRanking = sessionStorage.getItem(`ranking_${state.sessionId}`);
+      if (savedRanking) {
+        dispatch({ type: "RANKING_UPDATED", ranking: JSON.parse(savedRanking) });
       }
     }
   }, [state.sessionId, dispatch]);
@@ -40,7 +45,29 @@ export function GameResults() {
           <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🏆</div>
           <h2 style={{ color: "#e94560", marginBottom: "0.5rem" }}>¡Juego Terminado!</h2>
           <p style={{ color: "#999" }}>La experiencia ha finalizado.</p>
-        </>
+
+          <RankingBoard ranking={state.ranking} />
+
+          <div style={{
+            marginTop: "1rem",
+            padding: "1.5rem 2rem",
+            backgroundColor: "#16213e",
+            borderRadius: 12,
+            border: "2px solid #e94560",
+            minWidth: 200,
+          }}>
+            <div style={{ color: "#999", fontSize: "0.9rem", marginBottom: 4 }}>
+              Tu Puntaje
+            </div>
+            <div style={{
+              fontSize: "2.5rem",
+              fontWeight: "bold",
+              color: "#e94560",
+            }}>
+              {state.score}
+            </div>
+          </div>
+        </> 
       ) : (
         <>
           <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⚠️</div>
@@ -48,25 +75,6 @@ export function GameResults() {
           <p style={{ color: "#999" }}>La sesión fue cancelada por el host.</p>
         </>
       )}
-
-      <div style={{
-        marginTop: "2rem",
-        padding: "1.5rem 2rem",
-        backgroundColor: "#16213e",
-        borderRadius: 12,
-        border: "2px solid #e94560",
-      }}>
-        <div style={{ color: "#999", fontSize: "0.9rem", marginBottom: 4 }}>
-          Puntaje Final
-        </div>
-        <div style={{
-          fontSize: "2.5rem",
-          fontWeight: "bold",
-          color: "#e94560",
-        }}>
-          {state.score}
-        </div>
-      </div>
 
       <button
         onClick={handleReturn}

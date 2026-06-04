@@ -35,13 +35,18 @@ function GameContent() {
     },
   });
 
-  // Persist clues to sessionStorage so they survive a reload
+  // Persist clues and ranking to sessionStorage so they survive a reload
   useEffect(() => {
-    if (!sessionId || state.clues.length === 0) return;
+    if (!sessionId) return;
     try {
-      sessionStorage.setItem(`clues_${sessionId}`, JSON.stringify(state.clues));
+      if (state.clues.length > 0) {
+        sessionStorage.setItem(`clues_${sessionId}`, JSON.stringify(state.clues));
+      }
+      if (state.ranking.length > 0) {
+        sessionStorage.setItem(`ranking_${sessionId}`, JSON.stringify(state.ranking));
+      }
     } catch { /* ignore */ }
-  }, [state.clues, sessionId]);
+  }, [state.clues, state.ranking, sessionId]);
 
   if (!sessionId) return null;
 
@@ -84,7 +89,7 @@ function GameViewInner() {
       .catch(() => {});
   }, [sessionId, navigate, dispatch]);
 
-  // Restore clues and score from sessionStorage on reload
+  // Restore clues, score and ranking from sessionStorage on reload
   useEffect(() => {
     if (!sessionId) return;
     try {
@@ -96,6 +101,10 @@ function GameViewInner() {
       const savedScore = sessionStorage.getItem(`score_${sessionId}`);
       if (savedScore) {
         dispatch({ type: "SET_SCORE", score: parseInt(savedScore, 10) });
+      }
+      const savedRanking = sessionStorage.getItem(`ranking_${sessionId}`);
+      if (savedRanking) {
+        dispatch({ type: "RANKING_UPDATED", ranking: JSON.parse(savedRanking) });
       }
     } catch { /* ignore */ }
   }, [sessionId, dispatch]);
