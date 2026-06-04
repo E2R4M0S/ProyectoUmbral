@@ -191,20 +191,23 @@ export function PanelSesion() {
                   <div style={{ color: "#e94560", fontSize: "0.8rem", marginTop: 4 }}>
                     Penalizacion: {selectedClue.penalty} puntos
                   </div>
-                )}
+              )}
               </div>
             )}
-          </>
-        {/* Trivia: Send Question */}
-      {progress.status === "Active" && (
-        <div style={{ marginTop: "1.5rem" }}>
-          <h3 style={s.section}>Enviar Pregunta de Trivia</h3>
-          <TriviaQuestionSender sessionId={id!} />
+            </>
+          )}
         </div>
-      )}
-    </div>
-  );
-}
+
+        {/* Trivia: Send Question */}
+        {progress.status === "Active" && (
+          <div style={{ marginTop: "1.5rem" }}>
+            <h3 style={s.section}>Enviar Pregunta de Trivia</h3>
+            <TriviaQuestionSender sessionId={id!} />
+          </div>
+        )}
+      </div>
+    );
+  }
 
 function TriviaQuestionSender({ sessionId }: { sessionId: string }) {
   const [questionText, setQuestionText] = useState("");
