@@ -7,7 +7,7 @@ import { WaitingRoom } from "./WaitingRoom";
 import { ActiveGame } from "./ActiveGame";
 import { GameResults } from "./GameResults";
 import type { SessionStatus } from "../../../types/session";
-import type { RankingEntry } from "../../../types/game";
+import type { RankingEntry, TriviaQuestion } from "../../../types/game";
 
 function GameContent() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -29,6 +29,9 @@ function GameContent() {
     },
     onRankingUpdated: (ranking: RankingEntry[]) => {
       dispatch({ type: "RANKING_UPDATED", ranking });
+    },
+    onQuestionAsked: (question: TriviaQuestion) => {
+      dispatch({ type: "QUESTION_RECEIVED", question });
     },
   });
 

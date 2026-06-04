@@ -36,12 +36,6 @@ public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionSt
 
         var newStatus = Enum.Parse<MissionStatus>(command.Status);
 
-        if (newStatus == MissionStatus.Active &&
-            !await _stageValidator.HasAtLeastOneStageAsync(command.Id, ct))
-        {
-            throw new InvalidOperationException($"La misión debe tener al menos una etapa para ser activada");
-        }
-
         if (await _lockService.IsMissionInUseAsync(command.Id, ct))
         {
             throw new InvalidOperationException($"Mission with id '{command.Id}' is in use");

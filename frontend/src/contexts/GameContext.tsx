@@ -11,13 +11,12 @@ const initialState: GameState = {
   score: 0,
   connectionState: "Disconnected",
   ranking: [],
+  currentQuestion: null,
+  selectedAnswerIndex: null,
 };
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
-    case "RESET":
-      return initialState;
-
     case "SESSION_LOADED":
       return {
         ...state,
@@ -46,7 +45,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         clues: [...state.clues, action.clue],
-        answersDisabled: false,
       };
 
     case "CONNECTION_STATE_CHANGED":
@@ -70,16 +68,30 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         score: action.score,
       };
 
-    case "SET_ANSWERS_DISABLED":
-      return {
-        ...state,
-        answersDisabled: action.disabled,
-      };
-
     case "RANKING_UPDATED":
       return {
         ...state,
         ranking: action.ranking,
+      };
+
+    case "QUESTION_RECEIVED":
+      return {
+        ...state,
+        currentQuestion: action.question,
+        selectedAnswerIndex: null,
+      };
+
+    case "ANSWER_SELECTED":
+      return {
+        ...state,
+        selectedAnswerIndex: action.answerIndex,
+      };
+
+    case "QUESTION_CLEARED":
+      return {
+        ...state,
+        currentQuestion: null,
+        selectedAnswerIndex: null,
       };
 
     default:

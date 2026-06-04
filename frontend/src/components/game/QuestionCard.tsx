@@ -1,33 +1,56 @@
 import { useState } from "react";
 import { fetchWithAuth } from "../../services/api";
 import { useGame } from "../../contexts/GameContext";
+import type { TriviaQuestion } from "../../types/game";
 
 interface Props {
-  question: any;
+  question: TriviaQuestion;
 }
+
+const cardStyle: React.CSSProperties = {
+  backgroundColor: "#16213e",
+  borderRadius: 12,
+  padding: "1.5rem",
+  marginBottom: "1rem",
+  border: "1px solid #0f3460",
+};
+
+const optionBtnStyle = (disabled: boolean, sent: boolean, selected: boolean): React.CSSProperties => ({
+  display: "block",
+  width: "100%",
+  padding: "12px 16px",
+  marginBottom: 8,
+  backgroundColor: sent ? "#2d6a4f" : selected ? "#e94560" : "#0f3460",
+  color: "white",
+  border: selected && !sent ? "2px solid #e94560" : "1px solid #1a1a4e",
+  borderRadius: 8,
+  cursor: disabled || sent ? "not-allowed" : "pointer",
+  fontSize: 15,
+  textAlign: "left" as const,
+  fontWeight: selected ? 700 : 400,
+});
 
 export function QuestionCard({ question }: Props) {
   const { state } = useGame();
-  const [disabled, setDisabled] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleAnswer = async (answerId: string) => {
-    if (disabled || sent || state.answersDisabled) return;
-    setDisabled(true);
-    // Optimistically disable answers at global level
-    try { dispatch({ type: "SET_ANSWERS_DISABLED", disabled: true }); } catch { }
+  const handleAnswer = async (index: number) => {
+    if (sent || state.answersDisabled) return;
+    setSelectedIndex(index);
     setError(null);
+
     try {
       const payload = {
-        quizId: question.quizId,
-        teamId: question.teamId ?? "00000000-0000-0000-0000-000000000000",
-        questionId: question.id,
-        answerId,
+        quizId: state.sessionId,
+        teamId: state.sessionId || "00000000-0000-0000-0000-000000000000",
+        questionId: question.questionId,
+        answerId: index.toString(),
         timestamp: new Date().toISOString(),
       };
 
-      const resp = await fetchWithAuth(`/api/trivia/answers`, {
+      const resp = await fetchWithAuth("/api/trivia/answers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -36,43 +59,42 @@ export function QuestionCard({ question }: Props) {
       if (!resp.ok) {
         const txt = await resp.text().catch(() => "");
         setError(txt || `Error ${resp.status}`);
-        setDisabled(false);
         return;
       }
 
       setSent(true);
-      // keep UI blocked until next question; the global `answersDisabled` will be reset when a new clue is released
     } catch (ex: any) {
-      setError(ex?.message ?? "Network error");
-      setDisabled(false);
-      try { dispatch({ type: "SET_ANSWERS_DISABLED", disabled: false }); } catch { }
+      setError(ex?.message ?? "Error de conexión");
     }
   };
 
   return (
-    <div style={{ padding: "1rem" }}>
-      <div style={{ marginBottom: 8, fontWeight: "bold" }}>{question.text}</div>
-      <div style={{ display: "grid", gap: 8 }}>
-        {(question.answers ?? []).map((a: any) => (
+    <div style={cardStyle}>
+      <h3 style={{ color: "#e94560", margin: "0 0 1rem", fontSize: 18 }}>
+        {question.questionText}
+      </h3>
+      <div>
+        {question.options.map((opt, i) => (
           <button
-            key={a.id}
-            onClick={() => handleAnswer(a.id)}
-            disabled={disabled || sent || state.answersDisabled}
-            style={{
-              padding: "8px 12px",
-              backgroundColor: sent ? "#2d6a4f" : "#0f3460",
-              color: "white",
-              borderRadius: 6,
-              border: "none",
-              cursor: disabled || sent || state.answersDisabled ? "not-allowed" : "pointer",
-            }}
+            key={i}
+            onClick={() => handleAnswer(i)}
+            disabled={sent || state.answersDisabled}
+            style={optionBtnStyle(sent || !!state.answersDisabled, sent, selectedIndex === i)}
           >
-            {a.text}
+            {opt}
           </button>
         ))}
       </div>
-      {sent && <div style={{ marginTop: 8, color: "#2d6a4f" }}>Respuesta Recibida</div>}
-      {error && <div style={{ marginTop: 8, color: "#e94560" }}>{error}</div>}
+      {sent && (
+        <div style={{ marginTop: 8, color: "#2d6a4f", fontSize: 14 }}>
+          ✓ Respuesta enviada
+        </div>
+      )}
+      {error && (
+        <div style={{ marginTop: 8, color: "#e94560", fontSize: 14 }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }

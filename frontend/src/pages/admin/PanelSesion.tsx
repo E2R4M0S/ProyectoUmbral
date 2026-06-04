@@ -33,6 +33,7 @@ export function PanelSesion() {
   const [error, setError] = useState("");
   const [localSeconds, setLocalSeconds] = useState(0);
   const lastServerRef = useRef(0);
+  const [selectedQuizId, setSelectedQuizId] = useState<string>("");
 
   async function load() {
     if (!id) return;
@@ -191,39 +192,79 @@ export function PanelSesion() {
                   <div style={{ color: "#e94560", fontSize: "0.8rem", marginTop: 4 }}>
                     Penalizacion: {selectedClue.penalty} puntos
                   </div>
-                )}
+              )}
               </div>
             )}
-          </>
+            </>
+          )}
+        </div>
+
+        {/* Trivia: Send Question */}
+        {progress.status === "Active" && (
+          <div style={{ marginTop: "1.5rem" }}>
+            <h3 style={s.section}>Enviar Pregunta de Trivia</h3>
+            <TriviaQuestionSender sessionId={id!} />
+          </div>
         )}
       </div>
 
       {/* Trivia: Send Question */}
-      {progress.status === "Active" && (
+      {progress.status === "Preparing" && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <h3 style={s.section}>Seleccionar Quiz</h3>
+          <QuizSelector sessionId={id!} selectedQuizId={selectedQuizId} onSelect={setSelectedQuizId} />
+        </div>
+      )}
+      {progress.status === "Active" && selectedQuizId && (
         <div style={{ marginTop: "1.5rem" }}>
           <h3 style={s.section}>Enviar Pregunta de Trivia</h3>
-          <QuizQuestionSender sessionId={id!} />
+          <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} />
         </div>
       )}
     </div>
   );
 }
 
-function QuizQuestionSender({ sessionId }: { sessionId: string }) {
+function QuizSelector({ sessionId, selectedQuizId, onSelect }: { sessionId: string; selectedQuizId: string; onSelect: (id: string) => void }) {
   const [quizzes, setQuizzes] = useState<{ id: string; title: string; questionCount: number }[]>([]);
-  const [selectedQuizId, setSelectedQuizId] = useState("");
+
+  useEffect(() => {
+    fetchWithAuth("/api/quizzes").then(r => r.json()).then(setQuizzes).catch(() => {});
+  }, []);
+
+  const selectStyle: React.CSSProperties = {
+    width: "100%", padding: "8px", borderRadius: 4, border: "1px solid #0f3460",
+    backgroundColor: "#16213e", color: "white", fontSize: "0.9rem", marginBottom: "0.75rem",
+  };
+
+  return (
+    <div>
+      <select value={selectedQuizId} onChange={e => onSelect(e.target.value)} style={selectStyle}>
+        <option value="">Seleccionar quiz para esta sesión...</option>
+        {quizzes.map(q => (
+          <option key={q.id} value={q.id}>{q.title} ({q.questionCount} preg.)</option>
+        ))}
+      </select>
+      {selectedQuizId && <p style={{ color: "#28a745", fontSize: "0.85rem" }}>✓ Quiz seleccionado</p>}
+    </div>
+  );
+}
+
+function QuizQuestionSender({ sessionId, quizId }: { sessionId: string; quizId: string }) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questions, setQuestions] = useState<{ id: string; text: string; answers: { id: string; text: string; isCorrect: boolean }[] }[]>([]);
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    fetchWithAuth("/api/quizzes").then(r => r.json()).then(setQuizzes).catch(() => {});
-  }, []);
-
-  const loadQuiz = async (quizId: string) => {
-    setSelectedQuizId(quizId);
+    if (!quizId) return;
     setCurrentQuestionIndex(0);
+    setMsg("");
+    fetchWithAuth(`/api/quizzes/${quizId}`)
+      .then(r => r.json())
+      .then(data => setQuestions(data.questions || []))
+      .catch(() => setMsg("Error al cargar preguntas"));
+  }, [quizId]);
     setMsg("");
     try {
       const resp = await fetchWithAuth(`/api/quizzes/${quizId}`);
@@ -265,11 +306,6 @@ function QuizQuestionSender({ sessionId }: { sessionId: string }) {
     }
   };
 
-  const selectStyle: React.CSSProperties = {
-    width: "100%", padding: "8px", borderRadius: 4, border: "1px solid #0f3460",
-    backgroundColor: "#16213e", color: "white", fontSize: "0.9rem", marginBottom: "0.75rem",
-  };
-
   const btnStyle = (disabled: boolean): React.CSSProperties => ({
     padding: "8px 16px", backgroundColor: disabled ? "#999" : "#e94560", color: "white",
     border: "none", borderRadius: 6, cursor: disabled ? "not-allowed" : "pointer",
@@ -278,13 +314,6 @@ function QuizQuestionSender({ sessionId }: { sessionId: string }) {
 
   return (
     <div>
-      <select value={selectedQuizId} onChange={e => loadQuiz(e.target.value)} style={selectStyle}>
-        <option value="">Seleccionar quiz...</option>
-        {quizzes.map(q => (
-          <option key={q.id} value={q.id}>{q.title} ({q.questionCount} preg.)</option>
-        ))}
-      </select>
-
       {questions.length > 0 && (
         <div style={{ backgroundColor: "#16213e", borderRadius: 8, padding: "1rem", marginTop: "0.5rem", border: "1px solid #0f3460" }}>
           <div style={{ color: "#e94560", fontWeight: 600, marginBottom: "0.5rem" }}>
