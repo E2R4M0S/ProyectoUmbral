@@ -65,28 +65,32 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
         };
         await _publisher.PublishAsync("TriviaAnswerSubmittedEvent", payload, ct);
 
-        // Update leaderboard: only add points for correct answers
+        // Update leaderboard for all participants (correct = points, incorrect = 0)
         int position = 0;
         int delta = 0;
 
         try
         {
-            if (_leaderboardRepo is not null && isCorrect)
+            if (_leaderboardRepo is not null)
             {
-                // Base points + position bonus
-                var timestamps = AskQuestionCommandHandler.CorrectAnswerTimestamps
-                    .GetOrAdd(request.QuestionId, _ => new List<DateTime>());
-
-                lock (timestamps)
+                if (isCorrect)
                 {
-                    timestamps.Add(request.Timestamp);
-                    timestamps.Sort();
-                    position = timestamps.IndexOf(request.Timestamp) + 1;
+                    // Base points + position bonus for correct answers
+                    var timestamps = AskQuestionCommandHandler.CorrectAnswerTimestamps
+                        .GetOrAdd(request.QuestionId, _ => new List<DateTime>());
+
+                    lock (timestamps)
+                    {
+                        timestamps.Add(request.Timestamp);
+                        timestamps.Sort();
+                        position = timestamps.IndexOf(request.Timestamp) + 1;
+                    }
+
+                    var bonus = position switch { 1 => 30, 2 => 20, 3 => 10, _ => 5 };
+                    delta = 10 + bonus;
                 }
 
-                var bonus = position switch { 1 => 30, 2 => 20, 3 => 10, _ => 5 };
-                delta = 10 + bonus; // base 10 + bonus for position
-
+                // Create or update leaderboard entry (even for 0 points, so everyone appears)
                 var existing = await _leaderboardRepo.GetByTeamAsync(request.QuizId, request.TeamId, ct);
                 if (existing == null)
                 {
@@ -106,7 +110,7 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
                     await _leaderboardRepo.AddOrUpdateAsync(existing, ct);
                 }
 
-                // Publish immediate leaderboard snapshot
+                // Publish leaderboard snapshot for all participants to see
                 try
                 {
                     var leaderboard = await _leaderboardRepo.GetByQuizAsync(request.QuizId, ct);
@@ -118,7 +122,8 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
                     _logger.LogWarning(ex, "Failed to publish immediate LeaderboardUpdated event");
                 }
             }
-            else if (isCorrect == false)
+
+            if (!isCorrect)
             {
                 _logger.LogInformation("Incorrect answer for QuestionId={QuestionId}: correct={Correct}, selected={Selected}",
                     request.QuestionId, correctIndex, selectedIndex);
