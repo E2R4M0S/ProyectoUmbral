@@ -242,6 +242,7 @@ function App() {
                 </Suspense>
               } />
             <Route path="misiones" element={<CatalogoMisiones />} />
+            <Route path="quiz" element={<QuizBank />} />
             <Route path="sesiones" element={<ListadoSesiones />} />
             <Route path="sesiones/crear" element={<CrearSesion />} />
             <Route path="sesiones/:id/panel" element={<PanelSesion />} />

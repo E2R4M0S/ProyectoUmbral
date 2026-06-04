@@ -19,6 +19,7 @@ using Trivia.Application.Trivias.Progress;
 using Trivia.Application.Trivias.Questions;
 using Trivia.Application.Trivias.Ranking;
 using Trivia.Application.Trivias.StartTrivia;
+using Trivia.Application.Trivias.Answers;
 using Trivia.Infrastructure;
 using Xunit;
 
@@ -66,6 +67,8 @@ public class AllEndpointsTests
                 var mock = Substitute.For<IMediator>();
                 mock.Send(Arg.Any<IRequest<Unit>>(), Arg.Any<CancellationToken>())
                     .Returns(Unit.Value);
+                mock.Send(Arg.Any<IRequest<AnswerResult>>(), Arg.Any<CancellationToken>())
+                    .Returns(new AnswerResult(true, 40, 1));
                 services.AddSingleton<IMediator>(mock);
             });
         });
@@ -76,8 +79,8 @@ public class AllEndpointsTests
     {
         await using var factory = CreateFactory();
         var client = factory.CreateClient();
-        var payload = new { QuizId = System.Guid.NewGuid(), TeamId = System.Guid.NewGuid(), QuestionId = System.Guid.NewGuid(), AnswerId = System.Guid.NewGuid(), Timestamp = System.DateTime.UtcNow };
-        var response = await client.PostAsJsonAsync("/api/trivia/answers", payload);
+        var payload = new { QuizId = System.Guid.NewGuid(), TeamId = System.Guid.NewGuid(), TeamName = "Test", QuestionId = System.Guid.NewGuid(), AnswerId = System.Guid.NewGuid(), Timestamp = System.DateTime.UtcNow, AskedAt = System.DateTime.UtcNow, TimeLimitSeconds = 30 };
+        var response = await client.PostAsJsonAsync("/answers", payload);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -86,8 +89,8 @@ public class AllEndpointsTests
     {
         await using var factory = WithMockMediator(CreateAuthenticatedFactory());
         var client = factory.CreateClient();
-        var payload = new { QuizId = System.Guid.NewGuid(), TeamId = System.Guid.NewGuid(), QuestionId = System.Guid.NewGuid(), AnswerId = System.Guid.NewGuid(), Timestamp = System.DateTime.UtcNow };
-        var response = await client.PostAsJsonAsync("/api/trivia/answers", payload);
+        var payload = new { QuizId = System.Guid.NewGuid(), TeamId = System.Guid.NewGuid(), TeamName = "Test", QuestionId = System.Guid.NewGuid(), AnswerId = System.Guid.NewGuid(), Timestamp = System.DateTime.UtcNow, AskedAt = System.DateTime.UtcNow, TimeLimitSeconds = 30 };
+        var response = await client.PostAsJsonAsync("/answers", payload);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -134,7 +137,7 @@ public class AllEndpointsTests
     {
         await using var factory = CreateFactory();
         var client = factory.CreateClient();
-        var response = await client.PostAsJsonAsync($"/api/trivia/{System.Guid.NewGuid()}/progress", new { });
+        var response = await client.PostAsJsonAsync($"/{System.Guid.NewGuid()}/progress", new { });
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -143,7 +146,7 @@ public class AllEndpointsTests
     {
         await using var factory = WithMockMediator(CreateAuthenticatedFactory());
         var client = factory.CreateClient();
-        var response = await client.PostAsJsonAsync($"/api/trivia/{System.Guid.NewGuid()}/progress", new { elapsed = 10 });
+        var response = await client.PostAsJsonAsync($"/{System.Guid.NewGuid()}/progress", new { elapsed = 10 });
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -152,7 +155,7 @@ public class AllEndpointsTests
     {
         await using var factory = CreateFactory();
         var client = factory.CreateClient();
-        var response = await client.PostAsJsonAsync($"/api/trivia/{System.Guid.NewGuid()}/clues", new { teamId = (System.Guid?)null, clueData = new { } });
+        var response = await client.PostAsJsonAsync($"/{System.Guid.NewGuid()}/clues", new { teamId = (System.Guid?)null, clueData = new { } });
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -161,7 +164,7 @@ public class AllEndpointsTests
     {
         await using var factory = WithMockMediator(CreateAuthenticatedFactory());
         var client = factory.CreateClient();
-        var response = await client.PostAsJsonAsync($"/api/trivia/{System.Guid.NewGuid()}/clues", new { teamId = (System.Guid?)null, clueData = new { text = "Test" } });
+        var response = await client.PostAsJsonAsync($"/{System.Guid.NewGuid()}/clues", new { teamId = (System.Guid?)null, clueData = new { text = "Test" } });
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 

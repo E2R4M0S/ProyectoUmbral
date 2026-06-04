@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { getSessionProgress, getSessionById, transitionSession } from "../../services/sessionsApi";
 import { getMissionById } from "../../services/missionsApi";
 import { fetchWithAuth } from "../../services/api";
@@ -24,6 +24,8 @@ const statusLabels: Record<string, string> = { Scheduled: "Programada", Preparin
 
 export function PanelSesion() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const basePath = location.pathname.includes("/admin/") ? "/admin" : "/operator";
   const [progress, setProgress] = useState<SessionProgress | null>(null);
   const [mission, setMission] = useState<MissionDetail | null>(null);
   const [selectedClueId, setSelectedClueId] = useState<string>("");
@@ -107,11 +109,11 @@ export function PanelSesion() {
   };
 
   if (loading) return <div style={s.container}>Cargando...</div>;
-  if (error || !progress) return <div style={s.container}><p style={{ color: "#e94560" }}>{error || "No encontrada"}</p><Link to="/operator/sesiones" style={s.backLink}>Volver</Link></div>;
+  if (error || !progress) return <div style={s.container}><p style={{ color: "#e94560" }}>{error || "No encontrada"}</p><Link to={`${basePath}/sesiones`} style={s.backLink}>Volver</Link></div>;
 
   return (
     <div style={s.container}>
-      <Link to="/operator/sesiones" style={s.backLink}>Volver al listado</Link>
+      <Link to={`${basePath}/sesiones`} style={s.backLink}>Volver al listado</Link>
       <div style={{ marginTop: "1rem" }}>
         <h2 style={s.title}>{progress.name}</h2>
         <p style={s.meta}>Estado: <span style={s.badge(statusColors[progress.status] || "#6c757d")}>{statusLabels[progress.status] || progress.status}</span></p>
@@ -294,6 +296,7 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
           questionText: q.text,
           options: q.answers.map(a => a.text),
           timeLimitSeconds: 30,
+          correctAnswerIndex: q.answers.findIndex(a => a.isCorrect),
         }),
       });
       if (!resp.ok) throw new Error(await resp.text());

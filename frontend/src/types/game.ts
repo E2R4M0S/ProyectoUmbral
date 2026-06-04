@@ -20,6 +20,7 @@ export interface TriviaQuestion {
   questionText: string;
   options: string[];
   timeLimitSeconds: number;
+  askedAt: string;
 }
 
 export interface GameState {

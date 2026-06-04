@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { listSessions, transitionSession, ApiError } from "../../services/sessionsApi";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import type { SessionListItem, GetSessionsParams, SessionStatus } from "../../types/session";
 
 const STATUS_OPTIONS: {value:string;label:string}[] = [
@@ -32,6 +32,8 @@ function getTransitions(status: SessionStatus): string[] {
 }
 
 export function ListadoSesiones() {
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/admin") ? "/admin" : "/operator";
   const [items, setItems] = useState<SessionListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -90,7 +92,7 @@ export function ListadoSesiones() {
                   <td style={cs.td}><code style={{ backgroundColor: "#0f3460", padding: "2px 6px", borderRadius: 4 }}>{item.pin}</code></td>
                   <td style={cs.td}>{new Date(item.createdAt).toLocaleDateString("es-AR")}</td>
                   <td style={cs.td}>
-                    <Link to={`/operator/sesiones/${item.id}/panel`} style={{ padding: "4px 8px", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "white", backgroundColor: "#28a745", marginRight: 4, textDecoration: "none" }}>
+                    <Link to={`${basePath}/sesiones/${item.id}/panel`} style={{ padding: "4px 8px", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "white", backgroundColor: "#28a745", marginRight: 4, textDecoration: "none" }}>
                       Panel
                     </Link>
                     <ActionButton item={item} onReload={loadSessions} />
