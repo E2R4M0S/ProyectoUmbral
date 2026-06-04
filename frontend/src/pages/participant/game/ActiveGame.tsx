@@ -18,7 +18,7 @@ export function ActiveGame() {
       <RankingBoard ranking={state.ranking} />
 
       {state.currentQuestion && (
-        <QuestionCard question={state.currentQuestion} />
+        <QuestionCard key={state.currentQuestion.questionId} question={state.currentQuestion} />
       )}
 
       {!state.currentQuestion && state.clues.length === 0 ? (

@@ -79,6 +79,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         currentQuestion: action.question,
         selectedAnswerIndex: null,
+        answersDisabled: false,
       };
 
     case "ANSWER_SELECTED":
