@@ -21,17 +21,17 @@ export function ActiveGame() {
         <QuestionCard question={state.currentQuestion} />
       )}
 
-      {state.clues.length === 0 ? (
+      {!state.currentQuestion && state.clues.length === 0 ? (
         <div style={{ textAlign: "center", color: "#999", marginTop: "2rem" }}>
-          Aún no hay pistas disponibles. ¡Prestá atención!
+          {state.sessionStatus === "Active" ? "Esperando contenido..." : "Aún no hay pistas disponibles. ¡Prestá atención!"}
         </div>
-      ) : (
+      ) : !state.currentQuestion && state.clues.length > 0 ? (
         <div style={{ marginTop: "1rem" }}>
           {state.clues.map((clue: unknown, index: number) => (
             <ClueCard key={index} clue={clue} />
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
