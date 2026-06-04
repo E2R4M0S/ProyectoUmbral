@@ -15,9 +15,9 @@ public static class QuestionEndpoints
         {
             try
             {
-                await mediator.Send(command);
+                var questionId = await mediator.Send(command);
                 logger.LogInformation("Question asked for session {SessionId}", command.SessionId);
-                return Results.Ok(new { asked = true, sessionId = command.SessionId });
+                return Results.Ok(new { asked = true, sessionId = command.SessionId, questionId });
             }
             catch (Exception ex)
             {
@@ -26,6 +26,16 @@ public static class QuestionEndpoints
             }
         })
         .WithName("AskQuestion")
+        .RequireAuthorization("operator_or_admin");
+
+        app.MapGet("/questions/{questionId:guid}/answer-count", async (
+            Guid questionId,
+            IMediator mediator) =>
+        {
+            var count = await mediator.Send(new GetAnswerCountQuery(questionId));
+            return Results.Ok(new { answerCount = count });
+        })
+        .WithName("GetAnswerCount")
         .RequireAuthorization("operator_or_admin");
     }
 }

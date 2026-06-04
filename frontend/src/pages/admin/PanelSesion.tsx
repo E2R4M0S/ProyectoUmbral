@@ -211,7 +211,7 @@ export function PanelSesion() {
         {progress.status === "Active" && selectedQuizId && (
           <div style={{ marginTop: "1.5rem" }}>
             <h3 style={s.section}>Enviar Pregunta de Trivia</h3>
-            <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} />
+            <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} totalParticipants={progress.participants?.length || 0} />
           </div>
         )}
       </div>
@@ -243,15 +243,19 @@ function QuizSelector({ sessionId, selectedQuizId, onSelect }: { sessionId: stri
   );
 }
 
-function QuizQuestionSender({ sessionId, quizId }: { sessionId: string; quizId: string }) {
+function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionId: string; quizId: string; totalParticipants: number }) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questions, setQuestions] = useState<{ id: string; text: string; answers: { id: string; text: string; isCorrect: boolean }[] }[]>([]);
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState("");
+  const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
+  const [answerCount, setAnswerCount] = useState(0);
 
   useEffect(() => {
     if (!quizId) return;
     setCurrentQuestionIndex(0);
+    setCurrentQuestionId(null);
+    setAnswerCount(0);
     setMsg("");
     fetchWithAuth(`/api/quizzes/${quizId}`)
       .then(r => r.json())
@@ -259,10 +263,27 @@ function QuizQuestionSender({ sessionId, quizId }: { sessionId: string; quizId: 
       .catch(() => setMsg("Error al cargar preguntas"));
   }, [quizId]);
 
+  // Poll answer count when a question is active
+  useEffect(() => {
+    if (!currentQuestionId) return;
+    const interval = setInterval(async () => {
+      try {
+        const resp = await fetchWithAuth(`/api/trivia/questions/${currentQuestionId}/answer-count`);
+        if (resp.ok) {
+          const data = await resp.json();
+          setAnswerCount(data.answerCount);
+        }
+      } catch { }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [currentQuestionId]);
+
   const sendCurrentQuestion = async () => {
     if (questions.length === 0) return;
     const q = questions[currentQuestionIndex];
     setSending(true);
+    setCurrentQuestionId(null);
+    setAnswerCount(0);
     setMsg("");
     try {
       const resp = await fetchWithAuth("/api/trivia/questions/ask", {
@@ -276,16 +297,24 @@ function QuizQuestionSender({ sessionId, quizId }: { sessionId: string; quizId: 
         }),
       });
       if (!resp.ok) throw new Error(await resp.text());
+      const data = await resp.json();
+      setCurrentQuestionId(data.questionId);
       setMsg(`Pregunta ${currentQuestionIndex + 1}/${questions.length} enviada`);
-      if (currentQuestionIndex < questions.length - 1) {
-        setTimeout(() => setCurrentQuestionIndex(i => i + 1), 1000);
-      } else {
-        setMsg("¡Todas las preguntas enviadas!");
-      }
     } catch (ex: any) {
       setMsg("Error: " + (ex?.message || "desconocido"));
     } finally {
       setSending(false);
+    }
+  };
+
+  const advanceToNext = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(i => i + 1);
+      setCurrentQuestionId(null);
+      setAnswerCount(0);
+      setMsg("");
+    } else {
+      setMsg("¡Todas las preguntas enviadas!");
     }
   };
 
@@ -306,9 +335,26 @@ function QuizQuestionSender({ sessionId, quizId }: { sessionId: string; quizId: 
           <div style={{ color: "#999", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
             Opciones: {questions[currentQuestionIndex]?.answers.map(a => a.text).join(", ")}
           </div>
-          <button onClick={sendCurrentQuestion} disabled={sending} style={btnStyle(sending)}>
-            {sending ? "Enviando..." : currentQuestionIndex < questions.length - 1 ? "Enviar Siguiente" : "Enviar Última"}
-          </button>
+
+          {currentQuestionId && totalParticipants > 0 && (
+            <div style={{ color: "#ccc", fontSize: "0.85rem", marginBottom: "0.5rem" }}>
+              Respondieron: {answerCount} / {totalParticipants}
+              {answerCount >= totalParticipants && " ✅"}
+            </div>
+          )}
+
+          {!currentQuestionId ? (
+            <button onClick={sendCurrentQuestion} disabled={sending} style={btnStyle(sending)}>
+              {sending ? "Enviando..." : "Enviar Pregunta"}
+            </button>
+          ) : (
+            <button onClick={advanceToNext} disabled={answerCount < totalParticipants && currentQuestionIndex < questions.length - 1}
+              style={btnStyle(answerCount < totalParticipants && currentQuestionIndex < questions.length - 1)}>
+              {currentQuestionIndex < questions.length - 1
+                ? (answerCount >= totalParticipants ? "Siguiente →" : "Esperando respuestas...")
+                : "Finalizar"}
+            </button>
+          )}
           {msg && (
             <p style={{ marginTop: "0.5rem", color: msg.includes("Error") ? "#e94560" : "#28a745", fontSize: "0.85rem" }}>{msg}</p>
           )}

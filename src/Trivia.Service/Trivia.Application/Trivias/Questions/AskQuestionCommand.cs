@@ -7,4 +7,4 @@ public record AskQuestionCommand(
     string QuestionText,
     string[] Options,
     int TimeLimitSeconds
-) : IRequest;
+) : IRequest<Guid>;

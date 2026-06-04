@@ -23,4 +23,9 @@ namespace Trivia.Infrastructure.Persistence;
         {
             return await _db.Set<ParticipantAnswer>().Where(a => a.QuizId == quizId).ToListAsync(ct);
         }
+
+        public async Task<int> GetCountByQuestionAsync(Guid questionId, CancellationToken ct = default)
+        {
+            return await _db.Set<ParticipantAnswer>().CountAsync(a => a.QuestionId == questionId, ct);
+        }
     }

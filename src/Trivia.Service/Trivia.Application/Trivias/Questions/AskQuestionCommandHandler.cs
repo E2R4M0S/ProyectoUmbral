@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Trivia.Application.Trivias.Questions;
 
-public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand>
+public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Guid>
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<AskQuestionCommandHandler> _logger;
@@ -15,13 +15,14 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand>
         _logger = logger;
     }
 
-    public async Task Handle(AskQuestionCommand command, CancellationToken ct)
+    public async Task<Guid> Handle(AskQuestionCommand command, CancellationToken ct)
     {
+        var questionId = Guid.NewGuid();
         var client = _httpClientFactory.CreateClient("realTimeHub");
         var response = await client.PostAsJsonAsync("/internal/notifications/question-asked", new
         {
             SessionId = command.SessionId,
-            QuestionId = Guid.NewGuid(),
+            QuestionId = questionId,
             QuestionText = command.QuestionText,
             Options = command.Options,
             TimeLimitSeconds = command.TimeLimitSeconds
@@ -32,6 +33,7 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand>
             _logger.LogWarning("RealTimeHub returned {StatusCode} for question-asked", response.StatusCode);
         }
 
-        _logger.LogInformation("Question asked for session {SessionId}", command.SessionId);
+        _logger.LogInformation("Question asked for session {SessionId}: QuestionId={QuestionId}", command.SessionId, questionId);
+        return questionId;
     }
 }
