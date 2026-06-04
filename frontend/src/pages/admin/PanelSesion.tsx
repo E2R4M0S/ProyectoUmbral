@@ -150,7 +150,8 @@ export function PanelSesion() {
         ))
       ) : <p style={{ color: "#999" }}>Sin participantes</p>}
 
-      {/* Clue selector + release button */}
+      {/* Clue selector + release button (solo para misiones Treasure) */}
+      {mission?.type !== "Trivia" && (
       <div style={{ marginTop: "1.5rem" }}>
         <h3 style={s.section}>Pistas de la mision</h3>
         {allClues.length === 0 ? (
@@ -198,6 +199,7 @@ export function PanelSesion() {
             </>
           )}
         </div>
+      )}
 
         {/* Seleccionar Quiz (Preparing) */}
         {progress.status === "Preparing" && (
