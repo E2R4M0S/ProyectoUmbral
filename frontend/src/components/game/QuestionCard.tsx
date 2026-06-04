@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { fetchWithAuth } from "../../services/api";
+import { useGame } from "../../contexts/GameContext";
 import type { TriviaQuestion } from "../../types/game";
 
 interface Props {
@@ -30,6 +31,7 @@ const optionBtnStyle = (disabled: boolean, sent: boolean, selected: boolean): Re
 });
 
 export function QuestionCard({ question }: Props) {
+  const { state } = useGame();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
