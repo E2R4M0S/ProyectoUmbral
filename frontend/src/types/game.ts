@@ -14,6 +14,14 @@ export interface RankingEntry {
   score: number;
 }
 
+export interface TriviaQuestion {
+  sessionId: string;
+  questionId: string;
+  questionText: string;
+  options: string[];
+  timeLimitSeconds: number;
+}
+
 export interface GameState {
   sessionId: string | null;
   sessionName: string;
@@ -24,6 +32,8 @@ export interface GameState {
   connectionState: ConnectionState;
   answersDisabled?: boolean;
   ranking: RankingEntry[];
+  currentQuestion: TriviaQuestion | null;
+  selectedAnswerIndex: number | null;
 }
 
 export type GameAction =
@@ -34,4 +44,7 @@ export type GameAction =
   | { type: "CONNECTION_STATE_CHANGED"; state: ConnectionState }
   | { type: "TICK" }
   | { type: "SET_SCORE"; score: number }
-  | { type: "RANKING_UPDATED"; ranking: RankingEntry[] };
+  | { type: "RANKING_UPDATED"; ranking: RankingEntry[] }
+  | { type: "QUESTION_RECEIVED"; question: TriviaQuestion }
+  | { type: "ANSWER_SELECTED"; answerIndex: number }
+  | { type: "QUESTION_CLEARED" };

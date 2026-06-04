@@ -195,8 +195,95 @@ export function PanelSesion() {
               </div>
             )}
           </>
-        )}
-      </div>
+        {/* Trivia: Send Question */}
+      {progress.status === "Active" && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <h3 style={s.section}>Enviar Pregunta de Trivia</h3>
+          <TriviaQuestionSender sessionId={id!} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TriviaQuestionSender({ sessionId }: { sessionId: string }) {
+  const [questionText, setQuestionText] = useState("");
+  const [options, setOptions] = useState(["", "", "", ""]);
+  const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const sendQuestion = async () => {
+    if (!questionText.trim() || options.some(o => !o.trim())) {
+      setMsg("Completá la pregunta y todas las opciones");
+      return;
+    }
+    setSending(true);
+    setMsg("");
+    try {
+      const resp = await fetchWithAuth(`/api/trivia/questions/ask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          questionText: questionText.trim(),
+          options: options.map(o => o.trim()),
+          timeLimitSeconds: 30,
+        }),
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      setMsg("¡Pregunta enviada!");
+      setQuestionText("");
+      setOptions(["", "", "", ""]);
+    } catch (ex: any) {
+      setMsg("Error: " + (ex?.message || "desconocido"));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "8px", borderRadius: 4, border: "1px solid #0f3460",
+    backgroundColor: "#16213e", color: "white", fontSize: "0.9rem", marginBottom: "0.5rem", boxSizing: "border-box",
+  };
+
+  return (
+    <div>
+      <textarea
+        placeholder="Escribí la pregunta..."
+        value={questionText}
+        onChange={e => setQuestionText(e.target.value)}
+        rows={2}
+        style={inputStyle}
+      />
+      {options.map((opt, i) => (
+        <input
+          key={i}
+          placeholder={`Opción ${i + 1}`}
+          value={opt}
+          onChange={e => {
+            const next = [...options];
+            next[i] = e.target.value;
+            setOptions(next);
+          }}
+          style={inputStyle}
+        />
+      ))}
+      <button
+        onClick={sendQuestion}
+        disabled={sending}
+        style={{
+          padding: "8px 16px", backgroundColor: "#e94560", color: "white",
+          border: "none", borderRadius: 6, cursor: sending ? "not-allowed" : "pointer",
+          fontSize: 14, fontWeight: 600,
+        }}
+      >
+        {sending ? "Enviando..." : "Enviar Pregunta"}
+      </button>
+      {msg && (
+        <p style={{ marginTop: "0.5rem", color: msg.includes("Error") ? "#e94560" : "#28a745", fontSize: "0.85rem" }}>
+          {msg}
+        </p>
+      )}
     </div>
   );
 }

@@ -44,12 +44,21 @@ public static class NotificationEndpoints
         });
 
         // Podium notification moved to a dedicated endpoint to avoid duplicate route definitions
+        app.MapPost("/internal/notifications/question-asked", async (
+            [FromBody] QuestionAskedNotification notification,
+            IHubContext<GameHub> hubContext) =>
+        {
+            await hubContext.Clients.Group(notification.SessionId.ToString())
+                .SendAsync("QuestionAsked", notification, CancellationToken.None);
+            return Results.Ok();
+        });
     }
 }
 
 public record SessionStatusNotification(Guid SessionId, string Status);
 public record ProgressNotification(Guid SessionId, object ProgressData);
 public record ClueReleasedNotification(Guid SessionId, Guid? TeamId, object ClueData);
+public record QuestionAskedNotification(Guid SessionId, Guid QuestionId, string QuestionText, string[] Options, int TimeLimitSeconds);
 public record QuestionResultsNotification(Guid QuizId, Guid? SessionId, Guid QuestionId, object Results);
 public record QuestionClosedNotification(Guid SessionId, Guid QuestionId, Guid CorrectAnswerId, string? CorrectAnswerText);
 public record RankingEntryDto(int Position, string TeamName, int Score);
