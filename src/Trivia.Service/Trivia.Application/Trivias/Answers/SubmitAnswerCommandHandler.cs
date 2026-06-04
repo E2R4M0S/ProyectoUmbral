@@ -6,7 +6,7 @@ using Trivia.Application.Trivias.Questions;
 
 namespace Trivia.Application.Trivias.Answers;
 
-public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
+public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, AnswerResult>
 {
     private readonly IEventPublisher _publisher;
     private readonly IParticipantAnswerRepository? _answerRepo;
@@ -28,7 +28,7 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
         _leaderboardRepo = leaderboardRepo;
     }
 
-    public async Task Handle(SubmitAnswerCommand request, CancellationToken ct)
+    public async Task<AnswerResult> Handle(SubmitAnswerCommand request, CancellationToken ct)
     {
         // Check if the answer is correct using the stored correct answer index
         var correctIndex = AskQuestionCommandHandler.CorrectAnswers.GetValueOrDefault(request.QuestionId, -1);
@@ -66,15 +66,17 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
         await _publisher.PublishAsync("TriviaAnswerSubmittedEvent", payload, ct);
 
         // Update leaderboard: only add points for correct answers
+        int position = 0;
+        int delta = 0;
+
         try
         {
             if (_leaderboardRepo is not null && isCorrect)
             {
-                // Calculate score based on answer order (first correct = more points)
+                // Base points + position bonus
                 var timestamps = AskQuestionCommandHandler.CorrectAnswerTimestamps
                     .GetOrAdd(request.QuestionId, _ => new List<DateTime>());
 
-                int position;
                 lock (timestamps)
                 {
                     timestamps.Add(request.Timestamp);
@@ -82,13 +84,8 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
                     position = timestamps.IndexOf(request.Timestamp) + 1;
                 }
 
-                var delta = position switch
-                {
-                    1 => 30,
-                    2 => 20,
-                    3 => 10,
-                    _ => 5
-                };
+                var bonus = position switch { 1 => 30, 2 => 20, 3 => 10, _ => 5 };
+                delta = 10 + bonus; // base 10 + bonus for position
 
                 var existing = await _leaderboardRepo.GetByTeamAsync(request.QuizId, request.TeamId, ct);
                 if (existing == null)
@@ -131,5 +128,7 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
         {
             _logger.LogWarning(ex, "Failed to do immediate leaderboard update");
         }
+
+        return new AnswerResult(isCorrect, delta, position);
     }
 }

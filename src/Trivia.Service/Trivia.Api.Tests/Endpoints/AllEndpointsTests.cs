@@ -19,6 +19,7 @@ using Trivia.Application.Trivias.Progress;
 using Trivia.Application.Trivias.Questions;
 using Trivia.Application.Trivias.Ranking;
 using Trivia.Application.Trivias.StartTrivia;
+using Trivia.Application.Trivias.Answers;
 using Trivia.Infrastructure;
 using Xunit;
 
@@ -66,6 +67,8 @@ public class AllEndpointsTests
                 var mock = Substitute.For<IMediator>();
                 mock.Send(Arg.Any<IRequest<Unit>>(), Arg.Any<CancellationToken>())
                     .Returns(Unit.Value);
+                mock.Send(Arg.Any<IRequest<AnswerResult>>(), Arg.Any<CancellationToken>())
+                    .Returns(new AnswerResult(true, 40, 1));
                 services.AddSingleton<IMediator>(mock);
             });
         });

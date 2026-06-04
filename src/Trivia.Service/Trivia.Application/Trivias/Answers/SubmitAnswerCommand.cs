@@ -2,4 +2,6 @@ using MediatR;
 
 namespace Trivia.Application.Trivias.Answers;
 
-public record SubmitAnswerCommand(Guid QuizId, Guid TeamId, string TeamName, Guid QuestionId, Guid AnswerId, DateTime Timestamp, DateTime AskedAt, int TimeLimitSeconds) : IRequest;
+public record SubmitAnswerCommand(Guid QuizId, Guid TeamId, string TeamName, Guid QuestionId, Guid AnswerId, DateTime Timestamp, DateTime AskedAt, int TimeLimitSeconds) : IRequest<AnswerResult>;
+
+public record AnswerResult(bool IsCorrect, int PointsAwarded, int Position);

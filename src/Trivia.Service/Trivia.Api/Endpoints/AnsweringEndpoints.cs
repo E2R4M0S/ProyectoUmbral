@@ -15,8 +15,8 @@ public static class AnsweringEndpoints
             try
             {
                 // Delegate to SubmitAnswerCommand which persists the answer and publishes an integration event
-                        await mediator.Send(new SubmitAnswerCommand(req.QuizId, req.TeamId, req.TeamName, req.QuestionId, req.AnswerId, req.Timestamp, req.AskedAt, req.TimeLimitSeconds));
-                return Results.Ok(new { received = true });
+                var result = await mediator.Send(new SubmitAnswerCommand(req.QuizId, req.TeamId, req.TeamName, req.QuestionId, req.AnswerId, req.Timestamp, req.AskedAt, req.TimeLimitSeconds));
+                return Results.Ok(new { received = true, isCorrect = result.IsCorrect, pointsAwarded = result.PointsAwarded, position = result.Position });
             }
             catch (Exception ex)
             {
@@ -36,8 +36,8 @@ public static class AnsweringEndpoints
                 {
                     try
                     {
-            await mediator.Send(new SubmitAnswerCommand(req.QuizId, req.TeamId, req.TeamName, req.QuestionId, req.AnswerId, req.Timestamp, req.AskedAt, req.TimeLimitSeconds));
-                        return Results.Ok(new { received = true, test = true });
+                        var result = await mediator.Send(new SubmitAnswerCommand(req.QuizId, req.TeamId, req.TeamName, req.QuestionId, req.AnswerId, req.Timestamp, req.AskedAt, req.TimeLimitSeconds));
+                        return Results.Ok(new { received = true, test = true, isCorrect = result.IsCorrect, pointsAwarded = result.PointsAwarded });
                     }
                     catch (Exception ex)
                     {
