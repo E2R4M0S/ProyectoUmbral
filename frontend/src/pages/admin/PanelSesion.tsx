@@ -199,15 +199,6 @@ export function PanelSesion() {
           )}
         </div>
 
-        {/* Trivia: Send Question */}
-        {progress.status === "Active" && (
-          <div style={{ marginTop: "1.5rem" }}>
-            <h3 style={s.section}>Enviar Pregunta de Trivia</h3>
-            <TriviaQuestionSender sessionId={id!} />
-          </div>
-          )}
-        </div>
-
         {/* Seleccionar Quiz (Preparing) */}
         {progress.status === "Preparing" && (
           <div style={{ marginTop: "1.5rem" }}>
