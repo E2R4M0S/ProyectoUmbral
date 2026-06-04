@@ -46,7 +46,7 @@ export function QuestionCard({ question }: Props) {
         quizId: state.sessionId,
         teamId: state.sessionId || "00000000-0000-0000-0000-000000000000",
         questionId: question.questionId,
-        answerId: index.toString(),
+        answerId: "00000000-0000-0000-0000-00000000000" + index,
         timestamp: new Date().toISOString(),
       };
 

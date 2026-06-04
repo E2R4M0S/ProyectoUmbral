@@ -9,7 +9,7 @@ public static class ProgressEndpoints
 {
     public static void MapProgressEndpoints(this WebApplication app)
     {
-        app.MapPost("/api/trivia/{quizId:guid}/progress", async ([FromRoute] Guid quizId, [FromBody] object progress, IMediator mediator, ILogger<Program> logger) =>
+        app.MapPost("/{quizId:guid}/progress", async ([FromRoute] Guid quizId, [FromBody] object progress, IMediator mediator, ILogger<Program> logger) =>
         {
             try
             {
@@ -25,7 +25,7 @@ public static class ProgressEndpoints
         .WithName("UpdateProgress")
         .RequireAuthorization("operator_or_admin");
 
-        app.MapPost("/api/trivia/{quizId:guid}/clues", async ([FromRoute] Guid quizId, [FromBody] ClueRequest body, IMediator mediator, ILogger<Program> logger) =>
+        app.MapPost("/{quizId:guid}/clues", async ([FromRoute] Guid quizId, [FromBody] ClueRequest body, IMediator mediator, ILogger<Program> logger) =>
         {
             try
             {

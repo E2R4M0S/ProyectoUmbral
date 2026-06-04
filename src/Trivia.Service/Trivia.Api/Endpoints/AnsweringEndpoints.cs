@@ -10,7 +10,7 @@ public static class AnsweringEndpoints
     // HTTP endpoint for participant answers
     public static void MapAnsweringEndpoints(this WebApplication app)
     {
-        app.MapPost("/api/trivia/answers", async ([FromBody] ParticipantAnswerRequest req, IMediator mediator, ILogger<Program> logger) =>
+        app.MapPost("/answers", async ([FromBody] ParticipantAnswerRequest req, IMediator mediator, ILogger<Program> logger) =>
         {
             try
             {
