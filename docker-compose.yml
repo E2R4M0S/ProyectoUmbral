@@ -134,6 +134,7 @@ services:
       RabbitMq__User: guest
       RabbitMq__Password: guest
       RabbitMq__Exchange: trivia.exchange
+      Missions__Url: http://missions.service:80
     depends_on:
       sessions-db:
         condition: service_started

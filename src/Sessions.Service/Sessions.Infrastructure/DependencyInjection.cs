@@ -22,6 +22,12 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(configuration["RealTimeHub:Url"] ?? "http://localhost:5005");
         });
 
+        // HTTP client to query Missions.Service for clue data
+        services.AddHttpClient("MissionsClient", client =>
+        {
+            client.BaseAddress = new Uri(configuration["Missions:Url"] ?? "http://missions.service:80");
+        });
+
         // Register a simple event publisher (RabbitMQ implementation placeholder)
         services.AddSingleton<IEventPublisher, Notifications.RabbitMqEventPublisher>();
 

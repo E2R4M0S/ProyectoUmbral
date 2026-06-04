@@ -55,7 +55,6 @@ public static class MissionCatalogEndpoints
             return Results.Ok(result);
         })
         .WithName("GetMissionById")
-        .WithOpenApi()
-        .RequireAuthorization("operator_or_admin");
+        .WithOpenApi();
     }
 }

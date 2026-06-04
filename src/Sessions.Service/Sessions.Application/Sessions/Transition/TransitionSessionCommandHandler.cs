@@ -23,13 +23,6 @@ public class TransitionSessionCommandHandler
         _eventPublisher = eventPublisher;
     }
 
-    // Add constructor overload for DI
-    public TransitionSessionCommandHandler(ISessionRepository repository, ILogger<TransitionSessionCommandHandler> logger, IEventPublisher publisher)
-        : this(repository, logger)
-    {
-        _publisher = publisher;
-    }
-
     public async Task Handle(TransitionSessionCommand command, CancellationToken ct)
     {
         var session = await _repository.GetByIdAsync(command.Id, ct);

@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+using System.Text.Json;
 using MediatR;
 using Sessions.Application.Common.Interfaces;
 using Sessions.Application.Sessions.Clues;
@@ -14,46 +16,79 @@ public static class ReleaseClueEndpoint
             [FromBody] ReleaseClueRequest request,
             IMediator mediator,
             IGameNotifier notifier,
+            ISessionRepository sessionRepo,
+            IHttpClientFactory httpClientFactory,
             ILogger<Program> logger) =>
         {
             try
             {
-                var command = new ReleaseClueCommand(id, request.ClueId, request.TeamId);
-                await mediator.Send(command);
+                // 1. Get session to find MissionId
+                var session = await sessionRepo.GetByIdAsync(id, CancellationToken.None);
+                if (session is null)
+                    return Results.NotFound(new { error = "Session not found" });
 
-                await notifier.NotifyClueReleased(id, request.TeamId, new { text = "Pista liberada por el operador" });
+                // 2. Fetch mission detail from Missions.Service
+                var httpClient = httpClientFactory.CreateClient("MissionsClient");
+                var missionResponse = await httpClient.GetAsync($"/{session.MissionId}", CancellationToken.None);
+
+                string? clueContent = null;
+                int? cluePenalty = null;
+
+                if (missionResponse.IsSuccessStatusCode)
+                {
+                    var mission = await missionResponse.Content.ReadFromJsonAsync<JsonElement>();
+                    if (mission.TryGetProperty("stages", out var stages))
+                    {
+                        foreach (var stage in stages.EnumerateArray())
+                        {
+                            if (stage.TryGetProperty("clues", out var clues))
+                            {
+                                foreach (var clue in clues.EnumerateArray())
+                                {
+                                    if (clue.TryGetProperty("id", out var cid) &&
+                                        cid.GetGuid() == request.ClueId)
+                                    {
+                                        clueContent = clue.TryGetProperty("content", out var c) ? c.GetString() : null;
+                                        cluePenalty = clue.TryGetProperty("penalty", out var p) && p.ValueKind != JsonValueKind.Null ? p.GetInt32() : null;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (clueContent is not null) break;
+                        }
+                    }
+                }
+
+                // 3. Send real clue data via SignalR
+                var clueData = new
+                {
+                    ClueId = request.ClueId,
+                    Text = clueContent ?? "Pista liberada por el operador",
+                    Penalty = cluePenalty,
+                    ReleasedAt = DateTime.UtcNow
+                };
+
+                await notifier.NotifyClueReleased(id, request.TeamId, clueData);
 
                 logger.LogInformation(
-                    "Clue released successfully: SessionId={SessionId}, ClueId={ClueId}",
-                    id, request.ClueId);
+                    "Clue released: SessionId={SessionId}, ClueId={ClueId}, HasContent={HasContent}",
+                    id, request.ClueId, clueContent is not null);
 
-                return Results.Ok(new { id, clueId = request.ClueId, status = "Released" });
+                return Results.Ok(new { id, clueId = request.ClueId, status = "Released", hasContent = clueContent is not null });
             }
             catch (FluentValidation.ValidationException ex)
             {
-                logger.LogWarning(
-                    "Release clue validation failed: {Message}", ex.Message);
-
+                logger.LogWarning("Release clue validation failed: {Message}", ex.Message);
                 return Results.BadRequest(new
                 {
                     error = "Validation failed",
-                    details = ex.Errors.Select(e => new
-                    {
-                        field = e.PropertyName,
-                        message = e.ErrorMessage
-                    })
+                    details = ex.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage })
                 });
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Clue release failed due to an unexpected error");
-
-                return Results.Problem(
-                    "Clue release failed",
-                    null,
-                    StatusCodes.Status500InternalServerError,
-                    "ReleaseClue failed",
-                    "An unexpected error occurred while releasing the clue.");
+                return Results.Problem("Clue release failed", null, StatusCodes.Status500InternalServerError, "ReleaseClue failed", "An unexpected error occurred while releasing the clue.");
             }
         })
         .WithName("ReleaseClue")
