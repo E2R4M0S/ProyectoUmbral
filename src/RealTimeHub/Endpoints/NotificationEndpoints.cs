@@ -52,8 +52,28 @@ public static class NotificationEndpoints
                 .SendAsync("QuestionAsked", notification, CancellationToken.None);
             return Results.Ok();
         });
+        app.MapPost("/internal/events/LeaderboardUpdated", async (
+            [FromBody] List<LeaderboardEntryDto> entries,
+            IHubContext<GameHub> hubContext) =>
+        {
+            if (entries == null || entries.Count == 0) return Results.Ok();
+            var sessionId = entries[0].QuizId;
+            var ranking = entries.Select((e, i) => new
+            {
+                position = i + 1,
+                teamName = e.TeamId.ToString()?.Substring(0, 8) ?? $"Team {i + 1}",
+                score = e.Score
+            }).ToList();
+
+            var notification = new { SessionId = sessionId, Ranking = ranking };
+            await hubContext.Clients.Group(sessionId.ToString())
+                .SendAsync("RankingUpdated", notification, CancellationToken.None);
+            return Results.Ok();
+        });
     }
 }
+
+public record LeaderboardEntryDto(Guid Id, Guid QuizId, Guid TeamId, int Score, DateTime UpdatedAt);
 
 public record SessionStatusNotification(Guid SessionId, string Status);
 public record ProgressNotification(Guid SessionId, object ProgressData);

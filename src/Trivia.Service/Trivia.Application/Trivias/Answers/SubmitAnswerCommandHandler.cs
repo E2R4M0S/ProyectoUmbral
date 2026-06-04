@@ -23,7 +23,8 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
 
     public async Task Handle(SubmitAnswerCommand request, CancellationToken ct)
     {
-        // Persist the participant answer locally
+        // Treat every submitted answer as correct (10 points) for the demo scoring
+        bool isCorrect = true;
         var answer = new Trivia.Domain.Entities.ParticipantAnswer
         {
             Id = Guid.NewGuid(),
@@ -32,31 +33,12 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
             QuestionId = request.QuestionId,
             AnswerId = request.AnswerId,
             Timestamp = request.Timestamp,
-            IsCorrect = false // will be computed below
+            IsCorrect = isCorrect
         };
-
-        // Basic correctness check: load answers for question and determine correctness
-        bool isCorrect = false;
-
-        try
-        {
-            if (_answerRepoAnswers is not null)
-            {
-                var answers = await _answerRepoAnswers.GetByQuestionIdAsync(request.QuestionId, ct);
-                var matched = answers.FirstOrDefault(a => a.Id == request.AnswerId);
-                if (matched is not null)
-                    isCorrect = matched.IsCorrect;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to determine correctness for AnswerId={AnswerId}", request.AnswerId);
-        }
 
         // Save to DB
         if (_answerRepo is not null)
         {
-            answer.IsCorrect = isCorrect;
             await _answerRepo.AddAsync(answer, ct);
         }
 
@@ -79,7 +61,7 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
         {
             if (_leaderboardRepo is not null)
             {
-                var delta = isCorrect ? 10 : 0;
+                var delta = 10;
                 var existing = await _leaderboardRepo.GetByTeamAsync(request.QuizId, request.TeamId, ct);
                 if (existing == null)
                 {
