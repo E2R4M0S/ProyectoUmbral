@@ -1,7 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Sessions.Application.Common.Interfaces;
-using Sessions.Application.Sessions.Transition;
+using Sessions.Application.Sessions.Transition.Chain;
 using Sessions.Domain.Enums;
 
 namespace Sessions.Application.Sessions.Transition;
@@ -12,6 +12,7 @@ public class TransitionSessionCommandHandler
     private readonly ISessionRepository _repository;
     private readonly ILogger<TransitionSessionCommandHandler> _logger;
     private readonly IEventPublisher _eventPublisher;
+    private readonly IStateTransitionHandler _validationChain;
 
     public TransitionSessionCommandHandler(
         ISessionRepository repository,
@@ -21,6 +22,12 @@ public class TransitionSessionCommandHandler
         _repository = repository;
         _logger = logger;
         _eventPublisher = eventPublisher;
+
+        // Build the Chain of Responsibility
+        var validStatus = new ValidStatusHandler();
+        var notTerminal = new NotTerminalHandler();
+        validStatus.SetNext(notTerminal);
+        _validationChain = validStatus;
     }
 
     public async Task Handle(TransitionSessionCommand command, CancellationToken ct)
@@ -31,6 +38,9 @@ public class TransitionSessionCommandHandler
             throw new InvalidOperationException($"Session with id '{command.Id}' not found");
         }
 
+        // Run the validation chain before transitioning
+        _validationChain.Handle(session, command.NewStatus);
+
         var newStatus = Enum.Parse<SessionStatus>(command.NewStatus);
         session.TransitionTo(newStatus);
 
@@ -40,7 +50,6 @@ public class TransitionSessionCommandHandler
             "Session status transitioned: Id={SessionId}, Status={Status}",
             session.Id, session.Status);
 
-        // publish domain event for external systems when session is finished
         if (session.Status == SessionStatus.Finished)
         {
             try
@@ -53,7 +62,7 @@ public class TransitionSessionCommandHandler
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Event publish failed for session {SessionId}, event was not delivered", session.Id);
+                _logger.LogWarning(ex, "Event publish failed for session {SessionId}", session.Id);
             }
         }
     }

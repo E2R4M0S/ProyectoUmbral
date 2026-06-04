@@ -1,8 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Missions.Application.Common.Interfaces;
-using Missions.Application.Missions.StatusChange;
-using Missions.Domain.Entities;
+using Missions.Application.Missions.StatusChange.Chain;
 using Missions.Domain.Enums;
 
 namespace Missions.Application.Missions.StatusChange;
@@ -13,6 +12,7 @@ public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionSt
     private readonly IMissionLockService _lockService;
     private readonly IMissionStageValidator _stageValidator;
     private readonly ILogger<ChangeMissionStatusCommandHandler> _logger;
+    private readonly IMissionStatusHandler _validationChain;
 
     public ChangeMissionStatusCommandHandler(
         IMissionRepository repository,
@@ -24,6 +24,12 @@ public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionSt
         _lockService = lockService;
         _stageValidator = stageValidator;
         _logger = logger;
+
+        // Build the Chain of Responsibility
+        var validStatus = new ValidMissionStatusHandler();
+        var requiresStages = new DraftToActiveRequiresStagesHandler();
+        validStatus.SetNext(requiresStages);
+        _validationChain = validStatus;
     }
 
     public async Task Handle(ChangeMissionStatusCommand command, CancellationToken ct)
@@ -33,6 +39,9 @@ public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionSt
         {
             throw new InvalidOperationException($"Mission with id '{command.Id}' not found");
         }
+
+        // Run the validation chain
+        _validationChain.Handle(mission, command.Status);
 
         var newStatus = Enum.Parse<MissionStatus>(command.Status);
 
