@@ -39,7 +39,7 @@ namespace Sessions.Infrastructure.Notifications
             return (connection, channel);
         }
 
-        public async Task PublishAsync(string routingKey, object payload)
+        public async Task PublishAsync(string routingKey, object payload, CancellationToken ct = default)
         {
             try
             {

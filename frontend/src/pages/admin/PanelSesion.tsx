@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getSessionProgress, transitionSession, ApiError } from "../../services/sessionsApi";
+import { getSessionProgress, getSessionById, transitionSession } from "../../services/sessionsApi";
+import { getMissionById } from "../../services/missionsApi";
 import { fetchWithAuth } from "../../services/api";
 import type { SessionProgress, ParticipantProgress, SessionStatus } from "../../types/session";
+import type { MissionDetail, Clue } from "../../types/mission";
 
 const s: Record<string, React.CSSProperties> = {
   container: { maxWidth: 700, margin: "0 auto", color: "white", fontFamily: "sans-serif", padding: "1rem" },
@@ -23,16 +25,85 @@ const statusLabels: Record<string, string> = { Scheduled: "Programada", Preparin
 export function PanelSesion() {
   const { id } = useParams<{ id: string }>();
   const [progress, setProgress] = useState<SessionProgress | null>(null);
+  const [mission, setMission] = useState<MissionDetail | null>(null);
+  const [selectedClueId, setSelectedClueId] = useState<string>("");
+  const [releasing, setReleasing] = useState(false);
+  const [clueMsg, setClueMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [localSeconds, setLocalSeconds] = useState(0);
+  const lastServerRef = useRef(0);
 
   async function load() {
     if (!id) return;
-    setLoading(true);
-    try { setProgress(await getSessionProgress(id)); setError(""); } catch { setError("No se pudo cargar."); }
-    finally { setLoading(false); }
+    try {
+      const p = await getSessionProgress(id);
+      setProgress(p);
+      lastServerRef.current = p.elapsedSeconds;
+      setLocalSeconds(p.elapsedSeconds);
+      setError("");
+    } catch {
+      setError("No se pudo cargar.");
+    } finally {
+      setLoading(false);
+    }
   }
+
+  // Fetch session detail + mission on mount to get clues
+  useEffect(() => {
+    if (!id) return;
+    getSessionById(id)
+      .then((detail) => getMissionById(detail.missionId))
+      .then((missionDetail) => {
+        setMission(missionDetail);
+        // Auto-select first clue
+        const firstClue = missionDetail.stages?.flatMap(st => st.clues ?? [])?.[0];
+        if (firstClue) setSelectedClueId(firstClue.id);
+      })
+      .catch(() => { /* mission fetch is best-effort */ });
+  }, [id]);
+
   useEffect(() => { load(); const i = setInterval(load, 5000); return () => clearInterval(i); }, [id]);
+
+  // Local 1-second tick for smooth timer display
+  useEffect(() => {
+    if (!progress || (progress.status !== "Active" && progress.status !== "Paused")) return;
+    const tick = setInterval(() => {
+      setLocalSeconds(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [progress?.status]);
+
+  // Sync local timer to server value when it updates
+  useEffect(() => {
+    if (progress) {
+      setLocalSeconds(progress.elapsedSeconds);
+    }
+  }, [progress?.elapsedSeconds]);
+
+  // Flatten all clues from all stages
+  const allClues: Clue[] = mission?.stages?.flatMap(st => st.clues ?? []) ?? [];
+  const selectedClue = allClues.find(c => c.id === selectedClueId);
+
+  const handleReleaseClue = async () => {
+    if (!selectedClueId) return;
+    setReleasing(true);
+    setClueMsg("");
+    try {
+      const resp = await fetchWithAuth(`/api/sessions/${id}/clues/release`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clueId: selectedClueId, teamId: null }),
+      });
+      if (!resp.ok) throw new Error("Error");
+      const result = await resp.json();
+      setClueMsg(result.hasContent ? "Pista liberada con contenido real" : "Pista liberada (sin contenido en la mision)");
+    } catch {
+      setClueMsg("Error al liberar pista");
+    } finally {
+      setReleasing(false);
+    }
+  };
 
   if (loading) return <div style={s.container}>Cargando...</div>;
   if (error || !progress) return <div style={s.container}><p style={{ color: "#e94560" }}>{error || "No encontrada"}</p><Link to="/operator/sesiones" style={s.backLink}>Volver</Link></div>;
@@ -46,7 +117,7 @@ export function PanelSesion() {
       </div>
 
       <div style={s.timerBox}>
-        <div style={s.timer}>{formatTime(progress.elapsedSeconds)}</div>
+        <div style={s.timer}>{formatTime(localSeconds)}</div>
         <div style={{ color: "#999", fontSize: "0.8rem", marginTop: 4 }}>transcurrido</div>
       </div>
 
@@ -78,20 +149,53 @@ export function PanelSesion() {
         ))
       ) : <p style={{ color: "#999" }}>Sin participantes</p>}
 
+      {/* Clue selector + release button */}
       <div style={{ marginTop: "1.5rem" }}>
-        <button style={s.btn("#e94560")} onClick={async () => {
-          try {
-            const resp = await fetchWithAuth(`/api/sessions/${id}/clues/release`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ teamId: null }),
-            });
-            if (!resp.ok) throw new Error("Error");
-            alert("Pista liberada");
-          } catch { alert("Error al liberar pista"); }
-        }}>
-          Liberar Pista
-        </button>
+        <h3 style={s.section}>Pistas de la mision</h3>
+        {allClues.length === 0 ? (
+          <p style={{ color: "#999" }}>Esta mision no tiene pistas definidas.</p>
+        ) : (
+          <>
+            <select
+              value={selectedClueId}
+              onChange={e => setSelectedClueId(e.target.value)}
+              style={{
+                width: "100%", padding: "8px", borderRadius: 4, border: "1px solid #0f3460",
+                backgroundColor: "#16213e", color: "white", fontSize: "0.9rem", marginBottom: "0.75rem",
+              }}
+            >
+              {allClues.map(clue => (
+                <option key={clue.id} value={clue.id}>
+                  {clue.content?.substring(0, 80)}{clue.content?.length > 80 ? "..." : ""}
+                  {clue.penalty != null ? ` (penalizacion: ${clue.penalty}pts)` : ""}
+                </option>
+              ))}
+            </select>
+            <button
+              style={s.btn("#e94560")}
+              onClick={handleReleaseClue}
+              disabled={releasing || !selectedClueId}
+            >
+              {releasing ? "Liberando..." : "Liberar Pista"}
+            </button>
+            {clueMsg && (
+              <p style={{ marginTop: "0.5rem", color: clueMsg.includes("Error") ? "#e94560" : "#28a745", fontSize: "0.85rem" }}>
+                {clueMsg}
+              </p>
+            )}
+            {selectedClue && (
+              <div style={{ ...s.card, marginTop: "0.75rem" }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>Vista previa:</div>
+                <div style={{ color: "#ccc", fontSize: "0.9rem" }}>{selectedClue.content}</div>
+                {selectedClue.penalty != null && (
+                  <div style={{ color: "#e94560", fontSize: "0.8rem", marginTop: 4 }}>
+                    Penalizacion: {selectedClue.penalty} puntos
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

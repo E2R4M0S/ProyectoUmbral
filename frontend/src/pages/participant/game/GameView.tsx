@@ -32,6 +32,14 @@ function GameContent() {
     },
   });
 
+  // Persist clues to sessionStorage so they survive a reload
+  useEffect(() => {
+    if (!sessionId || state.clues.length === 0) return;
+    try {
+      sessionStorage.setItem(`clues_${sessionId}`, JSON.stringify(state.clues));
+    } catch { /* ignore */ }
+  }, [state.clues, sessionId]);
+
   if (!sessionId) return null;
 
   switch (state.sessionStatus) {
@@ -70,10 +78,20 @@ function GameViewInner() {
           status: session.status,
         });
       })
-      .catch(() => {
-        // If session can't be fetched, the guard protects us — stay here
-      });
+      .catch(() => {});
   }, [sessionId, navigate, dispatch]);
+
+  // Restore clues from sessionStorage on reload
+  useEffect(() => {
+    if (!sessionId) return;
+    try {
+      const saved = sessionStorage.getItem(`clues_${sessionId}`);
+      if (saved) {
+        const clues = JSON.parse(saved);
+        clues.forEach((clue: unknown) => dispatch({ type: "CLUE_RELEASED", clue }));
+      }
+    } catch { /* ignore */ }
+  }, [sessionId, dispatch]);
 
   return <GameContent />;
 }
