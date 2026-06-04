@@ -2,24 +2,14 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
-using Trivia.Infrastructure;
 using Trivia.Infrastructure.Persistence;
 using Trivia.Domain.Entities;
 using Xunit;
 
 namespace Trivia.Infrastructure.Tests.Persistence;
 
-public class LeaderboardRepositoryTests
+public class LeaderboardRepositoryTests : DbTestBase
 {
-    private TriviaDbContext CreateContext()
-    {
-        var options = new DbContextOptionsBuilder<TriviaDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        return new TriviaDbContext(options);
-    }
-
     [Fact]
     public async Task AddOrUpdateAsync_AddsNewEntry()
     {
