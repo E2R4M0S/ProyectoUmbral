@@ -35,3 +35,5 @@ docker-data/
 Thumbs.db
 .DS_Store
 .atl/
+coverage*.info
+coverage*.json
