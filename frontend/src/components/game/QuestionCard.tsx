@@ -31,7 +31,7 @@ const optionBtnStyle = (disabled: boolean, sent: boolean, selected: boolean): Re
 });
 
 export function QuestionCard({ question }: Props) {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +63,12 @@ export function QuestionCard({ question }: Props) {
       }
 
       setSent(true);
+      // Increment local score
+      const key = `score_${question.sessionId}`;
+      const current = parseInt(sessionStorage.getItem(key) || "0", 10);
+      const newScore = current + 10;
+      sessionStorage.setItem(key, newScore.toString());
+      try { dispatch({ type: "SET_SCORE", score: newScore }); } catch {}
     } catch (ex: any) {
       setError(ex?.message ?? "Error de conexión");
     }

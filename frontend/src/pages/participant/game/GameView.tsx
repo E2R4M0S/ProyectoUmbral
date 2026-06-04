@@ -84,7 +84,7 @@ function GameViewInner() {
       .catch(() => {});
   }, [sessionId, navigate, dispatch]);
 
-  // Restore clues from sessionStorage on reload
+  // Restore clues and score from sessionStorage on reload
   useEffect(() => {
     if (!sessionId) return;
     try {
@@ -92,6 +92,10 @@ function GameViewInner() {
       if (saved) {
         const clues = JSON.parse(saved);
         clues.forEach((clue: unknown) => dispatch({ type: "CLUE_RELEASED", clue }));
+      }
+      const savedScore = sessionStorage.getItem(`score_${sessionId}`);
+      if (savedScore) {
+        dispatch({ type: "SET_SCORE", score: parseInt(savedScore, 10) });
       }
     } catch { /* ignore */ }
   }, [sessionId, dispatch]);

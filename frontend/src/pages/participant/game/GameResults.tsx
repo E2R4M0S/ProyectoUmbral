@@ -1,11 +1,22 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGame } from "../../../contexts/GameContext";
 
 export function GameResults() {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const navigate = useNavigate();
 
   const isFinished = state.sessionStatus === "Finished";
+
+  // Restore score from sessionStorage
+  useEffect(() => {
+    if (state.sessionId) {
+      const saved = sessionStorage.getItem(`score_${state.sessionId}`);
+      if (saved) {
+        dispatch({ type: "SET_SCORE", score: parseInt(saved, 10) });
+      }
+    }
+  }, [state.sessionId, dispatch]);
 
   function handleReturn() {
     if (state.sessionId) {
