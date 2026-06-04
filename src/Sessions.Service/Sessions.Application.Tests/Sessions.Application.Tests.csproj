@@ -27,6 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Sessions.Application\Sessions.Application.csproj" />
     <ProjectReference Include="..\Sessions.Domain\Sessions.Domain.csproj" />
+    <ProjectReference Include="..\Sessions.Infrastructure\Sessions.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
