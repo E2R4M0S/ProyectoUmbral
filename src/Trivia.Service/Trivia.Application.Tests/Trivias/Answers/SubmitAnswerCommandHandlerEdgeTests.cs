@@ -1,5 +1,6 @@
 using Xunit;
 using System;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -18,7 +19,9 @@ public class SubmitAnswerCommandHandlerEdgeTests
     {
         var publisher = Substitute.For<IEventPublisher>();
         var logger = Substitute.For<ILogger<SubmitAnswerCommandHandler>>();
-        var handler = new SubmitAnswerCommandHandler(publisher, logger, null, null, null);
+        var httpFactory = Substitute.For<IHttpClientFactory>();
+        httpFactory.CreateClient(Arg.Any<string>()).Returns(new HttpClient());
+        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, null, null);
 
         var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
 
@@ -31,12 +34,14 @@ public class SubmitAnswerCommandHandlerEdgeTests
     {
         var publisher = Substitute.For<IEventPublisher>();
         var logger = Substitute.For<ILogger<SubmitAnswerCommandHandler>>();
+        var httpFactory = Substitute.For<IHttpClientFactory>();
+        httpFactory.CreateClient(Arg.Any<string>()).Returns(new HttpClient());
 
         var answerRepo = Substitute.For<IParticipantAnswerRepository>();
         answerRepo.When(x => x.AddAsync(Arg.Any<ParticipantAnswer>(), Arg.Any<CancellationToken>()))
             .Throw(new Exception("DB error"));
 
-        var handler = new SubmitAnswerCommandHandler(publisher, logger, answerRepo, null, null);
+        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, answerRepo, null);
 
         var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
 

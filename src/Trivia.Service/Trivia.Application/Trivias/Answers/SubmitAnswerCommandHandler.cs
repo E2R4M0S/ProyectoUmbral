@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Trivia.Application.Common.Interfaces;
@@ -6,18 +7,23 @@ namespace Trivia.Application.Trivias.Answers;
 
 public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
 {
-    private readonly Trivia.Application.Common.Interfaces.IEventPublisher _publisher;
-    private readonly Trivia.Application.Common.Interfaces.IParticipantAnswerRepository? _answerRepo;
-    private readonly Trivia.Application.Common.Interfaces.IAnswerRepository? _answerRepoAnswers;
-    private readonly Trivia.Application.Common.Interfaces.ILeaderboardRepository? _leaderboardRepo;
+    private readonly IEventPublisher _publisher;
+    private readonly IParticipantAnswerRepository? _answerRepo;
+    private readonly ILeaderboardRepository? _leaderboardRepo;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<SubmitAnswerCommandHandler> _logger;
 
-    public SubmitAnswerCommandHandler(IEventPublisher publisher, ILogger<SubmitAnswerCommandHandler> logger, Trivia.Application.Common.Interfaces.IParticipantAnswerRepository? answerRepo = null, Trivia.Application.Common.Interfaces.IAnswerRepository? answerRepoAnswers = null, Trivia.Application.Common.Interfaces.ILeaderboardRepository? leaderboardRepo = null)
+    public SubmitAnswerCommandHandler(
+        IEventPublisher publisher,
+        ILogger<SubmitAnswerCommandHandler> logger,
+        IHttpClientFactory httpClientFactory,
+        IParticipantAnswerRepository? answerRepo = null,
+        ILeaderboardRepository? leaderboardRepo = null)
     {
         _publisher = publisher;
         _logger = logger;
+        _httpClientFactory = httpClientFactory;
         _answerRepo = answerRepo;
-        _answerRepoAnswers = answerRepoAnswers;
         _leaderboardRepo = leaderboardRepo;
     }
 
@@ -74,11 +80,13 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand>
                     await _leaderboardRepo.AddOrUpdateAsync(existing, ct);
                 }
 
-                // Publish immediate leaderboard snapshot so realtime hub can broadcast (works with HttpEventPublisher fallback)
+                // Publish immediate leaderboard snapshot so realtime hub can broadcast
                 try
                 {
                     var leaderboard = await _leaderboardRepo.GetByQuizAsync(request.QuizId, ct);
-                    await _publisher.PublishAsync("LeaderboardUpdated", leaderboard, ct);
+                    // Direct HTTP call to RealTimeHub leaderboard endpoint
+                    var client = _httpClientFactory.CreateClient("realTimeHub");
+                    await client.PostAsJsonAsync("/internal/events/LeaderboardUpdated", leaderboard, ct);
                 }
                 catch (Exception ex)
                 {

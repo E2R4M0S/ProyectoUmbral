@@ -1,4 +1,5 @@
 using System;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -20,8 +21,10 @@ public class SubmitAnswerCommandHandlerTests
         var answersRepo = Substitute.For<IAnswerRepository>();
         var leaderboardRepo = Substitute.For<ILeaderboardRepository>();
         var logger = Substitute.For<ILogger<SubmitAnswerCommandHandler>>();
+        var httpFactory = Substitute.For<IHttpClientFactory>();
+        httpFactory.CreateClient(Arg.Any<string>()).Returns(new HttpClient());
 
-        var handler = new SubmitAnswerCommandHandler(publisher, logger, answerRepo, answersRepo, leaderboardRepo);
+        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, answerRepo, leaderboardRepo);
 
         var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
 
