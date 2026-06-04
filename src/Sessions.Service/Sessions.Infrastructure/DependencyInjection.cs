@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Sessions.Application.Common.Interfaces;
 using Sessions.Infrastructure.Notifications;
 using Sessions.Infrastructure.Persistence;
-using Sessions.Infrastructure.Services;
 
 namespace Sessions.Infrastructure;
 
@@ -31,9 +30,6 @@ public static class DependencyInjection
 
         // Register a simple event publisher (RabbitMQ implementation placeholder)
         services.AddSingleton<IEventPublisher, Notifications.RabbitMqEventPublisher>();
-
-        // Facade Pattern: coordina operaciones de sesion multi-paso
-        services.AddScoped<IGameSessionFacade, GameSessionFacade>();
 
         return services;
     }

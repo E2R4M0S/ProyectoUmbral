@@ -1,6 +1,8 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using MediatR;
 using Sessions.Application.Common.Interfaces;
+using Sessions.Application.Sessions.Clues;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Sessions.Api.Endpoints;
@@ -12,7 +14,8 @@ public static class ReleaseClueEndpoint
         app.MapPost("/{id:guid}/clues/release", async (
             [FromRoute] Guid id,
             [FromBody] ReleaseClueRequest request,
-            IGameSessionFacade facade,
+            IMediator mediator,
+            IGameNotifier notifier,
             ISessionRepository sessionRepo,
             IHttpClientFactory httpClientFactory,
             ILogger<Program> logger) =>
@@ -56,8 +59,16 @@ public static class ReleaseClueEndpoint
                     }
                 }
 
-                // 3. Send real clue data via SignalR through Facade
-                await facade.ReleaseClueAndNotify(id, request.ClueId, request.TeamId, clueContent, cluePenalty);
+                // 3. Send real clue data via SignalR
+                var clueData = new
+                {
+                    ClueId = request.ClueId,
+                    Text = clueContent ?? "Pista liberada por el operador",
+                    Penalty = cluePenalty,
+                    ReleasedAt = DateTime.UtcNow
+                };
+
+                await notifier.NotifyClueReleased(id, request.TeamId, clueData);
 
                 logger.LogInformation(
                     "Clue released: SessionId={SessionId}, ClueId={ClueId}, HasContent={HasContent}",
