@@ -4,9 +4,18 @@
   "sslRequired": "none",
   "roles": {
     "realm": [
-      { "name": "admin", "composite": false },
-      { "name": "operator", "composite": false },
-      { "name": "participant", "composite": false }
+      {
+        "name": "admin",
+        "composite": false
+      },
+      {
+        "name": "operator",
+        "composite": false
+      },
+      {
+        "name": "participant",
+        "composite": false
+      }
     ]
   },
   "clients": [
@@ -15,8 +24,18 @@
       "publicClient": true,
       "protocol": "openid-connect",
       "standardFlowEnabled": true,
-      "redirectUris": ["http://localhost:5173/*", "http://192.168.0.6:5173/*"],
-      "webOrigins": ["http://localhost:5173", "http://192.168.0.6:5173"],
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://192.168.0.6:5173/*",
+        "http://192.168.31.22:5173/*",
+        "http://172.20.10.6:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "http://192.168.0.6:5173",
+        "http://192.168.31.22:5173",
+        "http://172.20.10.6:5173"
+      ],
       "directAccessGrantsEnabled": false,
       "attributes": {
         "post.logout.redirect.uris": "http://localhost:5173##http://192.168.0.6:5173"

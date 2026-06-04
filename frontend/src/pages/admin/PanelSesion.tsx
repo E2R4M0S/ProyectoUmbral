@@ -70,7 +70,7 @@ export function PanelSesion() {
 
   // Local 1-second tick for smooth timer display
   useEffect(() => {
-    if (!progress || (progress.status !== "Active" && progress.status !== "Paused")) return;
+    if (!progress || progress.status !== "Active") return;
     const tick = setInterval(() => {
       setLocalSeconds(prev => prev + 1);
     }, 1000);
