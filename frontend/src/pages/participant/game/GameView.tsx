@@ -48,6 +48,16 @@ function GameContent() {
     } catch { /* ignore */ }
   }, [state.clues, state.ranking, sessionId]);
 
+  // Force save ranking when transitioning to Finished
+  useEffect(() => {
+    if (sessionId && state.sessionStatus === "Finished" && state.ranking.length > 0) {
+      try {
+        sessionStorage.setItem(`ranking_${sessionId}`, JSON.stringify(state.ranking));
+        sessionStorage.setItem(`score_${sessionId}`, String(state.score));
+      } catch { /* ignore */ }
+    }
+  }, [state.sessionStatus, sessionId]);
+
   if (!sessionId) return null;
 
   switch (state.sessionStatus) {
