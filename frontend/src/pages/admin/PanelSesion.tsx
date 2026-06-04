@@ -205,25 +205,25 @@ export function PanelSesion() {
             <h3 style={s.section}>Enviar Pregunta de Trivia</h3>
             <TriviaQuestionSender sessionId={id!} />
           </div>
+          )}
+        </div>
+
+        {/* Seleccionar Quiz (Preparing) */}
+        {progress.status === "Preparing" && (
+          <div style={{ marginTop: "1.5rem" }}>
+            <h3 style={s.section}>Seleccionar Quiz</h3>
+            <QuizSelector sessionId={id!} selectedQuizId={selectedQuizId} onSelect={setSelectedQuizId} />
+          </div>
+        )}
+        {progress.status === "Active" && selectedQuizId && (
+          <div style={{ marginTop: "1.5rem" }}>
+            <h3 style={s.section}>Enviar Pregunta de Trivia</h3>
+            <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} />
+          </div>
         )}
       </div>
-
-      {/* Trivia: Send Question */}
-      {progress.status === "Preparing" && (
-        <div style={{ marginTop: "1.5rem" }}>
-          <h3 style={s.section}>Seleccionar Quiz</h3>
-          <QuizSelector sessionId={id!} selectedQuizId={selectedQuizId} onSelect={setSelectedQuizId} />
-        </div>
-      )}
-      {progress.status === "Active" && selectedQuizId && (
-        <div style={{ marginTop: "1.5rem" }}>
-          <h3 style={s.section}>Enviar Pregunta de Trivia</h3>
-          <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} />
-        </div>
-      )}
-    </div>
-  );
-}
+    );
+  }
 
 function QuizSelector({ sessionId, selectedQuizId, onSelect }: { sessionId: string; selectedQuizId: string; onSelect: (id: string) => void }) {
   const [quizzes, setQuizzes] = useState<{ id: string; title: string; questionCount: number }[]>([]);
