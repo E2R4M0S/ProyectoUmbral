@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { fetchWithAuth } from "../../services/api";
-import { useGame } from "../../contexts/GameContext";
 import type { TriviaQuestion } from "../../types/game";
 
 interface Props {
@@ -31,7 +30,6 @@ const optionBtnStyle = (disabled: boolean, sent: boolean, selected: boolean): Re
 });
 
 export function QuestionCard({ question }: Props) {
-  const { state } = useGame();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +41,8 @@ export function QuestionCard({ question }: Props) {
 
     try {
       const payload = {
-        quizId: state.sessionId,
-        teamId: state.sessionId || "00000000-0000-0000-0000-000000000000",
+        quizId: question.sessionId,
+        teamId: question.sessionId,
         questionId: question.questionId,
         answerId: "00000000-0000-0000-0000-00000000000" + index,
         timestamp: new Date().toISOString(),
