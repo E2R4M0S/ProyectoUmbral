@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useGame } from "../../../contexts/GameContext";
 import { RankingBoard } from "../../../components/game/RankingBoard";
 
 export function GameResults() {
+  const { sessionId } = useParams<{ sessionId: string }>();
   const { state, dispatch } = useGame();
   const navigate = useNavigate();
 
@@ -11,17 +12,17 @@ export function GameResults() {
 
   // Restore score and ranking from sessionStorage
   useEffect(() => {
-    if (state.sessionId) {
-      const saved = sessionStorage.getItem(`score_${state.sessionId}`);
+    if (sessionId) {
+      const saved = sessionStorage.getItem(`score_${sessionId}`);
       if (saved) {
         dispatch({ type: "SET_SCORE", score: parseInt(saved, 10) });
       }
-      const savedRanking = sessionStorage.getItem(`ranking_${state.sessionId}`);
+      const savedRanking = sessionStorage.getItem(`ranking_${sessionId}`);
       if (savedRanking) {
         dispatch({ type: "RANKING_UPDATED", ranking: JSON.parse(savedRanking) });
       }
     }
-  }, [state.sessionId, dispatch]);
+  }, [sessionId, dispatch]);
 
   function handleReturn() {
     if (state.sessionId) {
