@@ -6,7 +6,7 @@ namespace Missions.Application.Common.Proxy;
 
 /// <summary>
 /// Proxy Pattern: controls access to mission write operations.
-/// Prevents modifying or deleting Active missions.
+/// Blocks modifications on Active missions to prevent corruption of in-progress games.
 /// </summary>
 public class MissionAccessProxy : IMissionRepository
 {
@@ -14,8 +14,7 @@ public class MissionAccessProxy : IMissionRepository
 
     public MissionAccessProxy(IMissionRepository inner) => _inner = inner;
 
-    public async Task AddAsync(Mission mission, CancellationToken ct)
-        => await _inner.AddAsync(mission, ct);
+    // ── Reads: no restriction ────────────────────────────────────────────
 
     public async Task<Mission?> GetByIdAsync(Guid id, CancellationToken ct)
         => await _inner.GetByIdAsync(id, ct);
@@ -27,28 +26,49 @@ public class MissionAccessProxy : IMissionRepository
     public async Task<bool> IsTitleUniqueAsync(string title, CancellationToken ct, Guid? excludeId = null)
         => await _inner.IsTitleUniqueAsync(title, ct, excludeId);
 
+    // ── Create: always allowed (new missions start as Draft) ─────────────
+
+    public async Task AddAsync(Mission mission, CancellationToken ct)
+        => await _inner.AddAsync(mission, ct);
+
+    // ── Writes: blocked if mission is Active ─────────────────────────────
+
     public async Task UpdateAsync(Mission mission, CancellationToken ct)
     {
+        ThrowIfActive(mission, "modificar");
         await _inner.UpdateAsync(mission, ct);
     }
 
     public async Task AddStageAsync(Mission mission, CancellationToken ct)
     {
+        ThrowIfActive(mission, "agregar etapas a");
         await _inner.AddStageAsync(mission, ct);
     }
 
     public async Task AddClueAsync(Mission mission, Guid stageId, CancellationToken ct)
     {
+        ThrowIfActive(mission, "agregar pistas a");
         await _inner.AddClueAsync(mission, stageId, ct);
     }
 
     public void RemoveStage(Mission mission, MissionStage stage)
     {
+        ThrowIfActive(mission, "eliminar etapas de");
         _inner.RemoveStage(mission, stage);
     }
 
     public async Task SaveChangesAsync(CancellationToken ct)
+        => await _inner.SaveChangesAsync(ct);
+
+    // ── Guard ────────────────────────────────────────────────────────────
+
+    private static void ThrowIfActive(Mission mission, string action)
     {
-        await _inner.SaveChangesAsync(ct);
+        if (mission.Status == MissionStatus.Active)
+        {
+            throw new InvalidOperationException(
+                $"No se puede {action} una misión en estado 'Active'. " +
+                "Desactívela primero.");
+        }
     }
 }
