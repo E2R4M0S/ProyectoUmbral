@@ -4,23 +4,35 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Trivia.Infrastructure;
 using Xunit;
 
 namespace Trivia.Api.Tests.Endpoints;
 
-[Collection("TriviaApi")]
 public class AuthorizedEndpointsTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
-
-    public AuthorizedEndpointsTests(TriviaApiFixture fixture) => _factory = fixture.Factory;
+    private static WebApplicationFactory<Program> CreateFactory()
+    {
+        return new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Test");
+            builder.ConfigureTestServices(services =>
+            {
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<TriviaDbContext>));
+                if (descriptor != null) services.Remove(descriptor);
+                services.AddDbContext<TriviaDbContext>(options =>
+                    options.UseInMemoryDatabase("AuthTest"));
+            });
+        });
+    }
 
     [Fact]
     public async Task PostGameEnd_WithoutAuth_Returns401()
     {
-        // Use a separate factory for this test - the default one doesn't mock auth
-        var client = _factory.CreateClient();
+        await using var factory = CreateFactory();
+        var client = factory.CreateClient();
         var response = await client.PostAsync($"/games/{System.Guid.NewGuid()}/end", null);
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -28,7 +40,7 @@ public class AuthorizedEndpointsTests
     [Fact]
     public async Task PostGameEnd_WithOperatorRole_Returns200or400()
     {
-        var factory = _factory.WithWebHostBuilder(builder =>
+        await using var factory = CreateFactory().WithWebHostBuilder(builder =>
         {
             builder.ConfigureTestServices(services =>
             {
@@ -39,7 +51,6 @@ public class AuthorizedEndpointsTests
             });
         });
         var client = factory.CreateClient();
-
         var response = await client.PostAsync($"/games/{System.Guid.NewGuid()}/end", null);
         response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.BadRequest);
     }
@@ -47,7 +58,8 @@ public class AuthorizedEndpointsTests
     [Fact]
     public async Task GetHealth_AlwaysPublic()
     {
-        var client = _factory.CreateClient();
+        await using var factory = CreateFactory();
+        var client = factory.CreateClient();
         var response = await client.GetAsync("/health");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }

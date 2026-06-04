@@ -10,17 +10,28 @@ using Xunit;
 
 namespace Trivia.Api.Tests.Endpoints;
 
-[Collection("TriviaApi")]
 public class HealthEndpointTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
-
-    public HealthEndpointTests(TriviaApiFixture fixture) => _factory = fixture.Factory;
+    private static WebApplicationFactory<Program> CreateFactory()
+    {
+        return new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Test");
+            builder.ConfigureTestServices(services =>
+            {
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<TriviaDbContext>));
+                if (descriptor != null) services.Remove(descriptor);
+                services.AddDbContext<TriviaDbContext>(options =>
+                    options.UseInMemoryDatabase("HealthTest"));
+            });
+        });
+    }
 
     [Fact]
     public async Task GetHealth_Returns200()
     {
-        var client = _factory.CreateClient();
+        await using var factory = CreateFactory();
+        var client = factory.CreateClient();
         var response = await client.GetAsync("/health");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -28,7 +39,8 @@ public class HealthEndpointTests
     [Fact]
     public async Task GetHealth_ReturnsJson()
     {
-        var client = _factory.CreateClient();
+        await using var factory = CreateFactory();
+        var client = factory.CreateClient();
         var response = await client.GetAsync("/health");
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("Healthy");
@@ -38,7 +50,8 @@ public class HealthEndpointTests
     [Fact]
     public async Task GetHealth_AllowAnonymous()
     {
-        var client = _factory.CreateClient();
+        await using var factory = CreateFactory();
+        var client = factory.CreateClient();
         var response = await client.GetAsync("/health");
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
         response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
