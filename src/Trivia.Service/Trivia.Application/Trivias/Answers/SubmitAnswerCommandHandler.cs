@@ -13,17 +13,20 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
     private readonly ILeaderboardRepository? _leaderboardRepo;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<SubmitAnswerCommandHandler> _logger;
+    private readonly IScoringStrategy _scoringStrategy;
 
     public SubmitAnswerCommandHandler(
         IEventPublisher publisher,
         ILogger<SubmitAnswerCommandHandler> logger,
         IHttpClientFactory httpClientFactory,
+        IScoringStrategy scoringStrategy,
         IParticipantAnswerRepository? answerRepo = null,
         ILeaderboardRepository? leaderboardRepo = null)
     {
         _publisher = publisher;
         _logger = logger;
         _httpClientFactory = httpClientFactory;
+        _scoringStrategy = scoringStrategy;
         _answerRepo = answerRepo;
         _leaderboardRepo = leaderboardRepo;
     }
@@ -75,7 +78,7 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
             {
                 if (isCorrect)
                 {
-                    // Base points + position bonus for correct answers
+                    // Track position (kept for AnswerResult metadata)
                     var timestamps = AskQuestionCommandHandler.CorrectAnswerTimestamps
                         .GetOrAdd(request.QuestionId, _ => new List<DateTime>());
 
@@ -86,8 +89,9 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
                         position = timestamps.IndexOf(request.Timestamp) + 1;
                     }
 
-                    var bonus = position switch { 1 => 30, 2 => 20, 3 => 10, _ => 5 };
-                    delta = 10 + bonus;
+                    // Use time-based scoring strategy
+                    var timeElapsed = request.Timestamp - request.AskedAt;
+                    delta = _scoringStrategy.CalculateScore(timeElapsed, request.TimeLimitSeconds);
                 }
 
                 // Create or update leaderboard entry (even for 0 points, so everyone appears)

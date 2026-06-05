@@ -21,7 +21,8 @@ public class SubmitAnswerCommandHandlerEdgeTests
         var logger = Substitute.For<ILogger<SubmitAnswerCommandHandler>>();
         var httpFactory = Substitute.For<IHttpClientFactory>();
         httpFactory.CreateClient(Arg.Any<string>()).Returns(new HttpClient());
-        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory);
+        var scoringStrategy = Substitute.For<IScoringStrategy>();
+        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, scoringStrategy);
 
         var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Test", Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, DateTime.UtcNow, 30);
 
@@ -41,7 +42,8 @@ public class SubmitAnswerCommandHandlerEdgeTests
         answerRepo.When(x => x.AddAsync(Arg.Any<ParticipantAnswer>(), Arg.Any<CancellationToken>()))
             .Throw(new Exception("DB error"));
 
-        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, answerRepo);
+        var scoringStrategy = Substitute.For<IScoringStrategy>();
+        var handler = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, scoringStrategy, answerRepo);
 
         var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Test", Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, DateTime.UtcNow, 30);
 
