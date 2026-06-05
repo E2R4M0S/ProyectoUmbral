@@ -215,4 +215,218 @@ public class MissionRepositoryTests
         // Assert
         result.Should().BeNull();
     }
+
+    [Fact]
+    public async Task AddAsync_ShouldPersistMission()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+        var repo = new MissionRepository(dbContext);
+
+        var mission = Mission.Create("New Mission", "Description", Difficulty.Easy, 15, MissionType.Treasure);
+
+        // Act
+        await repo.AddAsync(mission, CancellationToken.None);
+
+        // Assert
+        var saved = await dbContext.Missions.FirstOrDefaultAsync(m => m.Id == mission.Id);
+        saved.Should().NotBeNull();
+        saved!.Title.Should().Be("New Mission");
+        saved.Status.Should().Be(MissionStatus.Draft);
+    }
+
+    [Fact]
+    public async Task IsTitleUniqueAsync_WhenTitleIsUnique_ReturnsTrue()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var existing = Mission.Create("Existing Mission", "Desc", Difficulty.Easy, 10, MissionType.Treasure);
+        dbContext.Missions.Add(existing);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new MissionRepository(dbContext);
+
+        // Act
+        var result = await repo.IsTitleUniqueAsync("Different Title", CancellationToken.None);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task IsTitleUniqueAsync_WhenTitleExists_ReturnsFalse()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var existing = Mission.Create("Unique Title", "Desc", Difficulty.Easy, 10, MissionType.Treasure);
+        dbContext.Missions.Add(existing);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new MissionRepository(dbContext);
+
+        // Act
+        var result = await repo.IsTitleUniqueAsync("Unique Title", CancellationToken.None);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task IsTitleUniqueAsync_WhenDuplicateButExcludedId_ReturnsTrue()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var existing = Mission.Create("Same Title", "Desc", Difficulty.Medium, 20, MissionType.Trivia);
+        dbContext.Missions.Add(existing);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new MissionRepository(dbContext);
+
+        // Act
+        var result = await repo.IsTitleUniqueAsync("Same Title", CancellationToken.None, existing.Id);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ShouldUpdateMissionProperties()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var mission = Mission.Create("Original Title", "Original Desc", Difficulty.Easy, 10, MissionType.Treasure);
+        dbContext.Missions.Add(mission);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new MissionRepository(dbContext);
+
+        // Act
+        mission.Update("Updated Title", "Updated Desc", Difficulty.Hard, 30);
+        await repo.UpdateAsync(mission, CancellationToken.None);
+
+        // Assert
+        var saved = await dbContext.Missions.FirstOrDefaultAsync(m => m.Id == mission.Id);
+        saved.Should().NotBeNull();
+        saved!.Title.Should().Be("Updated Title");
+        saved.Description.Should().Be("Updated Desc");
+        saved.Difficulty.Should().Be(Difficulty.Hard);
+        saved.TimeMinutes.Should().Be(30);
+    }
+
+    [Fact]
+    public async Task AddStageAsync_ShouldAddStageToMission()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var mission = Mission.Create("Stage Test Mission", "Desc", Difficulty.Medium, 20, MissionType.Treasure);
+        dbContext.Missions.Add(mission);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new MissionRepository(dbContext);
+        mission.AddStage("Stage 1", "Stage Description", 1);
+
+        // Act
+        await repo.AddStageAsync(mission, CancellationToken.None);
+
+        // Assert
+        var saved = await dbContext.Missions
+            .Include(m => m.Stages)
+            .FirstOrDefaultAsync(m => m.Id == mission.Id);
+        saved.Should().NotBeNull();
+        saved!.Stages.Should().HaveCount(1);
+        saved.Stages.First().Name.Should().Be("Stage 1");
+    }
+
+    [Fact]
+    public async Task AddClueAsync_ShouldAddClueToStage()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var mission = Mission.Create("Clue Test Mission", "Desc", Difficulty.Medium, 20, MissionType.Treasure);
+        mission.AddStage("Stage 1", "Stage Desc", 1);
+        dbContext.Missions.Add(mission);
+        await dbContext.SaveChangesAsync();
+
+        var stageId = mission.Stages.First().Id;
+        var repo = new MissionRepository(dbContext);
+
+        // Add a clue to the stage via mission aggregate
+        mission.AddStageClue(stageId, "First Clue", 10, ReleaseType.Manual);
+
+        // Act
+        await repo.AddClueAsync(mission, stageId, CancellationToken.None);
+
+        // Assert
+        var saved = await dbContext.Missions
+            .Include(m => m.Stages)
+                .ThenInclude(s => s.Clues)
+            .FirstOrDefaultAsync(m => m.Id == mission.Id);
+        saved.Should().NotBeNull();
+        saved!.Stages.First().Clues.Should().HaveCount(1);
+        saved.Stages.First().Clues.First().Content.Should().Be("First Clue");
+    }
+
+    [Fact]
+    public async Task RemoveStage_ShouldRemoveStageFromDatabase()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var mission = Mission.Create("Remove Stage Mission", "Desc", Difficulty.Easy, 15, MissionType.Treasure);
+        mission.AddStage("Stage To Remove", "Desc", 1);
+        dbContext.Missions.Add(mission);
+        await dbContext.SaveChangesAsync();
+
+        var stage = mission.Stages.First();
+        var repo = new MissionRepository(dbContext);
+
+        // Act
+        repo.RemoveStage(mission, stage);
+        await dbContext.SaveChangesAsync();
+
+        // Assert
+        var saved = await dbContext.Missions
+            .Include(m => m.Stages)
+            .FirstOrDefaultAsync(m => m.Id == mission.Id);
+        saved.Should().NotBeNull();
+        saved!.Stages.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_ShouldPersistChanges()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var mission = Mission.Create("Save Changes Mission", "Desc", Difficulty.Easy, 10, MissionType.Trivia);
+        dbContext.Missions.Add(mission);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new MissionRepository(dbContext);
+
+        // Act
+        mission.Update("Updated Title", "Updated Desc", Difficulty.Medium, 25);
+        await repo.SaveChangesAsync(CancellationToken.None);
+
+        // Assert
+        var saved = await dbContext.Missions.FirstOrDefaultAsync(m => m.Id == mission.Id);
+        saved.Should().NotBeNull();
+        saved!.Title.Should().Be("Updated Title");
+        saved.TimeMinutes.Should().Be(25);
+    }
 }
