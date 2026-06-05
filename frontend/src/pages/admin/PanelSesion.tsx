@@ -350,14 +350,12 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
             <button onClick={sendCurrentQuestion} disabled={sending} style={btnStyle(sending)}>
               {sending ? "Enviando..." : "Enviar Pregunta"}
             </button>
-          ) : (
-            <button onClick={advanceToNext} disabled={answerCount < totalParticipants && currentQuestionIndex < questions.length - 1}
-              style={btnStyle(answerCount < totalParticipants && currentQuestionIndex < questions.length - 1)}>
-              {currentQuestionIndex < questions.length - 1
-                ? (answerCount >= totalParticipants ? "Siguiente →" : "Esperando respuestas...")
-                : "Finalizar"}
+          ) : currentQuestionIndex < questions.length - 1 ? (
+            <button onClick={advanceToNext} disabled={answerCount < totalParticipants}
+              style={btnStyle(answerCount < totalParticipants)}>
+              {answerCount >= totalParticipants ? "Siguiente →" : "Esperando respuestas..."}
             </button>
-          )}
+          ) : null}
           {msg && (
             <p style={{ marginTop: "0.5rem", color: msg.includes("Error") ? "#e94560" : "#28a745", fontSize: "0.85rem" }}>{msg}</p>
           )}

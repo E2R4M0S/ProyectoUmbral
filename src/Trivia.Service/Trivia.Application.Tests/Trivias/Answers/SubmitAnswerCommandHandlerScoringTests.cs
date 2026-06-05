@@ -35,14 +35,18 @@ public class SubmitAnswerCommandHandlerScoringTests
         var httpFactory = Substitute.For<IHttpClientFactory>();
         httpFactory.CreateClient("realTimeHub").Returns(CreateOkClient());
 
-        var sut = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, answerRepo, leaderboardRepo);
+        // Mock strategy to return 40 (time-based score)
+        var scoringStrategy = Substitute.For<IScoringStrategy>();
+        scoringStrategy.CalculateScore(Arg.Any<TimeSpan>(), Arg.Any<int>()).Returns(40);
+
+        var sut = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, scoringStrategy, answerRepo, leaderboardRepo);
         var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Team A", questionId,
             Guid.Parse("00000000-0000-0000-0000-000000000000"), DateTime.UtcNow, DateTime.UtcNow, 30);
 
         var result = await sut.Handle(cmd, CancellationToken.None);
 
         result.IsCorrect.Should().BeTrue();
-        result.PointsAwarded.Should().Be(40); // 10 base + 30 first position
+        result.PointsAwarded.Should().Be(40);
         result.Position.Should().Be(1);
     }
 
@@ -57,8 +61,9 @@ public class SubmitAnswerCommandHandlerScoringTests
         var logger = Substitute.For<ILogger<SubmitAnswerCommandHandler>>();
         var httpFactory = Substitute.For<IHttpClientFactory>();
         httpFactory.CreateClient("realTimeHub").Returns(CreateOkClient());
+        var scoringStrategy = Substitute.For<IScoringStrategy>();
 
-        var sut = new SubmitAnswerCommandHandler(publisher, logger, httpFactory);
+        var sut = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, scoringStrategy);
         var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Team A", questionId,
             Guid.Parse("00000000-0000-0000-0000-000000000001"), DateTime.UtcNow, DateTime.UtcNow, 30);
 
@@ -74,7 +79,8 @@ public class SubmitAnswerCommandHandlerScoringTests
         var publisher = Substitute.For<IEventPublisher>();
         var logger = Substitute.For<ILogger<SubmitAnswerCommandHandler>>();
         var httpFactory = Substitute.For<IHttpClientFactory>();
-        var sut = new SubmitAnswerCommandHandler(publisher, logger, httpFactory);
+        var scoringStrategy = Substitute.For<IScoringStrategy>();
+        var sut = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, scoringStrategy);
         var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Team", Guid.NewGuid(),
             Guid.NewGuid(), DateTime.UtcNow, DateTime.UtcNow, 30);
 
@@ -102,7 +108,10 @@ public class SubmitAnswerCommandHandlerScoringTests
         var httpFactory = Substitute.For<IHttpClientFactory>();
         httpFactory.CreateClient("realTimeHub").Returns(CreateOkClient());
 
-        var sut = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, answerRepo, leaderboardRepo);
+        var scoringStrategy = Substitute.For<IScoringStrategy>();
+        scoringStrategy.CalculateScore(Arg.Any<TimeSpan>(), Arg.Any<int>()).Returns(40);
+
+        var sut = new SubmitAnswerCommandHandler(publisher, logger, httpFactory, scoringStrategy, answerRepo, leaderboardRepo);
         var cmd = new SubmitAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), "Team A", questionId,
             Guid.Parse("00000000-0000-0000-0000-000000000000"), DateTime.UtcNow, DateTime.UtcNow, 30);
 
