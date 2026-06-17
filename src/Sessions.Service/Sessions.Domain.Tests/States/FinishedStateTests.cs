@@ -32,7 +32,7 @@ public class FinishedStateTests
     [Fact]
     public void OnEnter_ShouldSetEndedAt()
     {
-        var session = Session.Create("Test", Guid.NewGuid(), "Mission", "123456");
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
         SetStartedAt(session, DateTime.UtcNow);
         session.EndedAt.Should().BeNull();
 
@@ -45,7 +45,7 @@ public class FinishedStateTests
     [Fact]
     public void OnExit_ShouldNotModifyContext()
     {
-        var session = Session.Create("Test", Guid.NewGuid(), "Mission", "123456");
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
         SetStartedAt(session, DateTime.UtcNow);
         SetEndedAt(session, DateTime.UtcNow);
 

@@ -2,10 +2,11 @@ import { useState, useEffect, useRef, type FormEvent } from "react";
 import { createSession, ApiError } from "../../services/sessionsApi";
 import { listMissions } from "../../services/missionsApi";
 import type { MissionListItem } from "../../types/mission";
+import type { StageInput } from "../../types/session";
 
 interface FieldErrors {
   name?: string;
-  missionId?: string;
+  stages?: string;
 }
 
 function validateName(value: string): string | undefined {
@@ -99,10 +100,43 @@ const dropdownItemStyle: React.CSSProperties = {
   borderBottom: "1px solid #0f3460",
 };
 
+const stageCardStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "8px 12px",
+  marginBottom: 6,
+  backgroundColor: "#16213e",
+  border: "1px solid #0f3460",
+  borderRadius: 4,
+};
+
+const stageOrderBadge = (): React.CSSProperties => ({
+  display: "inline-block",
+  minWidth: 28,
+  padding: "2px 8px",
+  borderRadius: 12,
+  backgroundColor: "#0f3460",
+  color: "white",
+  fontSize: 12,
+  fontWeight: 600,
+  textAlign: "center",
+  marginRight: 10,
+});
+
+const removeBtnStyle: React.CSSProperties = {
+  background: "none",
+  border: "1px solid #e94560",
+  color: "#e94560",
+  borderRadius: 4,
+  padding: "4px 8px",
+  fontSize: 12,
+  cursor: "pointer",
+};
+
 export function CrearSesion() {
   const [name, setName] = useState("");
-  const [missionId, setMissionId] = useState("");
-  const [missionTitle, setMissionTitle] = useState("");
+  const [stages, setStages] = useState<StageInput[]>([]);
   const [missionSearch, setMissionSearch] = useState("");
   const [missionResults, setMissionResults] = useState<MissionListItem[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -113,6 +147,11 @@ export function CrearSesion() {
   const [success, setSuccess] = useState(false);
   const [createdSession, setCreatedSession] = useState<{ id: string; pin: string } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchIdRef = useRef(0);
+  const stagesRef = useRef<StageInput[]>([]); // always holds latest stages
+
+  // keep stagesRef in sync
+  useEffect(() => { stagesRef.current = stages; }, [stages]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -124,23 +163,42 @@ export function CrearSesion() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  async function searchMissions(query: string) {
+  function searchMissions(query: string) {
     setMissionSearch(query);
     if (query.trim().length < 2) { setMissionResults([]); setShowDropdown(false); return; }
     setSearching(true);
-    try {
-      const result = await listMissions({ search: query, status: "Active", page: 1, pageSize: 10 });
-      setMissionResults(result.items);
-      setShowDropdown(result.items.length > 0);
-    } catch { setMissionResults([]); }
-    finally { setSearching(false); }
+    const thisSearchId = ++searchIdRef.current;
+    listMissions({ search: query, status: "Active", page: 1, pageSize: 10 })
+      .then((result) => {
+        if (thisSearchId !== searchIdRef.current) return; // stale, ignore
+        const selectedIds = new Set(stagesRef.current.map((s) => s.missionId));
+        const filtered = result.items.filter((m) => !selectedIds.has(m.id));
+        setMissionResults(filtered);
+        setShowDropdown(filtered.length > 0);
+        setSearching(false);
+      })
+      .catch(() => { setMissionResults([]); setSearching(false); });
   }
 
-  function selectMission(item: MissionListItem) {
-    setMissionId(item.id);
-    setMissionTitle(item.title);
-    setMissionSearch(item.title);
+  function addStage(item: MissionListItem) {
+    searchIdRef.current++; // cancel any in-flight search
+    setMissionSearch("");
+    setMissionResults([]);
     setShowDropdown(false);
+    setStages((prev) => {
+      const nextOrder = prev.length + 1;
+      return [...prev, {
+        missionId: item.id,
+        missionTitle: item.title,
+        missionType: item.type,
+        order: nextOrder,
+      }];
+    });
+  }
+
+  function removeStage(index: number) {
+    const next = stages.filter((_, i) => i !== index).map((s, i) => ({ ...s, order: i + 1 }));
+    setStages(next);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -149,7 +207,7 @@ export function CrearSesion() {
     setSuccess(false);
 
     const errors: FieldErrors = { name: validateName(name) };
-    if (!missionId) errors.missionId = "Seleccioná una misión.";
+    if (stages.length === 0) errors.stages = "Agregá al menos una etapa.";
     setFieldErrors(errors);
 
     if (Object.values(errors).some(Boolean)) return;
@@ -159,15 +217,12 @@ export function CrearSesion() {
     try {
       const result = await createSession({
         name: name.trim(),
-        missionId: missionId.trim(),
-        missionTitle: missionTitle,
+        stages,
       });
       setSuccess(true);
       setCreatedSession({ id: result.id, pin: result.pin });
       setName("");
-      setMissionId("");
-      setMissionSearch("");
-      setMissionTitle("");
+      setStages([]);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 400) setSubmitError("Datos inválidos. Verificá los campos.");
@@ -211,32 +266,59 @@ export function CrearSesion() {
           {fieldErrors.name && <p style={errorStyle}>{fieldErrors.name}</p>}
         </div>
 
-        <div style={{ ...fieldGroupStyle, marginBottom: 20, position: "relative" }} ref={dropdownRef}>
-          <label htmlFor="session-mission" style={labelStyle}>Misión</label>
-          <input id="session-mission" type="text"
-            value={missionSearch}
-            onChange={(e) => searchMissions(e.target.value)}
-            style={inputStyle(Boolean(fieldErrors.missionId))}
-            placeholder="Buscar misión por nombre..."
-            autoComplete="off" />
-          {fieldErrors.missionId && <p style={errorStyle}>{fieldErrors.missionId}</p>}
-          {missionId && <p style={{ color: "#28a745", fontSize: 12, marginTop: 4 }}>✓ {missionTitle}</p>}
-          {showDropdown && (
-            <ul style={dropdownStyle}>
-              {searching && <li style={{ ...dropdownItemStyle, color: "#999" }}>Buscando...</li>}
-              {missionResults.map(m => (
-                <li key={m.id} style={dropdownItemStyle}
-                  onMouseDown={() => selectMission(m)}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#0f3460")}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}>
-                  <span style={{ fontWeight: 600 }}>{m.title}</span>
-                  <span style={{ color: "#999", marginLeft: 8, fontSize: "0.8rem" }}>
-                    {m.difficulty} · {m.type} · {m.status === "Active" ? "Activa" : "Borrador"}
-                  </span>
-                </li>
+        <div style={fieldGroupStyle}>
+          <label style={labelStyle}>Etapas ({stages.length})</label>
+          {stages.length > 0 && (
+            <div data-testid="stage-list" style={{ marginBottom: 8 }}>
+              {stages.map((stage, i) => (
+                <div key={`${stage.missionId}-${i}`} style={stageCardStyle}>
+                  <div style={{ display: "flex", alignItems: "center", flex: 1 }}>
+                    <span style={stageOrderBadge()}>{stage.order}</span>
+                    <span style={{ fontWeight: 600 }}>{stage.missionTitle}</span>
+                    <span style={{ color: "#999", marginLeft: 8, fontSize: "0.8rem" }}>
+                      {stage.missionType}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeStage(i)}
+                    style={removeBtnStyle}
+                    aria-label={`Quitar etapa ${stage.order}`}
+                  >
+                    Quitar
+                  </button>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
+
+          <div style={{ position: "relative" }} ref={dropdownRef}>
+            <label htmlFor="session-mission" style={labelStyle}>Agregar etapa</label>
+            <input id="session-mission" type="text"
+              value={missionSearch}
+              onChange={(e) => searchMissions(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+              style={inputStyle(Boolean(fieldErrors.stages))}
+              placeholder="Buscar misión por nombre..."
+              autoComplete="off" />
+            {fieldErrors.stages && <p style={errorStyle}>{fieldErrors.stages}</p>}
+            {showDropdown && (
+              <ul style={dropdownStyle}>
+                {searching && <li style={{ ...dropdownItemStyle, color: "#999" }}>Buscando...</li>}
+                {missionResults.map(m => (
+                  <li key={m.id} style={dropdownItemStyle}
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); addStage(m); }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#0f3460")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}>
+                    <span style={{ fontWeight: 600 }}>{m.title}</span>
+                    <span style={{ color: "#999", marginLeft: 8, fontSize: "0.8rem" }}>
+                      {m.difficulty} · {m.type} · {m.status === "Active" ? "Activa" : "Borrador"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         <button type="submit" disabled={isSubmitting} style={submitBtnStyle(isSubmitting)}>

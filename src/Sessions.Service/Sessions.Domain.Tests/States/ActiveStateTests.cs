@@ -38,7 +38,7 @@ public class ActiveStateTests
     [Fact]
     public void OnEnter_WhenStartedAtIsNull_ShouldSetStartedAt()
     {
-        var session = Session.Create("Test", Guid.NewGuid(), "Mission", "123456");
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
         session.StartedAt.Should().BeNull();
 
         _state.OnEnter(session);
@@ -50,7 +50,7 @@ public class ActiveStateTests
     [Fact]
     public void OnEnter_WhenStartedAtAlreadySet_ShouldNotOverwrite()
     {
-        var session = Session.Create("Test", Guid.NewGuid(), "Mission", "123456");
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
         SetStartedAt(session, DateTime.UtcNow.AddHours(-1));
         var originalStartedAt = session.StartedAt;
 
@@ -62,7 +62,7 @@ public class ActiveStateTests
     [Fact]
     public void OnExit_ShouldNotModifyContext()
     {
-        var session = Session.Create("Test", Guid.NewGuid(), "Mission", "123456");
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
         SetStartedAt(session, DateTime.UtcNow);
 
         _state.OnExit(session);

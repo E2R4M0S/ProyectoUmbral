@@ -38,7 +38,7 @@ public class PausedStateTests
     [Fact]
     public void OnEnter_ShouldNotModifyContext()
     {
-        var session = Session.Create("Test", Guid.NewGuid(), "Mission", "123456");
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
         SetStartedAt(session, DateTime.UtcNow);
         var originalStartedAt = session.StartedAt;
         var originalEndedAt = session.EndedAt;
@@ -52,7 +52,7 @@ public class PausedStateTests
     [Fact]
     public void OnExit_ShouldNotModifyContext()
     {
-        var session = Session.Create("Test", Guid.NewGuid(), "Mission", "123456");
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
         SetStartedAt(session, DateTime.UtcNow);
 
         _state.OnExit(session);

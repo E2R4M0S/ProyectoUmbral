@@ -25,18 +25,24 @@ public class GetSessionsQueryHandler : IRequestHandler<GetSessionsQuery, GetSess
             request.PageSize,
             ct);
 
-        var items = sessions.Select(s => new SessionListItemDto(
-            s.Id,
-            s.Name,
-            s.MissionId,
-            s.MissionTitle,
-            s.Pin,
-            s.Participants.Count,
-            s.Status.ToString(),
-            s.StartedAt,
-            s.EndedAt,
-            s.CreatedAt
-        )).ToList();
+        var items = sessions.Select(s =>
+        {
+            var current = s.GetCurrentStage();
+            return new SessionListItemDto(
+                s.Id,
+                s.Name,
+                current?.MissionTitle ?? string.Empty,
+                current?.MissionType ?? string.Empty,
+                s.CurrentStageOrder,
+                s.Stages.Count,
+                s.Pin,
+                s.Participants.Count,
+                s.Status.ToString(),
+                s.StartedAt,
+                s.EndedAt,
+                s.CreatedAt
+            );
+        }).ToList();
 
         return new GetSessionsResult(items, totalCount, request.Page, request.PageSize);
     }

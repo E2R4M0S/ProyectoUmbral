@@ -171,7 +171,7 @@ public class SessionTransitionsTests
 
     private static Session CreateSessionWithStatus(SessionStatus status)
     {
-        var session = Session.Create("Test Session", Guid.NewGuid(), "Test Mission", "123456");
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
 
         // Use reflection to set the status since it's private
         var statusField = typeof(Session).GetProperty("Status");

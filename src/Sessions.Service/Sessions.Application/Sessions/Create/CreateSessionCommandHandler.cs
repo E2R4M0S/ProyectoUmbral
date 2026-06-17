@@ -32,24 +32,25 @@ public class CreateSessionCommandHandler
 
         var pin = await GenerateUniquePinAsync(ct);
 
-        var session = Session.Create(
-            command.Name,
-            command.MissionId,
-            command.MissionTitle,
-            pin);
+        var stages = command.Stages
+            .Select(s => SessionStage.Create(s.MissionId, s.MissionTitle, s.MissionType, s.Order))
+            .ToList();
+
+        var session = Session.Create(command.Name, pin, stages);
 
         await _repository.AddAsync(session, ct);
 
         _logger.LogInformation(
-            "Session created: Id={SessionId}, Name={Name}, Pin={Pin}",
-            session.Id, session.Name, session.Pin);
+            "Session created: Id={SessionId}, Name={Name}, Pin={Pin}, StageCount={StageCount}",
+            session.Id, session.Name, session.Pin, session.Stages.Count);
 
         return new CreateSessionCommandResult(
             session.Id,
             session.Name,
-            session.MissionId,
             session.Pin,
             session.Status.ToString(),
+            session.CurrentStageOrder,
+            session.Stages.Select(s => new StageOutput(s.MissionId, s.MissionTitle, s.MissionType, s.Order)).ToList(),
             session.StartedAt,
             session.EndedAt,
             session.CreatedAt);
