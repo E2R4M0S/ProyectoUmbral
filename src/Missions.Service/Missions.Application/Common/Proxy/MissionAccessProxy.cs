@@ -31,7 +31,7 @@ public class MissionAccessProxy : IMissionRepository
     public async Task AddAsync(Mission mission, CancellationToken ct)
         => await _inner.AddAsync(mission, ct);
 
-    // ── Writes: blocked if mission is Active ─────────────────────────────
+    // ── Core data: blocked if mission is Active ──────────────────────────
 
     public async Task UpdateAsync(Mission mission, CancellationToken ct)
     {
@@ -39,23 +39,16 @@ public class MissionAccessProxy : IMissionRepository
         await _inner.UpdateAsync(mission, ct);
     }
 
+    // ── Operational content (stages, clues): allowed even when Active ────
+
     public async Task AddStageAsync(Mission mission, CancellationToken ct)
-    {
-        ThrowIfActive(mission, "agregar etapas a");
-        await _inner.AddStageAsync(mission, ct);
-    }
+        => await _inner.AddStageAsync(mission, ct);
 
     public async Task AddClueAsync(Mission mission, Guid stageId, CancellationToken ct)
-    {
-        ThrowIfActive(mission, "agregar pistas a");
-        await _inner.AddClueAsync(mission, stageId, ct);
-    }
+        => await _inner.AddClueAsync(mission, stageId, ct);
 
     public void RemoveStage(Mission mission, MissionStage stage)
-    {
-        ThrowIfActive(mission, "eliminar etapas de");
-        _inner.RemoveStage(mission, stage);
-    }
+        => _inner.RemoveStage(mission, stage);
 
     public async Task SaveChangesAsync(CancellationToken ct)
         => await _inner.SaveChangesAsync(ct);

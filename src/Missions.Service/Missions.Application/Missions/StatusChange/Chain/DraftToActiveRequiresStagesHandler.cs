@@ -14,7 +14,7 @@ public class DraftToActiveRequiresStagesHandler : BaseMissionStatusHandler
 
         if (mission.Status == MissionStatus.Draft && target == MissionStatus.Active)
         {
-            if (mission.Stages.Count == 0)
+            if (mission.Type == MissionType.Treasure && mission.Stages.Count == 0)
             {
                 throw new InvalidOperationException(
                     "No se puede activar una misión sin etapas. Agregue al menos una etapa.");

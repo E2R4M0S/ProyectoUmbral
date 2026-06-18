@@ -327,7 +327,13 @@ export function CatalogoMisiones() {
                           try {
                             await changeMissionStatus(item.id, newStatus);
                             loadMissions();
-                          } catch (e) { alert(e instanceof ApiError ? e.body : "Error al cambiar estado"); }
+                          } catch (e) {
+                            let msg = "Error al cambiar estado";
+                            if (e instanceof ApiError) {
+                              try { const j = JSON.parse(e.body); msg = j.message || j.error || e.body; } catch { msg = e.body; }
+                            }
+                            alert(msg);
+                          }
                         }}
                         style={{ ...actionBtnStyle, marginLeft: 8, backgroundColor: item.status === "Active" ? "#dc3545" : "#28a745" }}
                       >

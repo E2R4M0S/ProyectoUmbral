@@ -1,31 +1,70 @@
 import React from "react";
+import { describe, it, test, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ClueCard } from "../ClueCard";
 
-test("renders options and reacts to QuestionClosed event", () => {
-  const clue = {
-    questionId: "q1",
-    title: "Pregunta",
-    options: [
-      { id: "a", text: "Opción A" },
-      { id: "b", text: "Opción B" }
-    ]
-  };
+describe("ClueCard", () => {
+  it("renders empty state for null clue", () => {
+    render(<ClueCard clue={null} />);
+    expect(screen.getByText("Pista vacía")).toBeInTheDocument();
+  });
 
-  render(<ClueCard clue={clue} />);
+  it("renders text clue", () => {
+    render(<ClueCard clue={{ text: "Busca bajo el puente" }} />);
+    expect(screen.getByText("Busca bajo el puente")).toBeInTheDocument();
+  });
 
-  const buttonA = screen.getByText("Opción A");
-  const buttonB = screen.getByText("Opción B");
+  it("renders number clue", () => {
+    render(<ClueCard clue={{ number: 42 }} />);
+    expect(screen.getByText("42")).toBeInTheDocument();
+  });
 
-  fireEvent.click(buttonA);
-  expect(buttonA).toHaveClass("bg-sky-600");
+  it("renders image clue", () => {
+    render(<ClueCard clue={{ imageUrl: "https://example.com/img.png" }} />);
+    const img = screen.getByAltText("Pista");
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute("src", "https://example.com/img.png");
+  });
 
-  // Simulate QuestionClosed event with correct answer = b
-  const ev = new CustomEvent("QuestionClosed", { detail: { questionId: "q1", correctAnswerId: "b" } });
-  window.dispatchEvent(ev);
+  it("renders location clue", () => {
+    render(<ClueCard clue={{ latitude: -34.6, longitude: -58.4 }} />);
+    expect(screen.getByText("-34.6, -58.4")).toBeInTheDocument();
+  });
 
-  // After closed, correct (b) should be green and selected (a) red
-  expect(buttonB).toHaveClass("bg-green-600");
-  expect(buttonA).toHaveClass("bg-red-600");
-  expect(screen.getByText(/Error|¡Acierto!/)).toBeInTheDocument();
+  it("renders string clue", () => {
+    render(<ClueCard clue="simple string clue" />);
+    expect(screen.getByText("simple string clue")).toBeInTheDocument();
+  });
+
+  it("renders JSON fallback for unknown object", () => {
+    render(<ClueCard clue={{ foo: "bar", num: 123 }} />);
+    expect(screen.getByText(/foo/)).toBeInTheDocument();
+    expect(screen.getByText(/bar/)).toBeInTheDocument();
+  });
+
+  test("renders options and reacts to QuestionClosed event", () => {
+    const clue = {
+      questionId: "q1",
+      title: "Pregunta",
+      options: [
+        { id: "a", text: "Opción A" },
+        { id: "b", text: "Opción B" }
+      ]
+    };
+
+    render(<ClueCard clue={clue} />);
+
+    const buttonA = screen.getByText("Opción A");
+    const buttonB = screen.getByText("Opción B");
+
+    fireEvent.click(buttonA);
+    expect(buttonA).toHaveClass("bg-sky-600");
+
+    const ev = new CustomEvent("QuestionClosed", { detail: { questionId: "q1", correctAnswerId: "b" } });
+    window.dispatchEvent(ev);
+
+    expect(buttonB).toHaveClass("bg-green-600");
+    expect(buttonA).toHaveClass("bg-red-600");
+    expect(screen.getByText(/Error|¡Acierto!/)).toBeInTheDocument();
+  });
 });
