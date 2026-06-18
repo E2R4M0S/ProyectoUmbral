@@ -13,7 +13,7 @@ public class ValidStatusHandlerTests
     {
         // Arrange
         var handler = new ValidStatusHandler();
-        var session = Session.Create("Test Session", Guid.NewGuid(), "Test Mission", "123456");
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
 
         // Act
         var act = () => handler.Handle(session, "Active");
@@ -33,7 +33,7 @@ public class ValidStatusHandlerTests
     {
         // Arrange
         var handler = new ValidStatusHandler();
-        var session = Session.Create("Test Session", Guid.NewGuid(), "Test Mission", "123456");
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
 
         // Act
         var act = () => handler.Handle(session, status);
@@ -51,7 +51,7 @@ public class ValidStatusHandlerTests
     {
         // Arrange
         var handler = new ValidStatusHandler();
-        var session = Session.Create("Test Session", Guid.NewGuid(), "Test Mission", "123456");
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
 
         // Act
         var act = () => handler.Handle(session, invalidStatus);
@@ -66,7 +66,7 @@ public class ValidStatusHandlerTests
     {
         // Arrange
         var handler = new ValidStatusHandler();
-        var session = Session.Create("Test Session", Guid.NewGuid(), "Test Mission", "123456");
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
 
         // Act
         var act = () => handler.Handle(session, "active");

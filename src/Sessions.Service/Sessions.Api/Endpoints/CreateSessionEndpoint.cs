@@ -18,8 +18,8 @@ public static class CreateSessionEndpoint
                 var result = await mediator.Send(command);
 
                 logger.LogInformation(
-                    "Session created successfully: Id={SessionId}, Name={Name}, Pin={Pin}",
-                    result.Id, result.Name, result.Pin);
+                    "Session created successfully: Id={SessionId}, Name={Name}, Pin={Pin}, Stages={StageCount}",
+                    result.Id, result.Name, result.Pin, result.Stages.Count);
 
                 return Results.Created(
                     $"/{result.Id}",
@@ -27,9 +27,16 @@ public static class CreateSessionEndpoint
                     {
                         id = result.Id,
                         name = result.Name,
-                        missionId = result.MissionId,
                         pin = result.Pin,
                         status = result.Status,
+                        currentStageOrder = result.CurrentStageOrder,
+                        stages = result.Stages.Select(s => new
+                        {
+                            missionId = s.MissionId,
+                            missionTitle = s.MissionTitle,
+                            missionType = s.MissionType,
+                            order = s.Order
+                        }),
                         startedAt = result.StartedAt,
                         endedAt = result.EndedAt,
                         createdAt = result.CreatedAt

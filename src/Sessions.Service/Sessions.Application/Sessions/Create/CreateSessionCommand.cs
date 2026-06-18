@@ -1,9 +1,13 @@
 using MediatR;
-using Sessions.Application.Sessions.Create;
 
 namespace Sessions.Application.Sessions.Create;
 
 public record CreateSessionCommand(
     string Name,
+    List<StageInput> Stages) : IRequest<CreateSessionCommandResult>;
+
+public record StageInput(
     Guid MissionId,
-    string MissionTitle) : IRequest<CreateSessionCommandResult>;
+    string MissionTitle,
+    string MissionType,
+    int Order);

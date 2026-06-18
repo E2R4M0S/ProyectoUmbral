@@ -6,6 +6,7 @@ import type {
   SessionProgress,
   GetSessionsParams,
   GetSessionsResponse,
+  AdvanceStageResponse,
 } from "../types/session";
 import type { JoinSessionResponse } from "../types/game";
 
@@ -79,6 +80,19 @@ export async function createSession(data: CreateSessionRequest): Promise<Session
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new ApiError(response.status, errorBody);
+  }
+
+  return response.json();
+}
+
+export async function advanceStage(id: string): Promise<AdvanceStageResponse> {
+  const response = await fetchWithAuth(`/api/sessions/${id}/advance-stage`, {
+    method: "PATCH",
   });
 
   if (!response.ok) {

@@ -13,7 +13,7 @@ public static class GetSessionByIdEndpoint
             ISessionRepository repository,
             ILogger<Program> logger) =>
         {
-            var session = await repository.GetByIdAsync(id, CancellationToken.None);
+            var session = await repository.GetByIdWithStagesAsync(id, CancellationToken.None);
             if (session is null)
                 return Results.NotFound(new { error = "Session not found" });
 
@@ -21,9 +21,15 @@ public static class GetSessionByIdEndpoint
             {
                 session.Id,
                 session.Name,
-                session.MissionId,
-                session.MissionTitle,
                 session.Pin,
+                session.CurrentStageOrder,
+                Stages = session.Stages.Select(s => new
+                {
+                    s.MissionId,
+                    s.MissionTitle,
+                    s.MissionType,
+                    s.Order
+                }),
                 Status = session.Status.ToString(),
                 session.StartedAt,
                 session.EndedAt,
