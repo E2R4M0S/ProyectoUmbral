@@ -19,14 +19,18 @@ public static class ReleaseClueEndpoint
         {
             try
             {
-                // 1. Get session to find MissionId
-                var session = await sessionRepo.GetByIdAsync(id, CancellationToken.None);
+                // 1. Get session to find the current stage's mission
+                var session = await sessionRepo.GetByIdWithStagesAsync(id, CancellationToken.None);
                 if (session is null)
                     return Results.NotFound(new { error = "Session not found" });
 
+                var currentStage = session.GetCurrentStage();
+                if (currentStage is null)
+                    return Results.BadRequest(new { error = "No active stage", message = "Session has no current stage" });
+
                 // 2. Fetch mission detail from Missions.Service
                 var httpClient = httpClientFactory.CreateClient("MissionsClient");
-                var missionResponse = await httpClient.GetAsync($"/{session.MissionId}", CancellationToken.None);
+                var missionResponse = await httpClient.GetAsync($"/{currentStage.MissionId}", CancellationToken.None);
 
                 string? clueContent = null;
                 int? cluePenalty = null;

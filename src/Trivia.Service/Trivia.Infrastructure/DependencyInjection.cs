@@ -2,6 +2,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Trivia.Application.Common.Interfaces;
+using Trivia.Application.Common.Strategies;
 
 namespace Trivia.Infrastructure;
 
@@ -19,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<Trivia.Application.Common.Interfaces.IParticipantAnswerRepository, Trivia.Infrastructure.Persistence.ParticipantAnswerRepository>();
         services.AddScoped<Trivia.Application.Common.Interfaces.IAnswerRepository, Trivia.Infrastructure.Persistence.AnswerRepository>();
         services.AddScoped<Trivia.Application.Common.Interfaces.ILeaderboardRepository, Trivia.Infrastructure.Persistence.LeaderboardRepository>();
+        services.AddScoped<IScoringStrategy, TimeBasedScoringStrategy>();
         // Application command handlers (register MediatR handlers in DI container via assemblies elsewhere; if manual registration needed, add here)
 
         // Configure an HTTP client that can be used as a fallback publisher to RealTimeHub

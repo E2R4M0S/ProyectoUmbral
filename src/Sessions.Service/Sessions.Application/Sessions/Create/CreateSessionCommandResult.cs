@@ -1,13 +1,18 @@
-using Sessions.Application.Sessions.Create;
-
 namespace Sessions.Application.Sessions.Create;
 
 public record CreateSessionCommandResult(
     Guid Id,
     string Name,
-    Guid MissionId,
     string Pin,
     string Status,
+    int CurrentStageOrder,
+    IReadOnlyList<StageOutput> Stages,
     DateTime? StartedAt,
     DateTime? EndedAt,
     DateTime CreatedAt);
+
+public record StageOutput(
+    Guid MissionId,
+    string MissionTitle,
+    string MissionType,
+    int Order);

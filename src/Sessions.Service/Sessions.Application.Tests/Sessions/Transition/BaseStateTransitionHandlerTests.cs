@@ -13,7 +13,7 @@ public class BaseStateTransitionHandlerTests
     {
         // Arrange
         var handler = new ConcreteStateHandler(() => { }); // Does nothing
-        var session = Session.Create("Test Session", Guid.NewGuid(), "Test Mission", "123456");
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
 
         // Act
         var act = () => handler.Handle(session, "Active");
@@ -30,7 +30,7 @@ public class BaseStateTransitionHandlerTests
         var handler = new ConcreteStateHandler(() => callSequence.Add("first"));
         var nextHandler = new ConcreteStateHandler(() => callSequence.Add("second"));
         handler.SetNext(nextHandler);
-        var session = Session.Create("Test Session", Guid.NewGuid(), "Test Mission", "123456");
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
 
         // Act
         handler.Handle(session, "Active");
@@ -47,7 +47,7 @@ public class BaseStateTransitionHandlerTests
         var handler = new ConcreteStateHandler(() => throw new InvalidOperationException("validation failed"));
         var nextHandler = new ConcreteStateHandler(() => callSequence.Add("should not be called"));
         handler.SetNext(nextHandler);
-        var session = Session.Create("Test Session", Guid.NewGuid(), "Test Mission", "123456");
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
 
         // Act
         var act = () => handler.Handle(session, "Active");
@@ -81,7 +81,7 @@ public class BaseStateTransitionHandlerTests
         var third = new NumberedHandler(3, () => { }, callSequence);
 
         first.SetNext(second).SetNext(third);
-        var session = Session.Create("Test Session", Guid.NewGuid(), "Test Mission", "123456");
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
 
         // Act
         first.Handle(session, "Active");

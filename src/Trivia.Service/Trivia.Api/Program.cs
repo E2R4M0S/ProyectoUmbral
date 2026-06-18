@@ -43,7 +43,7 @@ try
             };
         });
 
-    builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, Trivia.Api.KeycloakRolesTransformer>();
+    builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, KeycloakRolesTransformer>();
     builder.Services.AddAuthorization(options =>
     {
         options.AddPolicy("admin", policy => policy.RequireRole("admin"));
@@ -95,6 +95,44 @@ catch (Exception ex)
 finally
 {
     Log.CloseAndFlush();
+}
+
+/// <summary>
+/// Maps Keycloak's realm_access.roles claim into ClaimTypes.Role so role-based policies work.
+/// </summary>
+file sealed class KeycloakRolesTransformer : Microsoft.AspNetCore.Authentication.IClaimsTransformation
+{
+    public Task<System.Security.Claims.ClaimsPrincipal> TransformAsync(System.Security.Claims.ClaimsPrincipal principal)
+    {
+        var realmAccess = principal.FindFirst("realm_access")?.Value;
+        if (realmAccess is null)
+            return Task.FromResult(principal);
+
+        System.Text.Json.JsonElement root;
+        try
+        {
+            root = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(realmAccess);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return Task.FromResult(principal);
+        }
+
+        if (!root.TryGetProperty("roles", out var rolesProp))
+            return Task.FromResult(principal);
+
+        var identity = new System.Security.Claims.ClaimsIdentity("Keycloak");
+        foreach (var role in rolesProp.EnumerateArray())
+        {
+            var roleName = role.GetString();
+            if (roleName is not null)
+                identity.AddClaim(new System.Security.Claims.Claim(
+                    System.Security.Claims.ClaimTypes.Role, roleName));
+        }
+
+        principal.AddIdentity(identity);
+        return Task.FromResult(principal);
+    }
 }
 
 public partial class Program { }

@@ -52,7 +52,7 @@ public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionSt
 
         mission.SetStatus(newStatus);
 
-        await _repository.UpdateAsync(mission, ct);
+        await _repository.SaveChangesAsync(ct);
 
         _logger.LogInformation(
             "Mission status changed: Id={MissionId}, Status={Status}",

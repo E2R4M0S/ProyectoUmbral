@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { GameContext } from "../../../contexts/GameContext";
-import { Timer } from "../../../components/game/Timer";
-import type { GameState } from "../../types/game";
+import { Timer } from "../Timer";
+import type { GameState } from "../../../types/game";
 
 function createMockDispatch() {
   return vi.fn();

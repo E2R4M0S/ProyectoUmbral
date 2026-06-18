@@ -26,7 +26,7 @@ public class SessionRepositoryTests
         await using var dbContext = CreateDbContext(dbName);
         var repo = new SessionRepository(dbContext);
 
-        var session = Session.Create("Test Session", Guid.NewGuid(), "Test Mission", "123456");
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
 
         // Act
         await repo.AddAsync(session, CancellationToken.None);
@@ -61,7 +61,7 @@ public class SessionRepositoryTests
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
 
-        var existingSession = Session.Create("Existing", Guid.NewGuid(), "Test Mission", "111111");
+        var existingSession = Session.Create("Existing", "111111", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
         dbContext.Sessions.Add(existingSession);
         await dbContext.SaveChangesAsync();
 
@@ -83,7 +83,7 @@ public class SessionRepositoryTests
         var repo = new SessionRepository(dbContext);
         var beforeCreate = DateTime.UtcNow;
 
-        var session = Session.Create("Timed Session", Guid.NewGuid(), "Test Mission", "222222");
+        var session = Session.Create("Timed Session", "222222", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
 
         // Act
         await repo.AddAsync(session, CancellationToken.None);
@@ -101,8 +101,8 @@ public class SessionRepositoryTests
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
 
-        var session1 = Session.Create("Session 1", Guid.NewGuid(), "Test Mission", "333333");
-        var session2 = Session.Create("Session 2", Guid.NewGuid(), "Test Mission", "444444");
+        var session1 = Session.Create("Session 1", "333333", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
+        var session2 = Session.Create("Session 2", "444444", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
         dbContext.Sessions.AddRange(session1, session2);
         await dbContext.SaveChangesAsync();
 
@@ -121,7 +121,7 @@ public class SessionRepositoryTests
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
 
-        var session = Session.Create("Existing Session", Guid.NewGuid(), "Test Mission", "666666");
+        var session = Session.Create("Existing Session", "666666", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
         dbContext.Sessions.Add(session);
         await dbContext.SaveChangesAsync();
 
@@ -133,7 +133,7 @@ public class SessionRepositoryTests
         // Assert
         result.Should().NotBeNull();
         result!.Name.Should().Be("Existing Session");
-        result.MissionId.Should().Be(session.MissionId);
+        result.Stages[0].MissionId.Should().Be(session.Stages[0].MissionId);
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public class SessionRepositoryTests
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
 
-        var session = Session.Create("Pin Session", Guid.NewGuid(), "Test Mission", "777777");
+        var session = Session.Create("Pin Session", "777777", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
         dbContext.Sessions.Add(session);
         await dbContext.SaveChangesAsync();
 
@@ -194,7 +194,7 @@ public class SessionRepositoryTests
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
 
-        var session = Session.Create("Named Session", Guid.NewGuid(), "Test Mission", "888888");
+        var session = Session.Create("Named Session", "888888", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
         dbContext.Sessions.Add(session);
         await dbContext.SaveChangesAsync();
 
@@ -233,9 +233,9 @@ public class SessionRepositoryTests
         var missionId = Guid.NewGuid();
         var sessions = new[]
         {
-            Session.Create("Session A", missionId, "Mission", "111111"),
-            Session.Create("Session B", missionId, "Mission", "222222"),
-            Session.Create("Session C", missionId, "Mission", "333333"),
+            Session.Create("Session A", "111111", new List<SessionStage> { SessionStage.Create(missionId, "Mission", "Trivia", 1) }),
+            Session.Create("Session B", "222222", new List<SessionStage> { SessionStage.Create(missionId, "Mission", "Trivia", 1) }),
+            Session.Create("Session C", "333333", new List<SessionStage> { SessionStage.Create(missionId, "Mission", "Trivia", 1) }),
         };
         dbContext.Sessions.AddRange(sessions);
         await dbContext.SaveChangesAsync();
@@ -258,9 +258,9 @@ public class SessionRepositoryTests
         await using var dbContext = CreateDbContext(dbName);
 
         var missionId = Guid.NewGuid();
-        dbContext.Sessions.Add(Session.Create("Alpha Session", missionId, "Mission", "444444"));
-        dbContext.Sessions.Add(Session.Create("Beta Session", missionId, "Mission", "555555"));
-        dbContext.Sessions.Add(Session.Create("Alpha Beta Session", missionId, "Mission", "666666"));
+        dbContext.Sessions.Add(Session.Create("Alpha Session", "444444", new List<SessionStage> { SessionStage.Create(missionId, "Mission", "Trivia", 1) }));
+        dbContext.Sessions.Add(Session.Create("Beta Session", "555555", new List<SessionStage> { SessionStage.Create(missionId, "Mission", "Trivia", 1) }));
+        dbContext.Sessions.Add(Session.Create("Alpha Beta Session", "666666", new List<SessionStage> { SessionStage.Create(missionId, "Mission", "Trivia", 1) }));
         await dbContext.SaveChangesAsync();
 
         var repo = new SessionRepository(dbContext);
@@ -282,9 +282,9 @@ public class SessionRepositoryTests
 
         var missionId1 = Guid.NewGuid();
         var missionId2 = Guid.NewGuid();
-        dbContext.Sessions.Add(Session.Create("Session 1", missionId1, "Mission 1", "111111"));
-        dbContext.Sessions.Add(Session.Create("Session 2", missionId2, "Mission 2", "222222"));
-        dbContext.Sessions.Add(Session.Create("Session 3", missionId1, "Mission 1", "333333"));
+        dbContext.Sessions.Add(Session.Create("Session 1", "111111", new List<SessionStage> { SessionStage.Create(missionId1, "Mission 1", "Trivia", 1) }));
+        dbContext.Sessions.Add(Session.Create("Session 2", "222222", new List<SessionStage> { SessionStage.Create(missionId2, "Mission 2", "Trivia", 1) }));
+        dbContext.Sessions.Add(Session.Create("Session 3", "333333", new List<SessionStage> { SessionStage.Create(missionId1, "Mission 1", "Trivia", 1) }));
         await dbContext.SaveChangesAsync();
 
         var repo = new SessionRepository(dbContext);
@@ -295,7 +295,7 @@ public class SessionRepositoryTests
         // Assert
         totalCount.Should().Be(2);
         result.Should().HaveCount(2);
-        result.All(s => s.MissionId == missionId1).Should().BeTrue();
+        result.All(s => s.Stages.Any(st => st.MissionId == missionId1)).Should().BeTrue();
     }
 
     [Fact]
@@ -305,7 +305,7 @@ public class SessionRepositoryTests
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
 
-        var session = Session.Create("Original Name", Guid.NewGuid(), "Original Mission", "999999");
+        var session = Session.Create("Original Name", "999999", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Original Mission", "Trivia", 1) });
         dbContext.Sessions.Add(session);
         await dbContext.SaveChangesAsync();
 
@@ -328,7 +328,7 @@ public class SessionRepositoryTests
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
 
-        var session = Session.Create("Participant Session", Guid.NewGuid(), "Test Mission", "000001");
+        var session = Session.Create("Participant Session", "000001", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
         session.TransitionTo(SessionStatus.Preparing);
         dbContext.Sessions.Add(session);
         await dbContext.SaveChangesAsync();

@@ -27,6 +27,14 @@ public class SessionRepository : ISessionRepository
             .FirstOrDefaultAsync(s => s.Id == id, ct);
     }
 
+    public async Task<Session?> GetByIdWithStagesAsync(Guid id, CancellationToken ct)
+    {
+        // Stages are owned and loaded as part of the Session aggregate via JSONB
+        return await _context.Sessions
+            .Include(s => s.Participants)
+            .FirstOrDefaultAsync(s => s.Id == id, ct);
+    }
+
     public async Task<Session?> GetByPinAsync(string pin, CancellationToken ct)
     {
         return await _context.Sessions.FirstOrDefaultAsync(s => s.Pin == pin, ct);
@@ -66,7 +74,17 @@ public class SessionRepository : ISessionRepository
 
         if (missionId.HasValue)
         {
-            query = query.Where(s => s.MissionId == missionId.Value);
+            // The session contains the mission if any of its stages references it
+            // (we filter post-fetch because Stages is a JSONB owned collection).
+            var all = await query.ToListAsync(ct);
+            var filtered = all.Where(s => s.Stages.Any(st => st.MissionId == missionId.Value)).ToList();
+            var totalFiltered = filtered.Count;
+            var paged = filtered
+                .OrderByDescending(s => s.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            return (paged, totalFiltered);
         }
 
         var totalCount = await query.CountAsync(ct);

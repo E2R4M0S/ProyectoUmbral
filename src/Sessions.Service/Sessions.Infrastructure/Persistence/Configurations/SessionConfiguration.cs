@@ -17,13 +17,6 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
             .HasMaxLength(200)
             .IsRequired();
 
-        builder.Property(s => s.MissionId)
-            .IsRequired();
-
-        builder.Property(s => s.MissionTitle)
-            .HasMaxLength(200)
-            .IsRequired();
-
         builder.Property(s => s.Pin)
             .HasMaxLength(6)
             .IsRequired();
@@ -38,6 +31,20 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
         builder.Property(s => s.StartedAt);
 
         builder.Property(s => s.EndedAt);
+
+        builder.Property(s => s.CurrentStageOrder)
+            .IsRequired()
+            .HasDefaultValue(0);
+
+        // Stages stored as JSONB owned collection
+        builder.OwnsMany(s => s.Stages, stage =>
+        {
+            stage.ToJson("Stages");
+            stage.Property(st => st.MissionId).IsRequired();
+            stage.Property(st => st.MissionTitle).HasMaxLength(200).IsRequired();
+            stage.Property(st => st.MissionType).HasMaxLength(50).IsRequired();
+            stage.Property(st => st.Order).IsRequired();
+        });
 
         builder.HasIndex(s => s.Pin).IsUnique();
     }

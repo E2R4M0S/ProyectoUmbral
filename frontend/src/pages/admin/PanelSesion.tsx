@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
-import { getSessionProgress, getSessionById, transitionSession } from "../../services/sessionsApi";
+import { getSessionProgress, getSessionById, transitionSession, advanceStage, ApiError } from "../../services/sessionsApi";
 import { getMissionById } from "../../services/missionsApi";
 import { fetchWithAuth } from "../../services/api";
-import type { SessionProgress, ParticipantProgress, SessionStatus } from "../../types/session";
+import type { SessionProgress, ParticipantProgress, SessionStatus, SessionStage } from "../../types/session";
 import type { MissionDetail, Clue } from "../../types/mission";
 
 const s: Record<string, React.CSSProperties> = {
@@ -17,6 +17,8 @@ const s: Record<string, React.CSSProperties> = {
   backLink: { color: "#e94560", textDecoration: "none", fontSize: "0.9rem" },
   timerBox: { textAlign: "center" as const, padding: "1rem", backgroundColor: "#16213e", borderRadius: 8, marginBottom: "1rem" },
   timer: { fontSize: "3rem", fontWeight: 700, color: "#e94560", fontFamily: "monospace" },
+  stageBox: { padding: "1rem", backgroundColor: "#1a2f5c", border: "2px solid #e94560", borderRadius: 8, marginBottom: "1rem" },
+  stageOrder: { color: "#0f3460", backgroundColor: "white", display: "inline-block", padding: "2px 8px", borderRadius: 12, fontSize: 12, fontWeight: 700, marginRight: 8 },
 };
 
 const statusColors: Record<string, string> = { Scheduled: "#6c757d", Preparing: "#ffc107", Active: "#28a745", Paused: "#ffc107", Finished: "#007bff", Cancelled: "#dc3545" };
@@ -27,6 +29,8 @@ export function PanelSesion() {
   const location = useLocation();
   const basePath = location.pathname.includes("/admin/") ? "/admin" : "/operator";
   const [progress, setProgress] = useState<SessionProgress | null>(null);
+  const [stages, setStages] = useState<SessionStage[]>([]);
+  const [currentStageOrder, setCurrentStageOrder] = useState(0);
   const [mission, setMission] = useState<MissionDetail | null>(null);
   const [selectedClueId, setSelectedClueId] = useState<string>("");
   const [releasing, setReleasing] = useState(false);
@@ -36,6 +40,8 @@ export function PanelSesion() {
   const [localSeconds, setLocalSeconds] = useState(0);
   const lastServerRef = useRef(0);
   const [selectedQuizId, setSelectedQuizId] = useState<string>("");
+  const [advancing, setAdvancing] = useState(false);
+  const [advanceMsg, setAdvanceMsg] = useState("");
 
   async function load() {
     if (!id) return;
@@ -52,12 +58,19 @@ export function PanelSesion() {
     }
   }
 
-  // Fetch session detail + mission on mount to get clues
+  // Fetch session detail + stages
   useEffect(() => {
     if (!id) return;
     getSessionById(id)
-      .then((detail) => getMissionById(detail.missionId))
+      .then((detail) => {
+        setStages(detail.stages ?? []);
+        setCurrentStageOrder(detail.currentStageOrder ?? 0);
+        const current = (detail.stages ?? []).find(st => st.order === (detail.currentStageOrder ?? 0) + 1);
+        if (current) return getMissionById(current.missionId);
+        return null;
+      })
       .then((missionDetail) => {
+        if (!missionDetail) return;
         setMission(missionDetail);
         // Auto-select first clue
         const firstClue = missionDetail.stages?.flatMap(st => st.clues ?? [])?.[0];
@@ -108,8 +121,42 @@ export function PanelSesion() {
     }
   };
 
+  const handleAdvanceStage = async () => {
+    if (!id) return;
+    setAdvancing(true);
+    setAdvanceMsg("");
+    try {
+      const result = await advanceStage(id);
+      setCurrentStageOrder(result.currentStageOrder);
+      setAdvanceMsg(result.isLastStage ? "Última etapa alcanzada." : `Avanzaste a la etapa ${result.currentStageOrder + 1} de ${result.totalStages}.`);
+      // Re-fetch mission for the new current stage
+      const detail = await getSessionById(id);
+      setStages(detail.stages ?? []);
+      const current = (detail.stages ?? []).find(st => st.order === result.currentStageOrder + 1);
+      if (current) {
+        const m = await getMissionById(current.missionId).catch(() => null);
+        if (m) {
+          setMission(m);
+          setSelectedClueId("");
+        }
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setAdvanceMsg(err.body || "No se pudo avanzar de etapa.");
+      } else {
+        setAdvanceMsg("Error al avanzar de etapa.");
+      }
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
   if (loading) return <div style={s.container}>Cargando...</div>;
   if (error || !progress) return <div style={s.container}><p style={{ color: "#e94560" }}>{error || "No encontrada"}</p><Link to={`${basePath}/sesiones`} style={s.backLink}>Volver</Link></div>;
+
+  const currentStage = stages.find(st => st.order === currentStageOrder + 1);
+  const isLastStage = stages.length === 0 || currentStageOrder >= stages.length - 1;
+  const canAdvance = progress.status === "Active" && !isLastStage;
 
   return (
     <div style={s.container}>
@@ -123,6 +170,41 @@ export function PanelSesion() {
         <div style={s.timer}>{formatTime(localSeconds)}</div>
         <div style={{ color: "#999", fontSize: "0.8rem", marginTop: 4 }}>transcurrido</div>
       </div>
+
+      {/* Current Stage Indicator (multi-mission) */}
+      {stages.length > 0 && (
+        <div style={s.stageBox} data-testid="current-stage-box">
+          <div style={{ fontSize: "0.8rem", color: "#999" }}>Etapa actual</div>
+          <div style={{ marginTop: 4, fontSize: "1.1rem", fontWeight: 600 }}>
+            <span style={s.stageOrder}>{currentStageOrder + 1}/{stages.length}</span>
+            {currentStage?.missionTitle ?? "—"}
+            <span style={{ color: "#999", marginLeft: 8, fontSize: "0.85rem" }}>
+              ({currentStage?.missionType})
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button
+              type="button"
+              data-testid="advance-stage-btn"
+              onClick={handleAdvanceStage}
+              disabled={!canAdvance || advancing}
+              style={s.btn(canAdvance && !advancing ? "#28a745" : "#555")}
+            >
+              {advancing ? "Avanzando..." : "Siguiente Etapa →"}
+            </button>
+            {isLastStage && (
+              <span style={{ color: "#ffc107", fontSize: "0.85rem", alignSelf: "center" }}>
+                Última etapa
+              </span>
+            )}
+          </div>
+          {advanceMsg && (
+            <p style={{ marginTop: 6, color: advanceMsg.includes("Error") || advanceMsg.includes("No se pudo") ? "#e94560" : "#28a745", fontSize: "0.85rem" }}>
+              {advanceMsg}
+            </p>
+          )}
+        </div>
+      )}
 
       {getTransitions(progress.status as SessionStatus).length > 0 && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: "1rem" }}>
@@ -153,7 +235,7 @@ export function PanelSesion() {
       ) : <p style={{ color: "#999" }}>Sin participantes</p>}
 
       {/* Clue selector + release button (solo para misiones Treasure) */}
-      {mission?.type !== "Trivia" && (
+      {currentStage?.missionType !== "Trivia" && (
       <div style={{ marginTop: "1.5rem" }}>
         <h3 style={s.section}>Pistas de la mision</h3>
         {allClues.length === 0 ? (
@@ -350,14 +432,12 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
             <button onClick={sendCurrentQuestion} disabled={sending} style={btnStyle(sending)}>
               {sending ? "Enviando..." : "Enviar Pregunta"}
             </button>
-          ) : (
-            <button onClick={advanceToNext} disabled={answerCount < totalParticipants && currentQuestionIndex < questions.length - 1}
-              style={btnStyle(answerCount < totalParticipants && currentQuestionIndex < questions.length - 1)}>
-              {currentQuestionIndex < questions.length - 1
-                ? (answerCount >= totalParticipants ? "Siguiente →" : "Esperando respuestas...")
-                : "Finalizar"}
+          ) : currentQuestionIndex < questions.length - 1 ? (
+            <button onClick={advanceToNext} disabled={answerCount < totalParticipants}
+              style={btnStyle(answerCount < totalParticipants)}>
+              {answerCount >= totalParticipants ? "Siguiente →" : "Esperando respuestas..."}
             </button>
-          )}
+          ) : null}
           {msg && (
             <p style={{ marginTop: "0.5rem", color: msg.includes("Error") ? "#e94560" : "#28a745", fontSize: "0.85rem" }}>{msg}</p>
           )}

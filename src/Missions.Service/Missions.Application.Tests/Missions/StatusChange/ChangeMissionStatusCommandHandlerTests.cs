@@ -56,14 +56,14 @@ public class ChangeMissionStatusCommandHandlerTests
             .Returns(true);
         _lockService.IsMissionInUseAsync(missionId, Arg.Any<CancellationToken>())
             .Returns(false);
-        _repository.UpdateAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>())
+        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         // Act
         await _sut.Handle(command, CancellationToken.None);
 
         // Assert
-        await _repository.Received(1).UpdateAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>());
+        await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public class ChangeMissionStatusCommandHandlerTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*not found*");
 
-        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Mission>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -125,13 +125,15 @@ public class ChangeMissionStatusCommandHandlerTests
             .Returns(mission);
         _lockService.IsMissionInUseAsync(missionId, Arg.Any<CancellationToken>())
             .Returns(false);
+        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
 
         // Act
         await _sut.Handle(command, CancellationToken.None);
 
         // Assert
         mission.Status.Should().Be(MissionStatus.Inactive);
-        await _repository.Received(1).UpdateAsync(mission, Arg.Any<CancellationToken>());
+        await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -151,13 +153,15 @@ public class ChangeMissionStatusCommandHandlerTests
             .Returns(true);
         _lockService.IsMissionInUseAsync(missionId, Arg.Any<CancellationToken>())
             .Returns(false);
+        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
 
         // Act
         await _sut.Handle(command, CancellationToken.None);
 
         // Assert
         mission.Status.Should().Be(MissionStatus.Active);
-        await _repository.Received(1).UpdateAsync(mission, Arg.Any<CancellationToken>());
+        await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

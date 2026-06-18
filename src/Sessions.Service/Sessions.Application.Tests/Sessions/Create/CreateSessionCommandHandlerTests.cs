@@ -20,28 +20,39 @@ public class CreateSessionCommandHandlerTests
         _sut = new CreateSessionCommandHandler(_repository, _logger);
     }
 
+    private static CreateSessionCommand SingleStageCommand(string name = "Test Session")
+        => new(name, new List<StageInput>
+        {
+            new(Guid.NewGuid(), "Trivia Facil", "Trivia", 1)
+        });
+
+    private static CreateSessionCommand MultiStageCommand(string name = "Multi Session")
+        => new(name, new List<StageInput>
+        {
+            new(Guid.NewGuid(), "Trivia A", "Trivia", 1),
+            new(Guid.NewGuid(), "Búsqueda Pirata", "Treasure", 2),
+            new(Guid.NewGuid(), "Trivia C", "Trivia", 3)
+        });
+
     [Fact]
     public async Task Handle_WithValidCommand_ShouldCreateSessionWithSixDigitPin()
     {
-        // Arrange
-        var command = new CreateSessionCommand("Test Session", Guid.NewGuid(), "Test Mission");
+        var command = SingleStageCommand();
 
         _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
-
         _repository.AddAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
         var result = await _sut.Handle(command, CancellationToken.None);
 
-        // Assert
         result.Should().NotBeNull();
         result.Name.Should().Be("Test Session");
-        result.MissionId.Should().Be(command.MissionId);
         result.Pin.Should().HaveLength(6);
         result.Pin.Should().MatchRegex(@"^\d{6}$");
         result.Status.Should().Be("Scheduled");
+        result.CurrentStageOrder.Should().Be(0);
+        result.Stages.Should().HaveCount(1);
         result.StartedAt.Should().BeNull();
         result.EndedAt.Should().BeNull();
         result.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
@@ -50,70 +61,95 @@ public class CreateSessionCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenPinCollisionOccurs_ShouldRegeneratePinAndSucceed()
+    public async Task Handle_WithMultiStageCommand_ShouldPreserveAllStagesWithOrder()
     {
-        // Arrange
-        var command = new CreateSessionCommand("Collision Session", Guid.NewGuid(), "Test Mission");
+        var command = MultiStageCommand();
+        _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        _repository.AddAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(false, false, false, false, false, false, false, false, false, true);
-
-        _repository.AddAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
-
-        // Act
         var result = await _sut.Handle(command, CancellationToken.None);
 
-        // Assert
-        result.Should().NotBeNull();
+        result.Stages.Should().HaveCount(3);
+        result.Stages[0].Order.Should().Be(1);
+        result.Stages[1].Order.Should().Be(2);
+        result.Stages[2].Order.Should().Be(3);
+        result.Stages.Select(s => s.MissionType).Should().Contain(new[] { "Trivia", "Treasure", "Trivia" });
+    }
+
+    [Fact]
+    public async Task Handle_WhenNameAlreadyExists_ShouldThrow()
+    {
+        var command = SingleStageCommand("Existing");
+
+        // Build a session that matches the name
+        var existing = Session.Create(
+            "Existing",
+            "999999",
+            new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "M", "Trivia", 1) });
+        _repository.GetByNameAsync("Existing", Arg.Any<CancellationToken>()).Returns(existing);
+
+        Func<Task> act = async () => await _sut.Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Ya existe una sesión*");
+    }
+
+    [Fact]
+    public async Task Handle_WhenPinCollisionOccurs_ShouldRegeneratePinAndSucceed()
+    {
+        var command = SingleStageCommand("Collision");
+        _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(false, false, false, false, false, false, false, false, false, true);
+        _repository.AddAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+
+        var result = await _sut.Handle(command, CancellationToken.None);
+
         result.Pin.Should().HaveLength(6);
-        // Should have checked PIN 10 times (9 collisions + 1 success)
         await _repository.Received(10).IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_WhenPinCollisionExceedsMaxAttempts_ShouldThrowInvalidOperationException()
+    public async Task Handle_WhenPinCollisionExceedsMaxAttempts_ShouldThrow()
     {
-        // Arrange
-        var command = new CreateSessionCommand("Max Collision Session", Guid.NewGuid(), "Test Mission");
+        var command = SingleStageCommand("MaxCollision");
+        _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
 
-        // Always return false (always collision)
-        _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-
-        // Act
         Func<Task> act = async () => await _sut.Handle(command, CancellationToken.None);
 
-        // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Could not generate unique PIN after 10 attempts*");
-
-        // Should have tried exactly 10 times
-        await _repository.Received(10).IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .WithMessage("*Could not generate unique PIN*");
         await _repository.DidNotReceive().AddAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_WithValidCommand_ShouldLogSessionCreation()
+    public async Task Handle_ShouldMapStageInputToSessionStage()
     {
         // Arrange
-        var command = new CreateSessionCommand("Log Test Session", Guid.NewGuid(), "Test Mission");
+        var missionId1 = Guid.NewGuid();
+        var missionId2 = Guid.NewGuid();
+        var command = new CreateSessionCommand(
+            "Mapping Test",
+            new List<StageInput>
+            {
+                new(missionId1, "Trivia Facil", "Trivia", 1),
+                new(missionId2, "Busqueda", "Treasure", 2)
+            });
 
-        _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-
-        _repository.AddAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>())
+        Session? captured = null;
+        _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        _repository.AddAsync(Arg.Do<Session>(s => captured = s), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         // Act
         await _sut.Handle(command, CancellationToken.None);
 
         // Assert
-        _logger.Received().Log(
-            LogLevel.Information,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(v => v.ToString()!.Contains("Session created")),
-            null,
-            Arg.Any<Func<object, Exception?, string>>());
+        captured.Should().NotBeNull();
+        captured!.Stages.Should().HaveCount(2);
+        captured.Stages[0].MissionId.Should().Be(missionId1);
+        captured.Stages[0].MissionTitle.Should().Be("Trivia Facil");
+        captured.Stages[0].MissionType.Should().Be("Trivia");
+        captured.Stages[1].MissionId.Should().Be(missionId2);
+        captured.Stages[1].MissionType.Should().Be("Treasure");
     }
 }

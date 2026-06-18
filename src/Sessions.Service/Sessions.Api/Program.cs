@@ -85,6 +85,7 @@ try
     app.MapCreateSessionEndpoint();
     app.MapGetSessionsEndpoint();
     app.MapGetSessionByIdEndpoint();
+    app.MapAdvanceStageEndpoint();
     app.MapTransitionSessionEndpoint();
     app.MapJoinSessionEndpoint();
     app.MapStartSessionEndpoint();

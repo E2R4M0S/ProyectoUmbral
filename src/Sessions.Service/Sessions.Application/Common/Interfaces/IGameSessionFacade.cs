@@ -8,4 +8,5 @@ public interface IGameSessionFacade
 {
     Task TransitionAndNotify(Guid sessionId, string newStatus, CancellationToken ct = default);
     Task ReleaseClueAndNotify(Guid sessionId, Guid clueId, Guid? teamId, string? clueContent, int? penalty, CancellationToken ct = default);
+    Task NotifyStageAdvanced(Guid sessionId, int newStageOrder, CancellationToken ct = default);
 }

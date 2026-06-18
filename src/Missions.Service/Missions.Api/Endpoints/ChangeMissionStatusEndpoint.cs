@@ -64,7 +64,7 @@ public static class ChangeMissionStatusEndpoint
                     message = ex.Message
                 });
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("in use") || ex.Message.Contains("at least one stage"))
+            catch (InvalidOperationException ex) when (ex.Message.Contains("in use") || ex.Message.Contains("at least one stage") || ex.Message.Contains("sin etapas"))
             {
                 logger.LogWarning(
                     "Mission status change conflict: {Message}", ex.Message);
