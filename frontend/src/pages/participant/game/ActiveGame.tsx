@@ -8,12 +8,7 @@ export function ActiveGame() {
   const { state } = useGame();
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      padding: "1rem",
-      maxWidth: 600,
-      margin: "0 auto",
-    }}>
+    <div className="active-game">
       <Timer />
       <RankingBoard ranking={state.ranking} />
 
@@ -22,7 +17,7 @@ export function ActiveGame() {
       )}
 
       {!state.currentQuestion && state.clues.length === 0 ? (
-        <div style={{ textAlign: "center", color: "#999", marginTop: "2rem" }}>
+        <div className="waiting-msg">
           {state.sessionStatus === "Active" ? "Esperando contenido..." : "Aún no hay pistas disponibles. ¡Prestá atención!"}
         </div>
       ) : !state.currentQuestion && state.clues.length > 0 ? (

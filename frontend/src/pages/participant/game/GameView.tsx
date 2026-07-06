@@ -125,12 +125,7 @@ function GameViewInner() {
 export function GameView() {
   return (
     <GameProvider>
-      <div style={{
-        minHeight: "100vh",
-        backgroundColor: "#1a1a2e",
-        color: "white",
-        fontFamily: "sans-serif",
-      }}>
+      <div className="game-container">
         <GameViewInner />
       </div>
     </GameProvider>

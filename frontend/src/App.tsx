@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Outlet, Link, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Registro } from "./pages/public/Registro";
@@ -75,48 +75,77 @@ function Home() {
   );
 }
 
-const sidebarWidth = 240;
-
-const sidebarStyle: React.CSSProperties = {
-  width: sidebarWidth, minHeight: "100vh", backgroundColor: "#16213e",
-  padding: "20px 0", position: "fixed", left: 0, top: 0,
-  borderRight: "2px solid #e94560", display: "flex", flexDirection: "column",
-};
-
-const sidebarLinkStyle: React.CSSProperties = {
-  color: "#ccc", textDecoration: "none", padding: "12px 24px",
-  display: "block", fontSize: "0.95rem",
-};
-
-const sidebarSectionStyle: React.CSSProperties = {
-  color: "#e94560", fontSize: "0.75rem", fontWeight: 600,
-  textTransform: "uppercase", letterSpacing: 1, padding: "20px 24px 8px",
-};
-
 function Sidebar({ children, role }: { children: React.ReactNode; role: string }) {
   const auth = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  const close = useCallback(() => setIsOpen(false), []);
+
+  // Close on outside click (overlay + hamburger)
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (!isOpen) return;
+      const target = e.target as HTMLElement;
+      // Ignore clicks inside the sidebar
+      if (sidebarRef.current?.contains(target)) return;
+      // Ignore clicks on the hamburger button (it toggles on its own)
+      if (target.closest(".hamburger-btn")) return;
+      close();
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [isOpen, close]);
+
+  // Close on Escape key
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") close();
+    }
+    if (isOpen) {
+      document.addEventListener("keydown", handleKey);
+      return () => document.removeEventListener("keydown", handleKey);
+    }
+  }, [isOpen, close]);
+
   return (
-    <div style={{ display: "flex", fontFamily: "sans-serif" }}>
-      <div style={sidebarStyle}>
-        <div style={{ padding: "0 24px 20px", borderBottom: "1px solid #0f3460", marginBottom: 8 }}>
-          <h2 style={{ color: "#e94560", margin: 0, fontSize: "1.3rem" }}>UMBRAL</h2>
-          <p style={{ color: "#ccc", fontSize: "0.85rem", margin: "6px 0 0" }}>
+    <div className="sidebar-layout" style={{ fontFamily: "sans-serif" }}>
+      {/* Hamburger button — mobile only */}
+      <button
+        className="hamburger-btn"
+        onClick={() => setIsOpen((v) => !v)}
+        aria-label={isOpen ? "Cerrar menú" : "Abrir menú"}
+      >
+        {isOpen ? "✕" : "☰"}
+      </button>
+
+      {/* Overlay behind sidebar on mobile */}
+      <div
+        className={`sidebar-overlay${isOpen ? " open" : ""}`}
+        onClick={close}
+      />
+
+      {/* Sidebar panel */}
+      <div ref={sidebarRef} className={`sidebar${isOpen ? " open" : ""}`}>
+        <div className="sidebar-header">
+          <h2>UMBRAL</h2>
+          <p className="user-name">
             {auth.user?.profile?.name ?? auth.user?.profile?.preferred_username ?? auth.user?.profile?.email}
           </p>
-          <p style={{ color: "#999", fontSize: "0.7rem", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: 1 }}>{role}</p>
+          <p className="user-role">{role}</p>
         </div>
-        {children}
-        <div style={{ marginTop: "auto", padding: "0 24px 20px" }}>
-          <button onClick={() => auth.signoutRedirect()} style={{
-            width: "100%", padding: "10px", backgroundColor: "#e94560",
-            color: "white", border: "none", borderRadius: 6,
-            cursor: "pointer", fontWeight: 600, fontSize: "0.9rem",
-          }}>
+        {/* Wrap links to close sidebar on click */}
+        <div onClick={close}>
+          {children}
+        </div>
+        <div className="sidebar-footer">
+          <button onClick={() => auth.signoutRedirect()} className="sidebar-logout">
             Cerrar Sesión
           </button>
         </div>
       </div>
-      <div style={{ marginLeft: sidebarWidth, padding: "2rem", backgroundColor: "#1a1a2e", minHeight: "100vh", color: "white", flex: 1 }}>
+
+      <div className="main-content">
         <Outlet />
       </div>
     </div>
@@ -126,21 +155,21 @@ function Sidebar({ children, role }: { children: React.ReactNode; role: string }
 function AdminPanel() {
   return (
     <Sidebar role="Administrador">
-      <div style={sidebarSectionStyle}>Misiones</div>
-      <Link to="/admin/misiones" style={sidebarLinkStyle}>📋 Catálogo</Link>
-      <Link to="/admin/misiones/crear" style={sidebarLinkStyle}>➕ Crear Misión</Link>
-      <div style={sidebarSectionStyle}>Trivia</div>
-      <Link to="/admin/quiz" style={sidebarLinkStyle}>📝 Banco de Preguntas</Link>
-      <div style={sidebarSectionStyle}>Sesiones</div>
-      <Link to="/admin/sesiones" style={sidebarLinkStyle}>📋 Listado</Link>
-      <Link to="/admin/sesiones/crear" style={sidebarLinkStyle}>➕ Crear Sesión</Link>
-      <div style={sidebarSectionStyle}>Equipos</div>
-      <Link to="/admin/equipos" style={sidebarLinkStyle}>📋 Listado</Link>
-      <Link to="/admin/equipos/crear" style={sidebarLinkStyle}>➕ Crear Equipo</Link>
-      <div style={sidebarSectionStyle}>Usuarios</div>
-      <Link to="/admin/usuarios" style={sidebarLinkStyle}>📋 Listado</Link>
-      <Link to="/admin/operadores/nuevo" style={sidebarLinkStyle}>➕ Crear Operador</Link>
-      <Link to="/admin/operadores/desactivar" style={sidebarLinkStyle}>🚫 Desactivar Operador</Link>
+      <div className="sidebar-section">Misiones</div>
+      <Link to="/admin/misiones" className="sidebar-link">📋 Catálogo</Link>
+      <Link to="/admin/misiones/crear" className="sidebar-link">➕ Crear Misión</Link>
+      <div className="sidebar-section">Trivia</div>
+      <Link to="/admin/quiz" className="sidebar-link">📝 Banco de Preguntas</Link>
+      <div className="sidebar-section">Sesiones</div>
+      <Link to="/admin/sesiones" className="sidebar-link">📋 Listado</Link>
+      <Link to="/admin/sesiones/crear" className="sidebar-link">➕ Crear Sesión</Link>
+      <div className="sidebar-section">Equipos</div>
+      <Link to="/admin/equipos" className="sidebar-link">📋 Listado</Link>
+      <Link to="/admin/equipos/crear" className="sidebar-link">➕ Crear Equipo</Link>
+      <div className="sidebar-section">Usuarios</div>
+      <Link to="/admin/usuarios" className="sidebar-link">📋 Listado</Link>
+      <Link to="/admin/operadores/nuevo" className="sidebar-link">➕ Crear Operador</Link>
+      <Link to="/admin/operadores/desactivar" className="sidebar-link">🚫 Desactivar Operador</Link>
     </Sidebar>
   );
 }
@@ -148,18 +177,18 @@ function AdminPanel() {
 function OperatorPanel() {
   return (
     <Sidebar role="Operador">
-      <div style={sidebarSectionStyle}>Misiones</div>
-      <Link to="/operator/misiones" style={sidebarLinkStyle}>📋 Catálogo</Link>
-      <div style={sidebarSectionStyle}>Trivia</div>
-      <Link to="/operator/quiz" style={sidebarLinkStyle}>📝 Banco de Preguntas</Link>
-      <div style={sidebarSectionStyle}>Sesiones</div>
-      <Link to="/operator/sesiones" style={sidebarLinkStyle}>📋 Listado</Link>
-      <Link to="/operator/sesiones/crear" style={sidebarLinkStyle}>➕ Crear Sesión</Link>
-      <div style={sidebarSectionStyle}>Equipos</div>
-      <Link to="/operator/equipos" style={sidebarLinkStyle}>📋 Listado</Link>
-      <Link to="/operator/equipos/crear" style={sidebarLinkStyle}>➕ Crear Equipo</Link>
-      <div style={sidebarSectionStyle}>Usuarios</div>
-      <Link to="/operator/usuarios" style={sidebarLinkStyle}>📋 Listado</Link>
+      <div className="sidebar-section">Misiones</div>
+      <Link to="/operator/misiones" className="sidebar-link">📋 Catálogo</Link>
+      <div className="sidebar-section">Trivia</div>
+      <Link to="/operator/quiz" className="sidebar-link">📝 Banco de Preguntas</Link>
+      <div className="sidebar-section">Sesiones</div>
+      <Link to="/operator/sesiones" className="sidebar-link">📋 Listado</Link>
+      <Link to="/operator/sesiones/crear" className="sidebar-link">➕ Crear Sesión</Link>
+      <div className="sidebar-section">Equipos</div>
+      <Link to="/operator/equipos" className="sidebar-link">📋 Listado</Link>
+      <Link to="/operator/equipos/crear" className="sidebar-link">➕ Crear Equipo</Link>
+      <div className="sidebar-section">Usuarios</div>
+      <Link to="/operator/usuarios" className="sidebar-link">📋 Listado</Link>
     </Sidebar>
   );
 }
@@ -167,12 +196,12 @@ function OperatorPanel() {
 function ParticipantPanel() {
   return (
     <Sidebar role="Participante">
-      <div style={sidebarSectionStyle}>Mi Cuenta</div>
-      <Link to="/participant/perfil" style={sidebarLinkStyle}>👤 Mi Perfil</Link>
-      <div style={sidebarSectionStyle}>Equipos</div>
-      <Link to="/participant/equipo/unirse" style={sidebarLinkStyle}>🔗 Unirse a Equipo</Link>
-      <div style={sidebarSectionStyle}>Juego</div>
-      <Link to="/participant/sessions/join" style={sidebarLinkStyle}>🎮 Unirse a Sesión</Link>
+      <div className="sidebar-section">Mi Cuenta</div>
+      <Link to="/participant/perfil" className="sidebar-link">👤 Mi Perfil</Link>
+      <div className="sidebar-section">Equipos</div>
+      <Link to="/participant/equipo/unirse" className="sidebar-link">🔗 Unirse a Equipo</Link>
+      <div className="sidebar-section">Juego</div>
+      <Link to="/participant/sessions/join" className="sidebar-link">🎮 Unirse a Sesión</Link>
     </Sidebar>
   );
 }

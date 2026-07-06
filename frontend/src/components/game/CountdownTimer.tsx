@@ -7,12 +7,11 @@ interface Props {
 }
 
 export function CountdownTimer({ timeLimitSeconds, onExpired }: Props) {
-  const { state, dispatch } = useGame();
+  const { state } = useGame();
   const [remaining, setRemaining] = useState(timeLimitSeconds);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    // Restart the countdown whenever the provided time limit changes or when session status changes.
     setRemaining(timeLimitSeconds);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -42,8 +41,8 @@ export function CountdownTimer({ timeLimitSeconds, onExpired }: Props) {
   }, [timeLimitSeconds, onExpired, state.sessionStatus]);
 
   return (
-    <div style={{ textAlign: "center", marginTop: "1rem" }}>
-      <div style={{ fontSize: "2rem", fontFamily: "monospace", color: "#e94560" }}>
+    <div className="countdown-timer">
+      <div className="countdown-display">
         {String(remaining).padStart(2, "0")}s
       </div>
     </div>
