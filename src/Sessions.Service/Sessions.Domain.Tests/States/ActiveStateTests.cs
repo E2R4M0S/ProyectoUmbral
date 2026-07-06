@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using FluentAssertions;
 using Sessions.Domain.Entities;
 using Sessions.Domain.Enums;

@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Sessions.Domain.Entities;
 using Sessions.Domain.Enums;
 using Xunit;
@@ -93,7 +93,7 @@ public class SessionStageProgressionTests
     [Fact]
     public void AdvanceStage_WhenNotActive_ShouldThrow()
     {
-        // Arrange — session in Scheduled state
+        // Arrange â€” session in Scheduled state
         var session = CreateWithStages(3);
 
         // Act
@@ -183,3 +183,4 @@ public class SessionStageProgressionTests
         session.CurrentStageOrder.Should().Be(0);
     }
 }
+

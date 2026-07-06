@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -108,7 +108,7 @@ public class JoinSessionCommandHandlerTests
         // Act
         var result = await _sut.Handle(command, CancellationToken.None);
 
-        // Assert — handler no longer throws for duplicate participants; it allows re-join
+        // Assert â€” handler no longer throws for duplicate participants; it allows re-join
         result.Should().NotBeNull();
         result.SessionId.Should().Be(session.Id);
     }

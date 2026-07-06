@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useAuth } from "react-oidc-context";
+import { useNavigate } from "react-router-dom";
 import { getUsers, ApiError } from "../../services/adminUsuariosApi";
 import type { UserListItem, GetUsersParams } from "../../types/usuario";
 
@@ -10,126 +11,37 @@ const ROLE_OPTIONS = [
   { value: "participant", label: "Participante" },
 ];
 
-function getRoles(accessToken: string): string[] {
-  try {
-    const payload = JSON.parse(atob(accessToken.split(".")[1]));
-    return payload.realm_access?.roles ?? [];
-  } catch {
-    return [];
-  }
+function getRoles(token: string): string[] {
+  try { return JSON.parse(atob(token.split(".")[1])).realm_access?.roles ?? []; }
+  catch { return []; }
 }
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: 8,
-  border: "1px solid #ccc",
-  borderRadius: 4,
-  boxSizing: "border-box",
-  fontSize: 14,
-};
+function formatDate(d: string) {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+}
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: 4,
-  fontWeight: 600,
-  fontSize: 13,
-};
-
-const filterRowStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 12,
-  marginBottom: 16,
-  alignItems: "flex-end",
-  flexWrap: "wrap",
-};
-
-const filterGroupStyle: React.CSSProperties = {
-  flex: "1 1 180px",
-  minWidth: 150,
-};
-
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  fontSize: 14,
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "10px 12px",
-  borderBottom: "2px solid #dee2e6",
-  backgroundColor: "#f8f9fa",
-  fontWeight: 600,
-  color: "#495057",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderBottom: "1px solid #dee2e6",
-  verticalAlign: "middle",
-};
-
-const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block",
-  padding: "2px 8px",
-  borderRadius: 12,
-  fontSize: 12,
-  fontWeight: 600,
-  color: "#fff",
-  backgroundColor: color,
-});
-
-const enabledStyle = badgeStyle("#28a745");
-const disabledStyle = badgeStyle("#dc3545");
-
-const paginationStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginTop: 16,
-  fontSize: 14,
-};
-
-const buttonStyle = (primary: boolean): React.CSSProperties => ({
-  padding: "6px 14px",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 600,
-  backgroundColor: primary ? "#007bff" : "#6c757d",
-  color: "#fff",
-});
-
-const errorStyle: React.CSSProperties = {
-  padding: "10px 14px",
-  border: "1px solid #dc3545",
-  borderRadius: 4,
-  backgroundColor: "#fff5f5",
-  color: "#dc3545",
-  marginBottom: 16,
-  fontSize: 14,
-};
-
-function formatDate(dateStr: string): string {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+function roleClass(r: string) {
+  if (r === "admin")       return "badge badge-admin";
+  if (r === "operator")    return "badge badge-operator";
+  if (r === "participant") return "badge badge-participant";
+  return "badge badge-muted";
 }
 
 export function ListadoUsuarios() {
-  const auth = useAuth();
-  const isAdmin = auth.user?.access_token ? getRoles(auth.user.access_token).includes("admin") : false;
+  const auth      = useAuth();
+  const navigate  = useNavigate();
+  const isAdmin   = auth.user?.access_token ? getRoles(auth.user.access_token).includes("admin") : false;
 
-  const [items, setItems] = useState<UserListItem[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, _setPageSize] = useState(20);
-  const [search, setSearch] = useState("");
-  const [role, setRole] = useState("");
-  const [enabled, setEnabled] = useState<boolean | undefined>(undefined);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [items, setItems]         = useState<UserListItem[]>([]);
+  const [totalCount, setTotal]    = useState(0);
+  const [page, setPage]           = useState(1);
+  const [pageSize]                = useState(20);
+  const [search, setSearch]       = useState("");
+  const [role, setRole]           = useState("");
+  const [enabled, setEnabled]     = useState<boolean | undefined>(undefined);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -138,188 +50,148 @@ export function ListadoUsuarios() {
     setError(null);
     try {
       const params: GetUsersParams = { page, pageSize };
-      if (search.trim()) params.search = search.trim();
-      if (role) params.role = role;
+      if (search.trim()) params.search  = search.trim();
+      if (role)          params.role    = role;
       if (enabled !== undefined) params.enabled = enabled;
-
       const result = await getUsers(params);
       setItems(result.items);
-      setTotalCount(result.totalCount);
+      setTotal(result.totalCount);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(`Error ${err.status}: No se pudo cargar el listado de usuarios.`);
-      } else {
-        setError("Error de conexión. Verificá tu conexión a internet.");
-      }
+      setError(err instanceof ApiError
+        ? `Error ${err.status}: No se pudo cargar el listado.`
+        : "Error de conexión.");
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    loadUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize]);
+  useEffect(() => { loadUsers(); }, [page, pageSize]); // eslint-disable-line
 
   function handleSearchSubmit(e: FormEvent) {
     e.preventDefault();
     setPage(1);
     loadUsers();
   }
-
-  function handleFilterChange() {
-    setPage(1);
-    loadUsers();
-  }
-
-  function prevPage() {
-    if (page > 1) setPage(p => p - 1);
-  }
-
-  function nextPage() {
-    if (page < totalPages) setPage(p => p + 1);
-  }
+  function handleFilterChange() { setPage(1); loadUsers(); }
 
   return (
-    <div style={{ padding: "1rem", maxWidth: 1200, margin: "0 auto" }}>
-      <h2 style={{ marginBottom: "1rem" }}>Listado de Usuarios</h2>
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Listado de Usuarios</h1>
+          <p className="page-subtitle">{totalCount} usuario{totalCount !== 1 ? "s" : ""} registrado{totalCount !== 1 ? "s" : ""}</p>
+        </div>
+      </div>
 
-      {/* Filters */}
-      <form onSubmit={handleSearchSubmit} style={{ marginBottom: 16 }}>
-        <div style={filterRowStyle}>
-          <div style={filterGroupStyle}>
-            <label htmlFor="search" style={labelStyle}>Buscar</label>
+      <form onSubmit={handleSearchSubmit}>
+        <div className="filter-row">
+          <div className="filter-group">
+            <label className="form-label" htmlFor="search">Buscar</label>
             <input
               id="search"
               type="text"
+              className="form-input"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Nombre o email..."
-              style={inputStyle}
             />
           </div>
-
           {isAdmin && (
-          <div style={filterGroupStyle}>
-            <label htmlFor="role" style={labelStyle}>Rol</label>
-            <select
-              id="role"
-              value={role}
-              onChange={e => { setRole(e.target.value); handleFilterChange(); }}
-              style={{ ...inputStyle, cursor: "pointer" }}
-            >
-              {ROLE_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
+            <div className="filter-group">
+              <label className="form-label" htmlFor="role">Rol</label>
+              <select id="role" className="form-select" value={role}
+                onChange={(e) => { setRole(e.target.value); handleFilterChange(); }}
+              >
+                {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
           )}
-
-          <div style={filterGroupStyle}>
-            <label htmlFor="enabled" style={labelStyle}>Estado</label>
-            <select
-              id="enabled"
+          <div className="filter-group">
+            <label className="form-label" htmlFor="enabled">Estado</label>
+            <select id="enabled" className="form-select"
               value={enabled === undefined ? "" : enabled ? "true" : "false"}
-              onChange={e => {
+              onChange={(e) => {
                 const v = e.target.value;
                 setEnabled(v === "" ? undefined : v === "true");
                 handleFilterChange();
               }}
-              style={{ ...inputStyle, cursor: "pointer" }}
             >
               <option value="">Todos</option>
               <option value="true">Activos</option>
               <option value="false">Inactivos</option>
             </select>
           </div>
-
-          <div style={{ flex: "0 0 auto" }}>
-            <button type="submit" style={{ ...buttonStyle(true), marginTop: 20 }}>
-              Buscar
-            </button>
+          <div>
+            <label className="form-label" style={{ visibility: "hidden" }}>.</label>
+            <button type="submit" className="btn btn-secondary">Buscar</button>
           </div>
         </div>
       </form>
 
-      {/* Error */}
-      {error && <div style={errorStyle}>{error}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
 
-      {/* Loading */}
-      {loading && <div style={{ marginBottom: 16, color: "#666" }}>Cargando...</div>}
-
-      {/* Table */}
-      {!loading && (
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "3rem" }}>
+          <div className="spinner" style={{ margin: "0 auto" }} />
+        </div>
+      ) : (
         <>
-          <div style={{ marginBottom: 8, fontSize: 13, color: "#666" }}>
-            {totalCount === 0
-              ? "Sin resultados"
-              : `${totalCount} usuario${totalCount !== 1 ? "s" : ""} encontrado${totalCount !== 1 ? "s" : ""}`}
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Email</th>
+                  <th>Roles</th>
+                  <th>Estado</th>
+                  <th>Creado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
+                      No se encontraron usuarios
+                    </td>
+                  </tr>
+                ) : (
+                  items.map(item => (
+                    <tr
+                      key={item.id}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => navigate(`/admin/usuarios/${item.id}`)}
+                    >
+                      <td style={{ fontWeight: 500 }}>{item.name}</td>
+                      <td style={{ color: "var(--text-secondary)" }}>{item.email}</td>
+                      <td>
+                        <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+                          {item.roles.map(r => (
+                            <span key={r} className={roleClass(r)}>{r}</span>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={item.enabled ? "badge badge-success" : "badge badge-error"}>
+                          {item.enabled ? "Activo" : "Inactivo"}
+                        </span>
+                      </td>
+                      <td style={{ color: "var(--text-muted)" }}>{formatDate(item.createdAt)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
 
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Nombre</th>
-                <th style={thStyle}>Email</th>
-                <th style={thStyle}>Roles</th>
-                <th style={thStyle}>Estado</th>
-                <th style={thStyle}>Creado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ ...tdStyle, textAlign: "center", color: "#666" }}>
-                    No se encontraron usuarios
-                  </td>
-                </tr>
-              ) : (
-                items.map(item => (
-                  <tr key={item.id}>
-                    <td style={tdStyle}>{item.name}</td>
-                    <td style={tdStyle}>{item.email}</td>
-                    <td style={tdStyle}>
-                      {item.roles.map(r => (
-                        <span
-                          key={r}
-                          style={badgeStyle(r === "admin" ? "#6610f2" : r === "operator" ? "#17a2b8" : "#28a745")}
-                        >
-                          {r}
-                        </span>
-                      ))}
-                    </td>
-                    <td style={tdStyle}>
-                      <span style={item.enabled ? enabledStyle : disabledStyle}>
-                        {item.enabled ? "Activo" : "Inactivo"}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>{formatDate(item.createdAt)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-
-          {/* Pagination */}
           {totalCount > 0 && (
-            <div style={paginationStyle}>
-              <span>
-                Página {page} de {totalPages || 1} — {pageSize} por página
-              </span>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={prevPage}
-                  disabled={page <= 1}
-                  style={buttonStyle(false)}
-                >
-                  Anterior
+            <div className="pagination">
+              <span>Página {page} de {totalPages || 1} — {pageSize} por página</span>
+              <div className="pagination-controls">
+                <button className="btn btn-ghost btn-sm" onClick={() => setPage(p => p - 1)} disabled={page <= 1}>
+                  ← Anterior
                 </button>
-                <button
-                  onClick={nextPage}
-                  disabled={page >= totalPages}
-                  style={buttonStyle(false)}
-                >
-                  Siguiente
+                <button className="btn btn-ghost btn-sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
+                  Siguiente →
                 </button>
               </div>
             </div>

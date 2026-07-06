@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Sessions.Domain.Entities;
 using Sessions.Domain.Enums;
 using Xunit;
@@ -83,3 +83,4 @@ public class SessionEntityTests
         participant.UserAlias.Should().Be("erosd");
     }
 }
+

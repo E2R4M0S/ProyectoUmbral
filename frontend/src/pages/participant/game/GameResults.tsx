@@ -32,65 +32,29 @@ export function GameResults() {
   }
 
   return (
-    <div style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      minHeight: "100vh",
-      padding: "2rem",
-      textAlign: "center",
-    }}>
+    <div className="game-results">
       {isFinished ? (
         <>
-          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🏆</div>
-          <h2 style={{ color: "#e94560", marginBottom: "0.5rem" }}>¡Juego Terminado!</h2>
-          <p style={{ color: "#999" }}>La experiencia ha finalizado.</p>
+          <div className="results-icon">🏆</div>
+          <h2 style={{ color: "#e94560" }}>¡Juego Terminado!</h2>
+          <p>La experiencia ha finalizado.</p>
 
           <RankingBoard ranking={state.ranking} />
 
-          <div style={{
-            marginTop: "1rem",
-            padding: "1.5rem 2rem",
-            backgroundColor: "#16213e",
-            borderRadius: 12,
-            border: "2px solid #e94560",
-            minWidth: 200,
-          }}>
-            <div style={{ color: "#999", fontSize: "0.9rem", marginBottom: 4 }}>
-              Tu Puntaje
-            </div>
-            <div style={{
-              fontSize: "2.5rem",
-              fontWeight: "bold",
-              color: "#e94560",
-            }}>
-              {state.score}
-            </div>
+          <div className="score-card">
+            <div className="score-label">Tu Puntaje</div>
+            <div className="score-value">{state.score}</div>
           </div>
-        </> 
+        </>
       ) : (
         <>
-          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⚠️</div>
-          <h2 style={{ color: "#ffc107", marginBottom: "0.5rem" }}>Sesión Cancelada</h2>
-          <p style={{ color: "#999" }}>La sesión fue cancelada por el host.</p>
+          <div className="results-icon">⚠️</div>
+          <h2 style={{ color: "#ffc107" }}>Sesión Cancelada</h2>
+          <p>La sesión fue cancelada por el host.</p>
         </>
       )}
 
-      <button
-        onClick={handleReturn}
-        style={{
-          marginTop: "2rem",
-          padding: "12px 32px",
-          backgroundColor: "#0f3460",
-          color: "white",
-          border: "none",
-          borderRadius: 8,
-          cursor: "pointer",
-          fontSize: "1rem",
-          fontWeight: 600,
-        }}
-      >
+      <button onClick={handleReturn} className="btn-return">
         Volver al inicio
       </button>
     </div>

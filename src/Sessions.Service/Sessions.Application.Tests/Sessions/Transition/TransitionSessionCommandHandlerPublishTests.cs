@@ -1,4 +1,4 @@
-using System.Threading;
+﻿using System.Threading;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -47,3 +47,4 @@ public class TransitionSessionCommandHandlerPublishTests
         return session;
     }
 }
+

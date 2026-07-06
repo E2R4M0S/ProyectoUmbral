@@ -1,152 +1,93 @@
 import { useState, type FormEvent } from "react";
 import { desactivarOperador, ApiError } from "../../services/operadorApi";
 
-interface FieldErrors {
-  email?: string;
+function validateEmail(v: string) {
+  if (!v.trim()) return "El email es obligatorio.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return "Formato de email inválido.";
 }
-
-function validateEmail(value: string): string | undefined {
-  if (!value.trim()) return "El email es obligatorio.";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()))
-    return "Formato de email inválido.";
-  return undefined;
-}
-
-const inputStyle = (hasError: boolean): React.CSSProperties => ({
-  width: "100%",
-  padding: 8,
-  border: hasError ? "1px solid #dc3545" : "1px solid #ccc",
-  borderRadius: 4,
-  boxSizing: "border-box",
-});
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: 4,
-  fontWeight: 600,
-};
-
-const errorStyle: React.CSSProperties = {
-  color: "#dc3545",
-  fontSize: 12,
-  margin: "4px 0 0",
-};
-
-const fieldGroupStyle: React.CSSProperties = {
-  marginBottom: 14,
-};
-
-const submitBtnStyle = (disabled: boolean): React.CSSProperties => ({
-  width: "100%",
-  padding: 10,
-  backgroundColor: disabled ? "#999" : "#dc3545",
-  color: "#fff",
-  border: "none",
-  borderRadius: 4,
-  cursor: disabled ? "not-allowed" : "pointer",
-  fontSize: 16,
-  fontWeight: 600,
-});
 
 export function DesactivarOperador() {
-  const [email, setEmail] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [email, setEmail]       = useState("");
+  const [emailErr, setEmailErr] = useState<string | undefined>();
+  const [submitErr, setSubmitErr] = useState<string | null>(null);
+  const [submitting, setSub]    = useState(false);
+  const [success, setSuccess]   = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setSubmitError(null);
+    setSubmitErr(null);
     setSuccess(false);
 
-    const errors: FieldErrors = {
-      email: validateEmail(email),
-    };
-    setFieldErrors(errors);
+    const err = validateEmail(email);
+    setEmailErr(err);
+    if (err) return;
 
-    if (Object.values(errors).some(Boolean)) return;
-
-    const confirmed = window.confirm(`¿Desactivar operador ${email.trim()}? Esta acción revocará todas sus sesiones activas.`);
+    const confirmed = window.confirm(
+      `¿Desactivar operador "${email.trim()}"? Esta acción revocará todas sus sesiones activas.`
+    );
     if (!confirmed) return;
 
-    setIsSubmitting(true);
-
+    setSub(true);
     try {
       await desactivarOperador({ email: email.trim() });
       setSuccess(true);
       setEmail("");
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 404) {
-          setSubmitError("No se encontró un operador con ese email.");
-        } else if (err.status === 400) {
-          setSubmitError("Datos inválidos. Verificá el email.");
-        } else {
-          setSubmitError("Error al desactivar el operador. Intentalo de nuevo.");
-        }
+        if (err.status === 404)      setSubmitErr("No se encontró un operador con ese email.");
+        else if (err.status === 400) setSubmitErr("Datos inválidos. Verificá el email.");
+        else                         setSubmitErr("Error al desactivar el operador. Intentalo de nuevo.");
       } else {
-        setSubmitError("Error de conexión. Verificá tu conexión a internet.");
+        setSubmitErr("Error de conexión. Verificá tu conexión a internet.");
       }
     } finally {
-      setIsSubmitting(false);
+      setSub(false);
     }
   }
 
   return (
-    <div style={{ maxWidth: 400, margin: "0 auto", padding: "1rem" }}>
-      <h2 style={{ marginBottom: "1rem" }}>Desactivar Cuenta de Operador</h2>
+    <div className="page" style={{ maxWidth: 480 }}>
+      <div className="page-header">
+        <h1 className="page-title">Desactivar Operador</h1>
+      </div>
 
-      {success && (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: "8px 12px",
-            border: "1px solid #28a745",
-            borderRadius: 4,
-            backgroundColor: "#d4edda",
-            color: "#155724",
-          }}
-        >
-          Operador desactivado correctamente.
-        </div>
-      )}
+      <div className="card">
+        <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", marginBottom: "1.5rem" }}>
+          Ingresá el email del operador que querés desactivar. Se revocarán todos sus accesos activos.
+        </p>
 
-      {submitError && (
-        <div
-          style={{
-            color: "#dc3545",
-            marginBottom: 16,
-            padding: "8px 12px",
-            border: "1px solid #dc3545",
-            borderRadius: 4,
-            backgroundColor: "#fff5f5",
-          }}
-        >
-          {submitError}
-        </div>
-      )}
+        {success && (
+          <div className="alert alert-success" style={{ marginBottom: "1.25rem" }}>
+            Operador desactivado correctamente.
+          </div>
+        )}
+        {submitErr && (
+          <div className="alert alert-error" style={{ marginBottom: "1.25rem" }}>
+            {submitErr}
+          </div>
+        )}
 
-      <form onSubmit={handleSubmit}>
-        <div style={fieldGroupStyle}>
-          <label htmlFor="op-email" style={labelStyle}>
-            Email del Operador
-          </label>
-          <input
-            id="op-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={inputStyle(Boolean(fieldErrors.email))}
-            autoComplete="email"
-          />
-          {fieldErrors.email && <p style={errorStyle}>{fieldErrors.email}</p>}
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group" style={{ marginBottom: "1.5rem" }}>
+            <label className="form-label" htmlFor="op-email">Email del Operador</label>
+            <input
+              id="op-email"
+              type="email"
+              className="form-input"
+              style={emailErr ? { borderColor: "var(--color-error)" } : {}}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              placeholder="operador@ucab.edu.ve"
+            />
+            {emailErr && <span className="form-hint" style={{ color: "var(--color-error)" }}>{emailErr}</span>}
+          </div>
 
-        <button type="submit" disabled={isSubmitting} style={submitBtnStyle(isSubmitting)}>
-          {isSubmitting ? "Desactivando..." : "Desactivar Operador"}
-        </button>
-      </form>
+          <button type="submit" className="btn btn-danger" style={{ width: "100%" }} disabled={submitting}>
+            {submitting ? "Desactivando..." : "Desactivar Operador"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

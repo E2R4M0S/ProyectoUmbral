@@ -9,15 +9,12 @@ public class SessionStageTests
     [Fact]
     public void Create_WithValidInputs_ShouldSetAllProperties()
     {
-        // Arrange
         var missionId = Guid.NewGuid();
 
-        // Act
-        var stage = SessionStage.Create(missionId, "Trivia Facil", "Trivia", 1);
+        var stage = SessionStage.Create(missionId, "Trivia Fácil", "Trivia", 1);
 
-        // Assert
         stage.MissionId.Should().Be(missionId);
-        stage.MissionTitle.Should().Be("Trivia Facil");
+        stage.MissionTitle.Should().Be("Trivia Fácil");
         stage.MissionType.Should().Be("Trivia");
         stage.Order.Should().Be(1);
     }
@@ -25,10 +22,8 @@ public class SessionStageTests
     [Fact]
     public void Create_WithEmptyMissionId_ShouldThrow()
     {
-        // Act
         Action act = () => SessionStage.Create(Guid.Empty, "Title", "Trivia", 1);
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*MissionId*");
     }
@@ -36,10 +31,8 @@ public class SessionStageTests
     [Fact]
     public void Create_WithEmptyMissionTitle_ShouldThrow()
     {
-        // Act
         Action act = () => SessionStage.Create(Guid.NewGuid(), "", "Trivia", 1);
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*MissionTitle*");
     }
@@ -47,10 +40,8 @@ public class SessionStageTests
     [Fact]
     public void Create_WithWhitespaceMissionTitle_ShouldThrow()
     {
-        // Act
         Action act = () => SessionStage.Create(Guid.NewGuid(), "   ", "Trivia", 1);
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*MissionTitle*");
     }
@@ -58,21 +49,26 @@ public class SessionStageTests
     [Fact]
     public void Create_WithEmptyMissionType_ShouldThrow()
     {
-        // Act
         Action act = () => SessionStage.Create(Guid.NewGuid(), "Title", "", 1);
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*MissionType*");
     }
 
     [Fact]
-    public void Create_WithNonPositiveOrder_ShouldThrow()
+    public void Create_WithOrderZero_ShouldThrow()
     {
-        // Act
         Action act = () => SessionStage.Create(Guid.NewGuid(), "Title", "Trivia", 0);
 
-        // Assert
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Order*");
+    }
+
+    [Fact]
+    public void Create_WithNegativeOrder_ShouldThrow()
+    {
+        Action act = () => SessionStage.Create(Guid.NewGuid(), "Title", "Trivia", -1);
+
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*Order*");
     }
@@ -80,10 +76,27 @@ public class SessionStageTests
     [Fact]
     public void Create_ShouldTrimTitleWhitespace()
     {
-        // Act
         var stage = SessionStage.Create(Guid.NewGuid(), "  Treasure Hunt  ", "Treasure", 2);
 
-        // Assert
         stage.MissionTitle.Should().Be("Treasure Hunt");
+    }
+
+    [Fact]
+    public void Create_WithTreasureType_ShouldSucceed()
+    {
+        var stage = SessionStage.Create(Guid.NewGuid(), "Treasure Mission", "Treasure", 3);
+
+        stage.MissionType.Should().Be("Treasure");
+        stage.Order.Should().Be(3);
+    }
+
+    [Fact]
+    public void Create_MultipleStages_AllHaveCorrectOrder()
+    {
+        var stages = Enumerable.Range(1, 5)
+            .Select(i => SessionStage.Create(Guid.NewGuid(), $"Mission {i}", "Trivia", i))
+            .ToList();
+
+        stages.Select(s => s.Order).Should().BeEquivalentTo([1, 2, 3, 4, 5]);
     }
 }

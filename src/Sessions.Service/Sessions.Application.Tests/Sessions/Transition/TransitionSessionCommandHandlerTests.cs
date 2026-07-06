@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Sessions.Application.Common.Interfaces;
@@ -110,3 +110,4 @@ public class TransitionSessionCommandHandlerTests
         return session;
     }
 }
+

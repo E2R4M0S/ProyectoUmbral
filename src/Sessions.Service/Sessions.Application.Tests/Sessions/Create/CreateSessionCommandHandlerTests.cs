@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Sessions.Application.Common.Interfaces;
@@ -30,7 +30,7 @@ public class CreateSessionCommandHandlerTests
         => new(name, new List<StageInput>
         {
             new(Guid.NewGuid(), "Trivia A", "Trivia", 1),
-            new(Guid.NewGuid(), "Búsqueda Pirata", "Treasure", 2),
+            new(Guid.NewGuid(), "BÃºsqueda Pirata", "Treasure", 2),
             new(Guid.NewGuid(), "Trivia C", "Trivia", 3)
         });
 
@@ -153,3 +153,5 @@ public class CreateSessionCommandHandlerTests
         captured.Stages[1].MissionType.Should().Be("Treasure");
     }
 }
+
+

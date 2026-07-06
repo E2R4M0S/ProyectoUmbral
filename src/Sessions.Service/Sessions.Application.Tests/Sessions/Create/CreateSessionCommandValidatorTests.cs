@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using FluentValidation.TestHelper;
 using Sessions.Application.Sessions.Create;
 using Xunit;
@@ -161,3 +161,4 @@ public class CreateSessionCommandValidatorTests
         result.IsValid.Should().BeTrue();
     }
 }
+
