@@ -18,139 +18,41 @@ const STATUS_OPTIONS = [
   { value: "Inactive", label: "Inactiva" },
 ];
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: 8,
-  border: "1px solid #ccc",
-  borderRadius: 4,
-  boxSizing: "border-box",
-  fontSize: 14,
-};
+function difficultyClass(d: string) {
+  if (d === "Easy")   return "badge badge-success";
+  if (d === "Medium") return "badge badge-warning";
+  if (d === "Hard")   return "badge badge-error";
+  return "badge badge-muted";
+}
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: 4,
-  fontWeight: 600,
-  fontSize: 13,
-};
+function statusClass(s: string) {
+  if (s === "Active")   return "badge badge-info";
+  if (s === "Inactive") return "badge badge-error";
+  return "badge badge-muted";
+}
 
-const filterRowStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 12,
-  marginBottom: 16,
-  alignItems: "flex-end",
-  flexWrap: "wrap",
-};
-
-const filterGroupStyle: React.CSSProperties = {
-  flex: "1 1 180px",
-  minWidth: 150,
-};
-
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  fontSize: 14,
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "10px 12px",
-  borderBottom: "2px solid #dee2e6",
-  backgroundColor: "#f8f9fa",
-  fontWeight: 600,
-  color: "#495057",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderBottom: "1px solid #dee2e6",
-  verticalAlign: "middle",
-};
-
-const actionBtnStyle: React.CSSProperties = {
-  padding: "4px 10px",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-  fontSize: 12,
-  fontWeight: 600,
-  backgroundColor: "#0f3460",
-  color: "#fff",
-  textDecoration: "none",
-  display: "inline-block",
-};
-
-const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block",
-  padding: "2px 8px",
-  borderRadius: 12,
-  fontSize: 12,
-  fontWeight: 600,
-  color: "#fff",
-  backgroundColor: color,
-});
-
-const difficultyBadgeColor = (difficulty: string): string => {
-  switch (difficulty) {
-    case "Easy": return "#28a745";
-    case "Medium": return "#ffc107";
-    case "Hard": return "#dc3545";
-    default: return "#6c757d";
-  }
-};
-
-const statusBadgeColor = (status: string): string => {
-  switch (status) {
-    case "Active": return "#007bff";
-    case "Draft": return "#6c757d";
-    case "Inactive": return "#dc3545";
-    default: return "#6c757d";
-  }
-};
-
-const paginationStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginTop: 16,
-  fontSize: 14,
-};
-
-const buttonStyle = (primary: boolean): React.CSSProperties => ({
-  padding: "6px 14px",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 600,
-  backgroundColor: primary ? "#007bff" : "#6c757d",
-  color: "#fff",
-});
-
-const errorStyle: React.CSSProperties = {
-  padding: "10px 14px",
-  border: "1px solid #dc3545",
-  borderRadius: 4,
-  backgroundColor: "#fff5f5",
-  color: "#dc3545",
-  marginBottom: 16,
-  fontSize: 14,
-};
+const DIFFICULTY_LABELS: Record<string, string> = { Easy: "Fácil", Medium: "Media", Hard: "Difícil" };
+const STATUS_LABELS: Record<string, string>     = { Active: "Activa", Draft: "Borrador", Inactive: "Inactiva" };
+const TYPE_LABELS: Record<string, string>       = { Treasure: "Búsqueda del Tesoro", Trivia: "Trivia" };
 
 export function CatalogoMisiones() {
   const auth = useAuth();
-  const isAdmin = auth.user?.access_token ? (() => { try { const p = JSON.parse(atob(auth.user.access_token.split(".")[1])); return p.realm_access?.roles?.includes("admin") ?? false; } catch { return false; } })() : false;
+  const isAdmin = auth.user?.access_token ? (() => {
+    try {
+      const p = JSON.parse(atob(auth.user.access_token.split(".")[1]));
+      return p.realm_access?.roles?.includes("admin") ?? false;
+    } catch { return false; }
+  })() : false;
 
-  const [items, setItems] = useState<MissionListItem[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, _setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
-  const [difficulty, setDifficulty] = useState("");
-  const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [items, setItems]         = useState<MissionListItem[]>([]);
+  const [totalCount, setTotal]    = useState(0);
+  const [page, setPage]           = useState(1);
+  const [pageSize]                = useState(10);
+  const [search, setSearch]       = useState("");
+  const [difficulty, setDiff]     = useState("");
+  const [status, setStatus]       = useState("");
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -159,28 +61,22 @@ export function CatalogoMisiones() {
     setError(null);
     try {
       const params: GetMissionsParams = { page, pageSize };
-      if (search.trim()) params.search = search.trim();
-      if (difficulty) params.difficulty = difficulty;
-      if (status) params.status = status;
-
+      if (search.trim())  params.search     = search.trim();
+      if (difficulty)     params.difficulty = difficulty;
+      if (status)         params.status     = status;
       const result = await listMissions(params);
       setItems(result.items);
-      setTotalCount(result.totalCount);
+      setTotal(result.totalCount);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(`Error ${err.status}: No se pudo cargar el catálogo de misiones.`);
-      } else {
-        setError("Error de conexión. Verificá tu conexión a internet.");
-      }
+      setError(err instanceof ApiError
+        ? `Error ${err.status}: No se pudo cargar el catálogo.`
+        : "Error de conexión.");
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    loadMissions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize]);
+  useEffect(() => { loadMissions(); }, [page, pageSize]); // eslint-disable-line
 
   function handleSearchSubmit(e: FormEvent) {
     e.preventDefault();
@@ -193,181 +89,166 @@ export function CatalogoMisiones() {
     loadMissions();
   }
 
-  function prevPage() {
-    if (page > 1) setPage((p) => p - 1);
-  }
-
-  function nextPage() {
-    if (page < totalPages) setPage((p) => p + 1);
-  }
-
   return (
-    <div style={{ padding: "1rem", maxWidth: 1200, margin: "0 auto" }}>
-      <h2 style={{ marginBottom: "1rem" }}>Catálogo de Misiones</h2>
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Catálogo de Misiones</h1>
+          <p className="page-subtitle">
+            {totalCount} misión{totalCount !== 1 ? "es" : ""} registrada{totalCount !== 1 ? "s" : ""}
+          </p>
+        </div>
+        {isAdmin && (
+          <Link to="/admin/misiones/crear" className="btn btn-primary">
+            + Nueva Misión
+          </Link>
+        )}
+      </div>
 
       {/* Filters */}
-      <form onSubmit={handleSearchSubmit} style={{ marginBottom: 16 }}>
-        <div style={filterRowStyle}>
-          <div style={filterGroupStyle}>
-            <label htmlFor="search" style={labelStyle}>Buscar</label>
+      <form onSubmit={handleSearchSubmit}>
+        <div className="filter-row">
+          <div className="filter-group">
+            <label className="form-label" htmlFor="search">Buscar</label>
             <input
               id="search"
               type="text"
+              className="form-input"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Título de la misión..."
-              style={inputStyle}
             />
           </div>
-
-          <div style={filterGroupStyle}>
-            <label htmlFor="difficulty" style={labelStyle}>Dificultad</label>
+          <div className="filter-group">
+            <label className="form-label" htmlFor="difficulty">Dificultad</label>
             <select
               id="difficulty"
+              className="form-select"
               value={difficulty}
-              onChange={(e) => {
-                setDifficulty(e.target.value);
-                handleFilterChange();
-              }}
-              style={{ ...inputStyle, cursor: "pointer" }}
+              onChange={(e) => { setDiff(e.target.value); handleFilterChange(); }}
             >
               {DIFFICULTY_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </div>
-
-          <div style={filterGroupStyle}>
-            <label htmlFor="status" style={labelStyle}>Estado</label>
+          <div className="filter-group">
+            <label className="form-label" htmlFor="status">Estado</label>
             <select
               id="status"
+              className="form-select"
               value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
-                handleFilterChange();
-              }}
-              style={{ ...inputStyle, cursor: "pointer" }}
+              onChange={(e) => { setStatus(e.target.value); handleFilterChange(); }}
             >
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </div>
-
-          <div style={{ flex: "0 0 auto" }}>
-            <button type="submit" style={{ ...buttonStyle(true), marginTop: 20 }}>
-              Buscar
-            </button>
+          <div>
+            <label className="form-label" style={{ visibility: "hidden" }}>.</label>
+            <button type="submit" className="btn btn-secondary">Buscar</button>
           </div>
         </div>
       </form>
 
-      {/* Error */}
-      {error && <div style={errorStyle}>{error}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
 
-      {/* Loading */}
-      {loading && <div style={{ marginBottom: 16, color: "#666" }}>Cargando...</div>}
-
-      {/* Table */}
-      {!loading && (
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "3rem" }}>
+          <div className="spinner" style={{ margin: "0 auto" }} />
+        </div>
+      ) : (
         <>
-          <div style={{ marginBottom: 8, fontSize: 13, color: "#666" }}>
-            {totalCount === 0
-              ? "Sin resultados"
-              : `${totalCount} misión${totalCount !== 1 ? "es" : ""} encontrada${totalCount !== 1 ? "s" : ""}`}
-          </div>
-
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Título</th>
-                <th style={thStyle}>Dificultad</th>
-                <th style={thStyle}>Tipo</th>
-                <th style={thStyle}>Estado</th>
-                <th style={thStyle}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={5} style={{ ...tdStyle, textAlign: "center", color: "#666" }}>
-                    No se encontraron misiones
-                  </td>
+                  <th>Título</th>
+                  <th>Dificultad</th>
+                  <th>Tipo</th>
+                  <th>Estado</th>
+                  {isAdmin && <th>Acciones</th>}
                 </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={item.id}>
-                    <td style={tdStyle}>{item.title}</td>
-                    <td style={tdStyle}>
-                      <span style={badgeStyle(difficultyBadgeColor(item.difficulty))}>
-                        {item.difficulty}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>{item.type}</td>
-                    <td style={tdStyle}>
-                      <span style={badgeStyle(statusBadgeColor(item.status))}>
-                        {item.status === "Active" ? "Activa" : item.status === "Draft" ? "Borrador" : item.status === "Inactive" ? "Inactiva" : item.status}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      {isAdmin && (
-                      <>
-                      <Link to={`/admin/misiones/${item.id}`} style={actionBtnStyle}>
-                        Ver
-                      </Link>
-                      <Link
-                        to={`/admin/misiones/${item.id}/editar`}
-                        style={{ ...actionBtnStyle, marginLeft: 8 }}
-                      >
-                        Editar
-                      </Link>
-                      <button
-                        onClick={async () => {
-                          const newStatus = item.status === "Active" ? "Inactive" : "Active";
-                          try {
-                            await changeMissionStatus(item.id, newStatus);
-                            loadMissions();
-                          } catch (e) {
-                            let msg = "Error al cambiar estado";
-                            if (e instanceof ApiError) {
-                              try { const j = JSON.parse(e.body); msg = j.message || j.error || e.body; } catch { msg = e.body; }
-                            }
-                            alert(msg);
-                          }
-                        }}
-                        style={{ ...actionBtnStyle, marginLeft: 8, backgroundColor: item.status === "Active" ? "#dc3545" : "#28a745" }}
-                      >
-                        {item.status === "Active" ? "Desactivar" : "Activar"}
-                      </button>
-                      </>
-                      )}
+              </thead>
+              <tbody>
+                {items.length === 0 ? (
+                  <tr>
+                    <td colSpan={isAdmin ? 5 : 4} style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
+                      No se encontraron misiones
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  items.map((item) => (
+                    <tr key={item.id}>
+                      <td style={{ fontWeight: 500 }}>{item.title}</td>
+                      <td>
+                        <span className={difficultyClass(item.difficulty)}>
+                          {DIFFICULTY_LABELS[item.difficulty] ?? item.difficulty}
+                        </span>
+                      </td>
+                      <td style={{ color: "var(--text-secondary)" }}>
+                        {TYPE_LABELS[item.type] ?? item.type}
+                      </td>
+                      <td>
+                        <span className={statusClass(item.status)}>
+                          {STATUS_LABELS[item.status] ?? item.status}
+                        </span>
+                      </td>
+                      {isAdmin && (
+                        <td>
+                          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                            <Link to={`/admin/misiones/${item.id}`} className="btn btn-ghost btn-sm">
+                              Ver
+                            </Link>
+                            <Link to={`/admin/misiones/${item.id}/editar`} className="btn btn-secondary btn-sm">
+                              Editar
+                            </Link>
+                            <button
+                              className={`btn btn-sm ${item.status === "Active" ? "btn-danger" : "btn-success"}`}
+                              onClick={async () => {
+                                const newStatus = item.status === "Active" ? "Inactive" : "Active";
+                                try {
+                                  await changeMissionStatus(item.id, newStatus);
+                                  loadMissions();
+                                } catch (e) {
+                                  let msg = "Error al cambiar estado";
+                                  if (e instanceof ApiError) {
+                                    try { const j = JSON.parse(e.body); msg = j.message || j.error || e.body; } catch { msg = e.body; }
+                                  }
+                                  alert(msg);
+                                }
+                              }}
+                            >
+                              {item.status === "Active" ? "Desactivar" : "Activar"}
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-          {/* Pagination */}
           {totalCount > 0 && (
-            <div style={paginationStyle}>
-              <span>
-                Página {page} de {totalPages || 1} — {pageSize} por página
-              </span>
-              <div style={{ display: "flex", gap: 8 }}>
+            <div className="pagination">
+              <span>Página {page} de {totalPages || 1}</span>
+              <div className="pagination-controls">
                 <button
-                  onClick={prevPage}
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setPage((p) => p - 1)}
                   disabled={page <= 1}
-                  style={buttonStyle(false)}
                 >
-                  Anterior
+                  ← Anterior
                 </button>
                 <button
-                  onClick={nextPage}
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setPage((p) => p + 1)}
                   disabled={page >= totalPages}
-                  style={buttonStyle(false)}
                 >
-                  Siguiente
+                  Siguiente →
                 </button>
               </div>
             </div>

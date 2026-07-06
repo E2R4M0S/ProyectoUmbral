@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -143,7 +143,7 @@ public class AdvanceStageEndpointTests
     }
 
     /// <summary>
-    /// Mirrors the body of AdvanceStageEndpoint.MapAdvanceStageEndpoint — keeps the test
+    /// Mirrors the body of AdvanceStageEndpoint.MapAdvanceStageEndpoint â€” keeps the test
     /// honest to the production logic without spinning up the WebApplicationFactory.
     /// </summary>
     private static async Task<IActionResult> SimulateEndpoint(
@@ -200,3 +200,4 @@ public class AdvanceStageEndpointTests
         }
     }
 }
+

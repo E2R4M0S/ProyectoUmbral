@@ -25,6 +25,9 @@ build/
 # ─── Docker ──────────────────────────────────────────────────
 docker-data/
 
+# ─── Graphify (grafo de código generado) ─────────────────────
+graphify-out/
+
 # ─── IDE ─────────────────────────────────────────────────────
 .vscode/
 .idea/

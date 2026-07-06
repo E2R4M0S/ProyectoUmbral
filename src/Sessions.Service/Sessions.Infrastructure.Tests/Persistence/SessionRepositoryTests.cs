@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Sessions.Domain.Entities;
 using Sessions.Domain.Enums;
@@ -346,3 +346,4 @@ public class SessionRepositoryTests
         saved!.SessionId.Should().Be(session.Id);
     }
 }
+

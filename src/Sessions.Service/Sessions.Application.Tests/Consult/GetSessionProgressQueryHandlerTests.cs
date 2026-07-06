@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using NSubstitute;
 using Sessions.Application.Common.Interfaces;
 using Sessions.Application.Sessions.Consult;
@@ -39,3 +39,4 @@ public class GetSessionProgressQueryHandlerTests
         result.Status.Should().Be(SessionStatus.Scheduled.ToString());
     }
 }
+

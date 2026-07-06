@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Sessions.Application.Sessions.Transition.Chain;
 using Sessions.Domain.Entities;
 using Sessions.Domain.Enums;

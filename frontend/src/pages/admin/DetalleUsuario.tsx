@@ -3,129 +3,42 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getUserById, ApiError } from "../../services/adminUsuariosApi";
 import type { UserDetailResponse } from "../../types/usuario";
 
-const containerStyle: React.CSSProperties = {
-  padding: "1rem",
-  maxWidth: 700,
-  margin: "0 auto",
-};
-
-const backButtonStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 6,
-  padding: "6px 14px",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 600,
-  backgroundColor: "#6c757d",
-  color: "#fff",
-  marginBottom: 16,
-};
-
-const cardStyle: React.CSSProperties = {
-  border: "1px solid #dee2e6",
-  borderRadius: 8,
-  padding: "24px",
-  backgroundColor: "#fff",
-};
-
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 16,
-  fontWeight: 700,
-  color: "#212529",
-  marginBottom: 16,
-  paddingBottom: 8,
-  borderBottom: "2px solid #dee2e6",
-};
-
-const rowStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  padding: "8px 0",
-  borderBottom: "1px solid #f8f9fa",
-  fontSize: 14,
-};
-
-const labelStyle: React.CSSProperties = {
-  fontWeight: 600,
-  color: "#495057",
-  flex: "0 0 140px",
-};
-
-const valueStyle: React.CSSProperties = {
-  color: "#212529",
-  wordBreak: "break-word",
-};
-
-const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block",
-  padding: "3px 10px",
-  borderRadius: 12,
-  fontSize: 12,
-  fontWeight: 600,
-  color: "#fff",
-  backgroundColor: color,
-});
-
-const enabledStyle = badgeStyle("#28a745");
-const disabledStyle = badgeStyle("#dc3545");
-const verifiedStyle = badgeStyle("#28a745");
-const unverifiedStyle = badgeStyle("#dc3545");
-
-const errorStyle: React.CSSProperties = {
-  padding: "12px 16px",
-  border: "1px solid #dc3545",
-  borderRadius: 4,
-  backgroundColor: "#fff5f5",
-  color: "#dc3545",
-  fontSize: 14,
-};
-
-const notFoundStyle: React.CSSProperties = {
-  textAlign: "center",
-  padding: "40px",
-  color: "#666",
-  fontSize: 16,
-};
-
 function formatDate(dateStr: string): string {
   if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("es-AR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+  return new Date(dateStr).toLocaleDateString("es-AR", {
+    day: "2-digit", month: "long", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
   });
+}
+
+function roleClass(r: string) {
+  if (r === "admin")       return "badge badge-admin";
+  if (r === "operator")    return "badge badge-operator";
+  if (r === "participant") return "badge badge-participant";
+  return "badge badge-muted";
 }
 
 export function DetalleUsuario() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [user, setUser] = useState<UserDetailResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [user, setUser]     = useState<UserDetailResponse | null>(null);
+  const [loading, setLoad]  = useState(true);
+  const [error, setError]   = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
-    setLoading(true);
+    setLoad(true);
     setError(null);
 
     getUserById(id)
-      .then(u => { if (!cancelled) { setUser(u); setLoading(false); } })
+      .then(u  => { if (!cancelled) { setUser(u); setLoad(false); } })
       .catch(err => {
         if (cancelled) return;
-        if (err instanceof ApiError) {
-          setError(`Error ${err.status}: No se pudo cargar el usuario.`);
-        } else {
-          setError("Error de conexión.");
-        }
-        setLoading(false);
+        setError(err instanceof ApiError
+          ? `Error ${err.status}: No se pudo cargar el usuario.`
+          : "Error de conexión.");
+        setLoad(false);
       });
 
     return () => { cancelled = true; };
@@ -133,106 +46,105 @@ export function DetalleUsuario() {
 
   if (loading) {
     return (
-      <div style={containerStyle}>
-        <div style={{ color: "#666", fontSize: 14 }}>Cargando perfil...</div>
+      <div className="page" style={{ textAlign: "center", paddingTop: "4rem" }}>
+        <div className="spinner" style={{ margin: "0 auto" }} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={containerStyle}>
-        <button style={backButtonStyle} onClick={() => navigate("/admin/usuarios")}>
+      <div className="page">
+        <button className="btn btn-secondary" style={{ marginBottom: "1rem" }} onClick={() => navigate(-1)}>
           ← Volver
         </button>
-        <div style={errorStyle}>{error}</div>
+        <div className="alert alert-error">{error}</div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div style={containerStyle}>
-        <button style={backButtonStyle} onClick={() => navigate("/admin/usuarios")}>
+      <div className="page">
+        <button className="btn btn-secondary" style={{ marginBottom: "1rem" }} onClick={() => navigate(-1)}>
           ← Volver
         </button>
-        <div style={notFoundStyle}>Usuario no encontrado</div>
+        <div className="empty-state">
+          <div className="empty-state-icon">👤</div>
+          <div className="empty-state-text">Usuario no encontrado</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={containerStyle}>
-      <button style={backButtonStyle} onClick={() => navigate("/admin/usuarios")}>
+    <div className="page" style={{ maxWidth: 700 }}>
+      <button className="btn btn-secondary btn-sm" style={{ marginBottom: "1.5rem" }} onClick={() => navigate(-1)}>
         ← Volver al listado
       </button>
 
-      <div style={cardStyle}>
-        <h2 style={{ marginBottom: 20, fontSize: 20, fontWeight: 700 }}>
-          Perfil de Usuario
-        </h2>
+      <div className="card">
+        <h2 className="card-title">Perfil de Usuario</h2>
 
-        {/* Basic Info */}
-        <div style={sectionTitleStyle}>Información General</div>
+        <p style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
+          Información General
+        </p>
 
-        <div style={rowStyle}>
-          <span style={labelStyle}>ID</span>
-          <span style={{ ...valueStyle, fontFamily: "monospace", fontSize: 12 }}>{user.id}</span>
+        <div className="detail-row">
+          <span className="detail-label">ID</span>
+          <span className="detail-value" style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem" }}>{user.id}</span>
         </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Nombre</span>
-          <span style={valueStyle}>{user.name}</span>
+        <div className="detail-row">
+          <span className="detail-label">Nombre</span>
+          <span className="detail-value">{user.name}</span>
         </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Email</span>
-          <span style={valueStyle}>{user.email}</span>
+        <div className="detail-row">
+          <span className="detail-label">Email</span>
+          <span className="detail-value">{user.email}</span>
         </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Email verificado</span>
-          <span style={valueStyle}>
-            <span style={user.emailVerified ? verifiedStyle : unverifiedStyle}>
-              {user.emailVerified ? "Sí" : "No"}
+        <div className="detail-row">
+          <span className="detail-label">Email verificado</span>
+          <span className="detail-value">
+            <span className={user.emailVerified ? "badge badge-success" : "badge badge-error"}>
+              {user.emailVerified ? "Verificado" : "Sin verificar"}
             </span>
           </span>
         </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Estado</span>
-          <span style={valueStyle}>
-            <span style={user.enabled ? enabledStyle : disabledStyle}>
+        <div className="detail-row">
+          <span className="detail-label">Estado</span>
+          <span className="detail-value">
+            <span className={user.enabled ? "badge badge-success" : "badge badge-error"}>
               {user.enabled ? "Activo" : "Inactivo"}
             </span>
           </span>
         </div>
-        <div style={{ ...rowStyle, borderBottom: "none" }}>
-          <span style={labelStyle}>Fecha de creación</span>
-          <span style={valueStyle}>{formatDate(user.createdAt)}</span>
+        <div className="detail-row">
+          <span className="detail-label">Creación</span>
+          <span className="detail-value">{formatDate(user.createdAt)}</span>
         </div>
 
-        {/* Roles */}
-        <div style={{ ...sectionTitleStyle, marginTop: 24 }}>Roles</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <p style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: "var(--text-muted)", marginTop: "1.5rem", marginBottom: "0.75rem", borderTop: "1px solid var(--border)", paddingTop: "1.25rem" }}>
+          Roles
+        </p>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           {user.roles.length === 0 ? (
-            <span style={{ color: "#666", fontSize: 14 }}>Sin roles asignados</span>
+            <span style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>Sin roles asignados</span>
           ) : (
             user.roles.map(r => (
-              <span
-                key={r}
-                style={badgeStyle(r === "admin" ? "#6610f2" : r === "operator" ? "#17a2b8" : "#28a745")}
-              >
-                {r}
-              </span>
+              <span key={r} className={roleClass(r)}>{r}</span>
             ))
           )}
         </div>
 
-        {/* Attributes */}
         {user.attributes && Object.keys(user.attributes).length > 0 && (
           <>
-            <div style={{ ...sectionTitleStyle, marginTop: 24 }}>Atributos</div>
+            <p style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: "var(--text-muted)", marginTop: "1.5rem", marginBottom: "0.75rem", borderTop: "1px solid var(--border)", paddingTop: "1.25rem" }}>
+              Atributos
+            </p>
             {Object.entries(user.attributes).map(([key, values]) => (
-              <div key={key} style={rowStyle}>
-                <span style={labelStyle}>{key}</span>
-                <span style={valueStyle}>{values.join(", ") || "—"}</span>
+              <div className="detail-row" key={key}>
+                <span className="detail-label">{key}</span>
+                <span className="detail-value">{values.join(", ") || "—"}</span>
               </div>
             ))}
           </>

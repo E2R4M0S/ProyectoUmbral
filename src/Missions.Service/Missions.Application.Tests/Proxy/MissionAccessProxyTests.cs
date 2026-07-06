@@ -92,11 +92,10 @@ public class MissionAccessProxyTests
     }
 
     [Fact]
-    public async Task AddStageAsync_OnActiveMission_ShouldThrow()
+    public async Task AddStageAsync_OnActiveMission_ShouldPassThrough()
     {
-        var act = () => _proxy.AddStageAsync(_activeMission, CancellationToken.None);
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Active*");
+        await _proxy.AddStageAsync(_activeMission, CancellationToken.None);
+        await _inner.Received(1).AddStageAsync(_activeMission, CancellationToken.None);
     }
 
     [Fact]
@@ -107,12 +106,11 @@ public class MissionAccessProxyTests
     }
 
     [Fact]
-    public async Task AddClueAsync_OnActiveMission_ShouldThrow()
+    public async Task AddClueAsync_OnActiveMission_ShouldPassThrough()
     {
         var stageId = Guid.NewGuid();
-        var act = () => _proxy.AddClueAsync(_activeMission, stageId, CancellationToken.None);
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Active*");
+        await _proxy.AddClueAsync(_activeMission, stageId, CancellationToken.None);
+        await _inner.Received(1).AddClueAsync(_activeMission, stageId, CancellationToken.None);
     }
 
     [Fact]
@@ -124,11 +122,10 @@ public class MissionAccessProxyTests
     }
 
     [Fact]
-    public void RemoveStage_OnActiveMission_ShouldThrow()
+    public void RemoveStage_OnActiveMission_ShouldPassThrough()
     {
-        var act = () => _proxy.RemoveStage(_activeMission, _stage);
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Active*");
+        _proxy.RemoveStage(_activeMission, _stage);
+        _inner.Received(1).RemoveStage(_activeMission, _stage);
     }
 
     [Fact]

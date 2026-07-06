@@ -1,0 +1,106 @@
+using FluentAssertions;
+using FluentValidation;
+using FluentValidation.Results;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using NSubstitute;
+using Sessions.Application.Common.Interfaces;
+using Xunit;
+
+namespace Sessions.Api.Tests.Endpoints;
+
+public class FinishSessionEndpointTests
+{
+    private readonly IGameSessionFacade _facade = Substitute.For<IGameSessionFacade>();
+    private readonly ILogger<Program> _logger = Substitute.For<ILogger<Program>>();
+
+    [Fact]
+    public async Task FinishSession_ActiveSession_ReturnsOk()
+    {
+        var id = Guid.NewGuid();
+        _facade.TransitionAndNotify(id, "Finished", Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var result = await SimulateEndpoint(id);
+
+        result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().BeEquivalentTo(new { id, status = "Finished" });
+    }
+
+    [Fact]
+    public async Task FinishSession_SessionNotFound_ReturnsNotFound()
+    {
+        var id = Guid.NewGuid();
+        _facade.TransitionAndNotify(id, "Finished", Arg.Any<CancellationToken>())
+            .Returns(_ => throw new InvalidOperationException($"Session with id '{id}' not found"));
+
+        var result = await SimulateEndpoint(id);
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task FinishSession_InvalidTransition_ReturnsBadRequest()
+    {
+        var id = Guid.NewGuid();
+        _facade.TransitionAndNotify(id, "Finished", Arg.Any<CancellationToken>())
+            .Returns(_ => throw new InvalidOperationException("Cannot transition from Scheduled to Finished"));
+
+        var result = await SimulateEndpoint(id);
+
+        result.Should().BeOfType<BadRequestObjectResult>()
+            .Which.Value.Should().BeEquivalentTo(new { error = "Cannot finish session", message = "Cannot transition from Scheduled to Finished" });
+    }
+
+    [Fact]
+    public async Task FinishSession_ValidationFailure_ReturnsBadRequest()
+    {
+        var id = Guid.NewGuid();
+        var failures = new[] { new ValidationFailure("Status", "Invalid status") };
+        _facade.TransitionAndNotify(id, "Finished", Arg.Any<CancellationToken>())
+            .Returns(_ => throw new ValidationException(failures));
+
+        var result = await SimulateEndpoint(id);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task FinishSession_UnexpectedException_ReturnsProblem()
+    {
+        var id = Guid.NewGuid();
+        _facade.TransitionAndNotify(id, "Finished", Arg.Any<CancellationToken>())
+            .Returns(_ => throw new Exception("Unexpected error"));
+
+        var result = await SimulateEndpoint(id);
+
+        result.Should().BeOfType<ObjectResult>()
+            .Which.StatusCode.Should().Be(500);
+    }
+
+    private async Task<IActionResult> SimulateEndpoint(Guid id)
+    {
+        try
+        {
+            await _facade.TransitionAndNotify(id, "Finished");
+            return new OkObjectResult(new { id, status = "Finished" });
+        }
+        catch (ValidationException ex)
+        {
+            return new BadRequestObjectResult(new { error = "Validation failed", details = ex.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage }) });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        {
+            return new NotFoundObjectResult(new { error = "Not Found", message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new BadRequestObjectResult(new { error = "Cannot finish session", message = ex.Message });
+        }
+        catch (Exception)
+        {
+            return new ObjectResult(new { statusCode = 500, title = "Session finish failed" }) { StatusCode = 500 };
+        }
+    }
+}
