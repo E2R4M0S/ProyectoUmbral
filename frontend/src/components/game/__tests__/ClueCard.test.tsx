@@ -1,5 +1,6 @@
 import React from "react";
-import { describe, it, test, expect } from "vitest";
+import { describe, it, test, expect, vi } from "vitest";
+import { act } from "@testing-library/react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ClueCard } from "../ClueCard";
 
@@ -58,13 +59,15 @@ describe("ClueCard", () => {
     const buttonB = screen.getByText("Opción B");
 
     fireEvent.click(buttonA);
-    expect(buttonA).toHaveClass("bg-sky-600");
+    expect(buttonA).toHaveClass("selected");
 
-    const ev = new CustomEvent("QuestionClosed", { detail: { questionId: "q1", correctAnswerId: "b" } });
-    window.dispatchEvent(ev);
+    act(() => {
+      const ev = new CustomEvent("QuestionClosed", { detail: { questionId: "q1", correctAnswerId: "b" } });
+      window.dispatchEvent(ev);
+    });
 
-    expect(buttonB).toHaveClass("bg-green-600");
-    expect(buttonA).toHaveClass("bg-red-600");
+    expect(buttonB).toHaveClass("correct");
+    expect(buttonA).toHaveClass("wrong");
     expect(screen.getByText(/Error|¡Acierto!/)).toBeInTheDocument();
   });
 });

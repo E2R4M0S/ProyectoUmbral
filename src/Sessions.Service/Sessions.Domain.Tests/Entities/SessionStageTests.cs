@@ -9,52 +9,30 @@ public class SessionStageTests
     [Fact]
     public void Create_WithValidInputs_ShouldSetAllProperties()
     {
-        // Arrange
         var missionId = Guid.NewGuid();
-        var missionStageId = Guid.NewGuid();
-        var qrToken = Guid.NewGuid().ToString("N");
 
-        // Act
-        var stage = SessionStage.Create(missionId, missionStageId, "Trivia Facil", "Trivia", 1, qrToken);
+        var stage = SessionStage.Create(missionId, "Trivia Fácil", "Trivia", 1);
 
-        // Assert
         stage.MissionId.Should().Be(missionId);
-        stage.MissionStageId.Should().Be(missionStageId);
-        stage.MissionTitle.Should().Be("Trivia Facil");
+        stage.MissionTitle.Should().Be("Trivia Fácil");
         stage.MissionType.Should().Be("Trivia");
         stage.Order.Should().Be(1);
-        stage.QrToken.Should().Be(qrToken);
     }
 
     [Fact]
     public void Create_WithEmptyMissionId_ShouldThrow()
     {
-        // Act
-        Action act = () => SessionStage.Create(Guid.Empty, Guid.NewGuid(), "Title", "Trivia", 1, Guid.NewGuid().ToString("N"));
+        Action act = () => SessionStage.Create(Guid.Empty, "Title", "Trivia", 1);
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*MissionId*");
     }
 
     [Fact]
-    public void Create_WithEmptyMissionStageId_ShouldThrow()
-    {
-        // Act
-        Action act = () => SessionStage.Create(Guid.NewGuid(), Guid.Empty, "Title", "Trivia", 1, Guid.NewGuid().ToString("N"));
-
-        // Assert
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*MissionStageId*");
-    }
-
-    [Fact]
     public void Create_WithEmptyMissionTitle_ShouldThrow()
     {
-        // Act
-        Action act = () => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "", "Trivia", 1, Guid.NewGuid().ToString("N"));
+        Action act = () => SessionStage.Create(Guid.NewGuid(), "", "Trivia", 1);
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*MissionTitle*");
     }
@@ -62,10 +40,8 @@ public class SessionStageTests
     [Fact]
     public void Create_WithWhitespaceMissionTitle_ShouldThrow()
     {
-        // Act
-        Action act = () => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "   ", "Trivia", 1, Guid.NewGuid().ToString("N"));
+        Action act = () => SessionStage.Create(Guid.NewGuid(), "   ", "Trivia", 1);
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*MissionTitle*");
     }
@@ -73,66 +49,54 @@ public class SessionStageTests
     [Fact]
     public void Create_WithEmptyMissionType_ShouldThrow()
     {
-        // Act
-        Action act = () => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Title", "", 1, Guid.NewGuid().ToString("N"));
+        Action act = () => SessionStage.Create(Guid.NewGuid(), "Title", "", 1);
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*MissionType*");
     }
 
     [Fact]
-    public void Create_WithNonPositiveOrder_ShouldThrow()
+    public void Create_WithOrderZero_ShouldThrow()
     {
-        // Act
-        Action act = () => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Title", "Trivia", 0, Guid.NewGuid().ToString("N"));
+        Action act = () => SessionStage.Create(Guid.NewGuid(), "Title", "Trivia", 0);
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*Order*");
     }
 
     [Fact]
-    public void Create_WithEmptyQrToken_ShouldThrow()
+    public void Create_WithNegativeOrder_ShouldThrow()
     {
-        // Act
-        Action act = () => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Title", "Trivia", 1, "");
+        Action act = () => SessionStage.Create(Guid.NewGuid(), "Title", "Trivia", -1);
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*QrToken*");
+            .WithMessage("*Order*");
     }
 
     [Fact]
     public void Create_ShouldTrimTitleWhitespace()
     {
-        // Act
-        var stage = SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "  Treasure Hunt  ", "Treasure", 2, Guid.NewGuid().ToString("N"));
+        var stage = SessionStage.Create(Guid.NewGuid(), "  Treasure Hunt  ", "Treasure", 2);
 
-        // Assert
         stage.MissionTitle.Should().Be("Treasure Hunt");
     }
 
     [Fact]
-    public void ValidateQrToken_WithMatchingIds_ShouldReturnTrue()
+    public void Create_WithTreasureType_ShouldSucceed()
     {
-        // Arrange
-        var missionStageId = Guid.NewGuid();
-        var qrToken = Guid.NewGuid().ToString("N");
-        var stage = SessionStage.Create(Guid.NewGuid(), missionStageId, "Title", "Trivia", 1, qrToken);
+        var stage = SessionStage.Create(Guid.NewGuid(), "Treasure Mission", "Treasure", 3);
 
-        // Act & Assert
-        stage.ValidateQrToken(missionStageId, qrToken).Should().BeTrue();
+        stage.MissionType.Should().Be("Treasure");
+        stage.Order.Should().Be(3);
     }
 
     [Fact]
-    public void ValidateQrToken_WithWrongToken_ShouldReturnFalse()
+    public void Create_MultipleStages_AllHaveCorrectOrder()
     {
-        // Arrange
-        var missionStageId = Guid.NewGuid();
-        var stage = SessionStage.Create(Guid.NewGuid(), missionStageId, "Title", "Trivia", 1, Guid.NewGuid().ToString("N"));
+        var stages = Enumerable.Range(1, 5)
+            .Select(i => SessionStage.Create(Guid.NewGuid(), $"Mission {i}", "Trivia", i))
+            .ToList();
 
-        // Act & Assert
-        stage.ValidateQrToken(missionStageId, "wrongtoken").Should().BeFalse();
+        stages.Select(s => s.Order).Should().BeEquivalentTo([1, 2, 3, 4, 5]);
     }
 }

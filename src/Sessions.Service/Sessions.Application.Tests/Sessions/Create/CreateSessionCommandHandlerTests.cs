@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Sessions.Application.Common.Interfaces;
@@ -23,15 +23,15 @@ public class CreateSessionCommandHandlerTests
     private static CreateSessionCommand SingleStageCommand(string name = "Test Session")
         => new(name, new List<StageInput>
         {
-            new(Guid.NewGuid(), Guid.NewGuid(), "Trivia Facil", "Trivia", 1, Guid.NewGuid().ToString("N"))
+            new(Guid.NewGuid(), "Trivia Facil", "Trivia", 1)
         });
 
     private static CreateSessionCommand MultiStageCommand(string name = "Multi Session")
         => new(name, new List<StageInput>
         {
-            new(Guid.NewGuid(), Guid.NewGuid(), "Trivia A", "Trivia", 1, Guid.NewGuid().ToString("N")),
-            new(Guid.NewGuid(), Guid.NewGuid(), "Búsqueda Pirata", "Treasure", 2, Guid.NewGuid().ToString("N")),
-            new(Guid.NewGuid(), Guid.NewGuid(), "Trivia C", "Trivia", 3, Guid.NewGuid().ToString("N"))
+            new(Guid.NewGuid(), "Trivia A", "Trivia", 1),
+            new(Guid.NewGuid(), "BÃºsqueda Pirata", "Treasure", 2),
+            new(Guid.NewGuid(), "Trivia C", "Trivia", 3)
         });
 
     [Fact]
@@ -85,7 +85,7 @@ public class CreateSessionCommandHandlerTests
         var existing = Session.Create(
             "Existing",
             "999999",
-            new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M", "Trivia", 1, Guid.NewGuid().ToString("N")) });
+            new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "M", "Trivia", 1) });
         _repository.GetByNameAsync("Existing", Arg.Any<CancellationToken>()).Returns(existing);
 
         Func<Task> act = async () => await _sut.Handle(command, CancellationToken.None);
@@ -131,8 +131,8 @@ public class CreateSessionCommandHandlerTests
             "Mapping Test",
             new List<StageInput>
             {
-                new(missionId1, Guid.NewGuid(), "Trivia Facil", "Trivia", 1, Guid.NewGuid().ToString("N")),
-                new(missionId2, Guid.NewGuid(), "Busqueda", "Treasure", 2, Guid.NewGuid().ToString("N"))
+                new(missionId1, "Trivia Facil", "Trivia", 1),
+                new(missionId2, "Busqueda", "Treasure", 2)
             });
 
         Session? captured = null;
@@ -153,3 +153,5 @@ public class CreateSessionCommandHandlerTests
         captured.Stages[1].MissionType.Should().Be("Treasure");
     }
 }
+
+

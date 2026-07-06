@@ -10,7 +10,7 @@ public class SessionEntityTests
     [Fact]
     public void Create_ShouldInitializeCorrectly()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
 
         session.Name.Should().Be("Test");
         session.Pin.Should().Be("123456");
@@ -21,7 +21,7 @@ public class SessionEntityTests
     [Fact]
     public void TransitionTo_ValidTransition_ShouldSucceed()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
         session.TransitionTo(SessionStatus.Preparing);
         session.Status.Should().Be(SessionStatus.Preparing);
     }
@@ -29,7 +29,7 @@ public class SessionEntityTests
     [Fact]
     public void TransitionTo_SameStatus_ShouldThrow()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
         var act = () => session.TransitionTo(SessionStatus.Scheduled);
         act.Should().Throw<InvalidOperationException>().WithMessage("*already in*");
     }
@@ -37,7 +37,7 @@ public class SessionEntityTests
     [Fact]
     public void AddParticipant_WhenPreparing_ShouldAdd()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
         session.TransitionTo(SessionStatus.Preparing);
         var userId = Guid.NewGuid();
         session.AddParticipant(userId);
@@ -48,7 +48,7 @@ public class SessionEntityTests
     [Fact]
     public void AddParticipant_WhenScheduled_ShouldThrow()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
         var act = () => session.AddParticipant(Guid.NewGuid());
         act.Should().Throw<InvalidOperationException>();
     }
@@ -56,7 +56,7 @@ public class SessionEntityTests
     [Fact]
     public void AddParticipant_Duplicate_ShouldThrow()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
         session.TransitionTo(SessionStatus.Preparing);
         var userId = Guid.NewGuid();
         session.AddParticipant(userId);
@@ -83,3 +83,4 @@ public class SessionEntityTests
         participant.UserAlias.Should().Be("erosd");
     }
 }
+

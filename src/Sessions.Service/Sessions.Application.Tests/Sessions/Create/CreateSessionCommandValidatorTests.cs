@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using FluentValidation.TestHelper;
 using Sessions.Application.Sessions.Create;
 using Xunit;
@@ -10,7 +10,7 @@ public class CreateSessionCommandValidatorTests
     private readonly CreateSessionCommandValidator _sut = new();
 
     private static StageInput ValidStage(int order = 1, Guid? missionId = null)
-        => new(missionId ?? Guid.NewGuid(), Guid.NewGuid(), "Trivia Facil", "Trivia", order, Guid.NewGuid().ToString("N"));
+        => new(missionId ?? Guid.NewGuid(), "Trivia Facil", "Trivia", order);
 
     [Fact]
     public void Validate_ValidCommand_ShouldPass()
@@ -92,7 +92,7 @@ public class CreateSessionCommandValidatorTests
     {
         var command = new CreateSessionCommand(
             "Test Session",
-            new List<StageInput> { new(Guid.NewGuid(), Guid.NewGuid(), "Title", "", 1, Guid.NewGuid().ToString("N")) });
+            new List<StageInput> { new(Guid.NewGuid(), "Title", "", 1) });
 
         var result = _sut.TestValidate(command);
 
@@ -140,7 +140,7 @@ public class CreateSessionCommandValidatorTests
             "Test Session",
             new List<StageInput>
             {
-                new(Guid.NewGuid(), Guid.NewGuid(), "Title", "Trivia", 0, Guid.NewGuid().ToString("N"))
+                new(Guid.NewGuid(), "Title", "Trivia", 0)
             });
 
         var result = _sut.TestValidate(command);
@@ -161,3 +161,4 @@ public class CreateSessionCommandValidatorTests
         result.IsValid.Should().BeTrue();
     }
 }
+

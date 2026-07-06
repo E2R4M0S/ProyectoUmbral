@@ -13,7 +13,7 @@ public class NotTerminalHandlerTests
     {
         // Arrange
         var handler = new NotTerminalHandler();
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
 
         // Act
         var act = () => handler.Handle(session, "Active");
@@ -31,7 +31,7 @@ public class NotTerminalHandlerTests
     {
         // Arrange
         var handler = new NotTerminalHandler();
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
         SetSessionStatus(session, currentStatus);
 
         // Act
@@ -48,7 +48,7 @@ public class NotTerminalHandlerTests
     {
         // Arrange
         var handler = new NotTerminalHandler();
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
         SetSessionStatus(session, terminalStatus);
 
         // Act
