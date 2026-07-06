@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -24,7 +24,7 @@ public class AdvanceStageEndpointTests
     private static Session CreateActiveSessionWithStages(int stageCount)
     {
         var stages = Enumerable.Range(1, stageCount)
-            .Select(i => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), $"M{i}", "Trivia", i, Guid.NewGuid().ToString("N")))
+            .Select(i => SessionStage.Create(Guid.NewGuid(), $"M{i}", "Trivia", i))
             .ToList();
         var session = Session.Create("Test", "123456", stages);
         session.TransitionTo(SessionStatus.Preparing);
@@ -97,8 +97,8 @@ public class AdvanceStageEndpointTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, Guid.NewGuid().ToString("N")),
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Treasure", 2, Guid.NewGuid().ToString("N"))
+            SessionStage.Create(Guid.NewGuid(), "M1", "Trivia", 1),
+            SessionStage.Create(Guid.NewGuid(), "M2", "Treasure", 2)
         };
         var session = Session.Create("Test", "123456", stages);
         // session is Scheduled (no transitions)
@@ -123,8 +123,8 @@ public class AdvanceStageEndpointTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, Guid.NewGuid().ToString("N")),
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Treasure", 2, Guid.NewGuid().ToString("N"))
+            SessionStage.Create(Guid.NewGuid(), "M1", "Trivia", 1),
+            SessionStage.Create(Guid.NewGuid(), "M2", "Treasure", 2)
         };
         var session = Session.Create("Test", "123456", stages);
         session.TransitionTo(SessionStatus.Preparing);
@@ -143,7 +143,7 @@ public class AdvanceStageEndpointTests
     }
 
     /// <summary>
-    /// Mirrors the body of AdvanceStageEndpoint.MapAdvanceStageEndpoint — keeps the test
+    /// Mirrors the body of AdvanceStageEndpoint.MapAdvanceStageEndpoint â€” keeps the test
     /// honest to the production logic without spinning up the WebApplicationFactory.
     /// </summary>
     private static async Task<IActionResult> SimulateEndpoint(
@@ -200,3 +200,4 @@ public class AdvanceStageEndpointTests
         }
     }
 }
+
