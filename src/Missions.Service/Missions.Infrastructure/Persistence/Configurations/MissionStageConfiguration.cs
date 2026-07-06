@@ -23,6 +23,16 @@ public class MissionStageConfiguration : IEntityTypeConfiguration<MissionStage>
         builder.Property(s => s.Order)
             .IsRequired();
 
+        builder.Property(s => s.QrToken)
+            .HasMaxLength(32)
+            .IsRequired();
+
+        builder.Property(s => s.Latitude)
+            .IsRequired(false);
+
+        builder.Property(s => s.Longitude)
+            .IsRequired(false);
+
         builder.HasIndex(s => new { s.MissionId, s.Order })
             .IsUnique();
 

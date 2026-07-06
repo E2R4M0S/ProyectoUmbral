@@ -8,6 +8,10 @@ public record CreateSessionCommand(
 
 public record StageInput(
     Guid MissionId,
+    Guid MissionStageId,
     string MissionTitle,
     string MissionType,
-    int Order);
+    int Order,
+    string QrToken,
+    double? Latitude = null,
+    double? Longitude = null);

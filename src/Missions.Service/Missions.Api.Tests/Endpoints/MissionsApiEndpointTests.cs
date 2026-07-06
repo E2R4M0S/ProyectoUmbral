@@ -72,7 +72,7 @@ public class MissionsApiEndpointTests
     {
         var missionId = Guid.NewGuid();
         var command = new CreateStageCommand(missionId, "Stage 1", "First stage", 1);
-        var cmdResult = new CreateStageCommandResult(Guid.NewGuid(), "Stage 1", "First stage", 1);
+        var cmdResult = new CreateStageCommandResult(Guid.NewGuid(), "Stage 1", "First stage", 1, Guid.NewGuid().ToString("N"), null, null);
         _mediator.Send(command, Arg.Any<CancellationToken>()).Returns(Task.FromResult(cmdResult));
 
         await Simulate(() => _mediator.Send(command));

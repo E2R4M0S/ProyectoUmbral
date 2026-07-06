@@ -33,7 +33,15 @@ public class CreateSessionCommandHandler
         var pin = await GenerateUniquePinAsync(ct);
 
         var stages = command.Stages
-            .Select(s => SessionStage.Create(s.MissionId, s.MissionTitle, s.MissionType, s.Order))
+            .Select(s => SessionStage.Create(
+                s.MissionId,
+                s.MissionStageId,
+                s.MissionTitle,
+                s.MissionType,
+                s.Order,
+                s.QrToken,
+                s.Latitude,
+                s.Longitude))
             .ToList();
 
         var session = Session.Create(command.Name, pin, stages);

@@ -92,6 +92,7 @@ try
     app.MapFinishSessionEndpoint();
     app.MapGetSessionProgressEndpoint();
     app.MapReleaseClueEndpoint();
+    app.MapValidateQrEndpoint();
 
     app.Run();
 }
