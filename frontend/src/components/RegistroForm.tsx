@@ -138,7 +138,7 @@ export function RegistroForm({ onSuccess }: RegistroFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ maxWidth: 400, margin: "0 auto" }}>
+    <form onSubmit={handleSubmit} noValidate style={{ maxWidth: 400, margin: "0 auto" }}>
       {/* Error general */}
       {submitError && (
         <div
