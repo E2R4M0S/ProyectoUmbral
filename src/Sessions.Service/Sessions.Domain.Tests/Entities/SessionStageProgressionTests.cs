@@ -10,7 +10,7 @@ public class SessionStageProgressionTests
     private static Session CreateWithStages(int stageCount)
     {
         var stages = Enumerable.Range(1, stageCount)
-            .Select(i => SessionStage.Create(Guid.NewGuid(), $"Mission {i}", "Trivia", i))
+            .Select(i => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), $"Mission {i}", "Trivia", i, Guid.NewGuid().ToString("N")))
             .ToList();
         return Session.Create("Test Session", "123456", stages);
     }
@@ -136,8 +136,8 @@ public class SessionStageProgressionTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), "M1", "Trivia", 1),
-            SessionStage.Create(Guid.NewGuid(), "M2", "Treasure", 1), // duplicate order
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, Guid.NewGuid().ToString("N")),
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Treasure", 1, Guid.NewGuid().ToString("N")), // duplicate order
         };
 
         // Act
@@ -154,8 +154,8 @@ public class SessionStageProgressionTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), "M1", "Trivia", 1),
-            SessionStage.Create(Guid.NewGuid(), "M2", "Treasure", 3), // missing 2
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, Guid.NewGuid().ToString("N")),
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Treasure", 3, Guid.NewGuid().ToString("N")), // missing 2
         };
 
         // Act
@@ -172,7 +172,7 @@ public class SessionStageProgressionTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), "Solo", "Trivia", 1)
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Solo", "Trivia", 1, Guid.NewGuid().ToString("N"))
         };
 
         // Act

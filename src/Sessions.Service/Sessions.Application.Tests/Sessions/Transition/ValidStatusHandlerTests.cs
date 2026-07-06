@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Sessions.Application.Sessions.Transition.Chain;
 using Sessions.Domain.Entities;
 using Sessions.Domain.Enums;
@@ -13,7 +13,7 @@ public class ValidStatusHandlerTests
     {
         // Arrange
         var handler = new ValidStatusHandler();
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
 
         // Act
         var act = () => handler.Handle(session, "Active");
@@ -33,7 +33,7 @@ public class ValidStatusHandlerTests
     {
         // Arrange
         var handler = new ValidStatusHandler();
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
 
         // Act
         var act = () => handler.Handle(session, status);
@@ -51,7 +51,7 @@ public class ValidStatusHandlerTests
     {
         // Arrange
         var handler = new ValidStatusHandler();
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
 
         // Act
         var act = () => handler.Handle(session, invalidStatus);
@@ -66,7 +66,7 @@ public class ValidStatusHandlerTests
     {
         // Arrange
         var handler = new ValidStatusHandler();
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
 
         // Act
         var act = () => handler.Handle(session, "active");

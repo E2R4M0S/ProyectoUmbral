@@ -38,7 +38,11 @@ function Home() {
   const auth = useAuth();
 
   if (auth.isLoading) {
-    return <div style={{ padding: "2rem", textAlign: "center" }}>Cargando...</div>;
+    return (
+      <div className="landing">
+        <div className="spinner" />
+      </div>
+    );
   }
 
   if (auth.isAuthenticated) {
@@ -49,27 +53,18 @@ function Home() {
   }
 
   return (
-    <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center",
-      justifyContent: "center", height: "100vh", fontFamily: "sans-serif",
-      backgroundColor: "#1a1a2e", color: "white"
-    }}>
-      <h1 style={{ fontSize: "3rem", marginBottom: "0.5rem" }}>UMBRAL</h1>
-      <p style={{ fontSize: "1.2rem", color: "#aaa", marginBottom: "2rem" }}>
+    <div className="landing">
+      <div className="landing-logo">U</div>
+      <h1 className="landing-title">UMBRAL</h1>
+      <p className="landing-subtitle">
         Plataforma de experiencias de investigación inmersiva
       </p>
-      <button onClick={() => auth.signinRedirect()} style={{
-        padding: "12px 32px", backgroundColor: "#e94560", color: "white",
-        border: "none", borderRadius: "8px", fontSize: "1.1rem",
-        fontWeight: "bold", cursor: "pointer"
-      }}>
+      <button className="btn btn-primary btn-lg" onClick={() => auth.signinRedirect()}>
         Iniciar Sesión
       </button>
-      <p style={{ marginTop: "1.5rem", fontSize: 14 }}>
+      <p style={{ marginTop: "1.5rem", fontSize: "0.875rem", color: "var(--text-muted)" }}>
         ¿No tenés cuenta?{" "}
-        <Link to="/registro" style={{ color: "#e94560", fontWeight: 600 }}>
-          Registrate
-        </Link>
+        <Link to="/registro">Registrate</Link>
       </p>
     </div>
   );
@@ -108,9 +103,14 @@ function Sidebar({ children, role }: { children: React.ReactNode; role: string }
     }
   }, [isOpen, close]);
 
+  const displayName = auth.user?.profile?.name
+    ?? auth.user?.profile?.preferred_username
+    ?? auth.user?.profile?.email
+    ?? "Usuario";
+
   return (
-    <div className="sidebar-layout" style={{ fontFamily: "sans-serif" }}>
-      {/* Hamburger button — mobile only */}
+    <div className="sidebar-layout">
+      {/* Hamburger — mobile only */}
       <button
         className="hamburger-btn"
         onClick={() => setIsOpen((v) => !v)}
@@ -119,25 +119,27 @@ function Sidebar({ children, role }: { children: React.ReactNode; role: string }
         {isOpen ? "✕" : "☰"}
       </button>
 
-      {/* Overlay behind sidebar on mobile */}
+      {/* Overlay */}
       <div
         className={`sidebar-overlay${isOpen ? " open" : ""}`}
         onClick={close}
       />
 
-      {/* Sidebar panel */}
+      {/* Sidebar */}
       <div ref={sidebarRef} className={`sidebar${isOpen ? " open" : ""}`}>
         <div className="sidebar-header">
-          <h2>UMBRAL</h2>
-          <p className="user-name">
-            {auth.user?.profile?.name ?? auth.user?.profile?.preferred_username ?? auth.user?.profile?.email}
-          </p>
-          <p className="user-role">{role}</p>
+          <div className="sidebar-brand">
+            <div className="sidebar-brand-icon">U</div>
+            <span className="sidebar-brand-name">UMBRAL</span>
+          </div>
+          <div className="sidebar-user">
+            <div className="sidebar-user-name">{displayName}</div>
+            <div className="sidebar-user-role">{role}</div>
+          </div>
         </div>
-        {/* Wrap links to close sidebar on click */}
-        <div onClick={close}>
+        <nav className="sidebar-nav" onClick={close}>
           {children}
-        </div>
+        </nav>
         <div className="sidebar-footer">
           <button onClick={() => auth.signoutRedirect()} className="sidebar-logout">
             Cerrar Sesión

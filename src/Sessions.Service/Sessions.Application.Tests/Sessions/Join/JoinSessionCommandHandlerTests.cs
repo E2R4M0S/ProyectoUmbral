@@ -154,7 +154,7 @@ public class JoinSessionCommandHandlerTests
 
     private static Session CreateSessionWithStatus(SessionStatus status)
     {
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, Guid.NewGuid().ToString("N")) });
         var statusProperty = typeof(Session).GetProperty("Status")!;
         statusProperty.SetValue(session, status);
         return session;

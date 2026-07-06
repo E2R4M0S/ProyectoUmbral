@@ -24,7 +24,7 @@ public class AdvanceStageEndpointTests
     private static Session CreateActiveSessionWithStages(int stageCount)
     {
         var stages = Enumerable.Range(1, stageCount)
-            .Select(i => SessionStage.Create(Guid.NewGuid(), $"M{i}", "Trivia", i))
+            .Select(i => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), $"M{i}", "Trivia", i, Guid.NewGuid().ToString("N")))
             .ToList();
         var session = Session.Create("Test", "123456", stages);
         session.TransitionTo(SessionStatus.Preparing);
@@ -97,8 +97,8 @@ public class AdvanceStageEndpointTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), "M1", "Trivia", 1),
-            SessionStage.Create(Guid.NewGuid(), "M2", "Treasure", 2)
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, Guid.NewGuid().ToString("N")),
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Treasure", 2, Guid.NewGuid().ToString("N"))
         };
         var session = Session.Create("Test", "123456", stages);
         // session is Scheduled (no transitions)
@@ -123,8 +123,8 @@ public class AdvanceStageEndpointTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), "M1", "Trivia", 1),
-            SessionStage.Create(Guid.NewGuid(), "M2", "Treasure", 2)
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, Guid.NewGuid().ToString("N")),
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Treasure", 2, Guid.NewGuid().ToString("N"))
         };
         var session = Session.Create("Test", "123456", stages);
         session.TransitionTo(SessionStatus.Preparing);
