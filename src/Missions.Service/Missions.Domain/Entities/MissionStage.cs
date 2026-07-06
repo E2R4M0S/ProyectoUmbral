@@ -9,6 +9,9 @@ public class MissionStage : IMissionComponent
     public string Name { get; private set; } = null!;
     public string Description { get; private set; } = null!;
     public int Order { get; private set; }
+    public string QrToken { get; private set; } = null!;
+    public double? Latitude { get; private set; }
+    public double? Longitude { get; private set; }
 
     public Mission Mission { get; private set; } = null!;
 
@@ -17,20 +20,25 @@ public class MissionStage : IMissionComponent
 
     private MissionStage() { } // EF Core
 
-    internal void Update(string name, string description, int order)
+    internal void Update(string name, string description, int order, double? latitude = null, double? longitude = null)
     {
         Name = name.Trim();
         Description = description.Trim();
         Order = order;
+        Latitude = latitude;
+        Longitude = longitude;
     }
 
-    internal MissionStage(Guid missionId, string name, string description, int order)
+    internal MissionStage(Guid missionId, string name, string description, int order, double? latitude = null, double? longitude = null)
     {
         Id = Guid.NewGuid();
         MissionId = missionId;
         Name = name.Trim();
         Description = description.Trim();
         Order = order;
+        QrToken = Guid.NewGuid().ToString("N");
+        Latitude = latitude;
+        Longitude = longitude;
     }
 
     internal void AddClue(string content, int? penalty, ReleaseType releaseType)

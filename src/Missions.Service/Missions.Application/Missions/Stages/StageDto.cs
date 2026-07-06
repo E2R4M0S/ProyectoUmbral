@@ -8,5 +8,8 @@ public record StageDto(
     string Name,
     string Description,
     int Order,
+    string QrToken,
+    double? Latitude,
+    double? Longitude,
     IReadOnlyList<ClueDto> Clues
 );

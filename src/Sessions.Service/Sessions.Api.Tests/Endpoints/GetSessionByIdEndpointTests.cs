@@ -16,7 +16,7 @@ public class GetSessionByIdEndpointTests
 
     private static Session CreateSession()
     {
-        var stage = SessionStage.Create(Guid.NewGuid(), "M1", "Trivia", 1);
+        var stage = SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, "test-token");
         return Session.Create("Test", "123456", new List<SessionStage> { stage });
     }
 

@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using NSubstitute;
 using Sessions.Application.Common.Interfaces;
 using Sessions.Application.Sessions.Consult;
@@ -29,7 +29,7 @@ public class GetSessionProgressQueryHandlerTests
     [Fact]
     public async Task Handle_SessionExists_ShouldReturnProgress()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Mission", "Trivia", 1) });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
         _repo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
 
         var result = await _sut.Handle(new GetSessionProgressQuery(session.Id), CancellationToken.None);

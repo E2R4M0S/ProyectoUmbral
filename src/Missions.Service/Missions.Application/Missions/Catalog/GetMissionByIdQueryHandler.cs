@@ -35,6 +35,9 @@ public class GetMissionByIdQueryHandler : IRequestHandler<GetMissionByIdQuery, M
                     s.Name,
                     s.Description,
                     s.Order,
+                    s.QrToken,
+                    s.Latitude,
+                    s.Longitude,
                     s.Clues
                         .Select(c => new ClueDto(c.Id, c.Content, c.Penalty, c.ReleaseType.ToString()))
                         .ToList()))

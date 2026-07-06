@@ -98,7 +98,7 @@ try
     app.MapUpdateStageEndpoint();
     app.MapCreateClueEndpoint();
     app.MapDeleteClueEndpoint();
-    
+    app.MapStageQrEndpoint();
 
     app.Run();
 }

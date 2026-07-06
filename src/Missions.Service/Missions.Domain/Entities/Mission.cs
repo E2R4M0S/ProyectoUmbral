@@ -61,7 +61,7 @@ public class Mission : IMissionComponent
         Status = newStatus;
     }
 
-    public void AddStage(string name, string description, int order)
+    public void AddStage(string name, string description, int order, double? latitude = null, double? longitude = null)
     {
         if (_stages.Any(s => s.Order == order))
         {
@@ -73,7 +73,7 @@ public class Mission : IMissionComponent
             throw new InvalidOperationException($"Ya existe una etapa con el nombre '{name.Trim()}'");
         }
 
-        var stage = new MissionStage(Id, name, description, order);
+        var stage = new MissionStage(Id, name, description, order, latitude, longitude);
         _stages.Add(stage);
     }
 

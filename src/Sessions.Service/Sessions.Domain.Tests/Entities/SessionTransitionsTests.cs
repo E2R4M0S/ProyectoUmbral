@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Sessions.Domain.Entities;
 using Sessions.Domain.Enums;
 using Xunit;
@@ -171,7 +171,7 @@ public class SessionTransitionsTests
 
     private static Session CreateSessionWithStatus(SessionStatus status)
     {
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, "test-token") });
 
         // Use reflection to set the status since it's private
         var statusField = typeof(Session).GetProperty("Status");

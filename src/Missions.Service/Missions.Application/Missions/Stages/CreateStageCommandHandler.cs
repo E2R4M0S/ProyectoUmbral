@@ -31,7 +31,7 @@ public class CreateStageCommandHandler : IRequestHandler<CreateStageCommand, Cre
 
         try
         {
-            mission.AddStage(command.Name, command.Description, command.Order);
+            mission.AddStage(command.Name, command.Description, command.Order, command.Latitude, command.Longitude);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("already exists"))
         {
@@ -50,6 +50,9 @@ public class CreateStageCommandHandler : IRequestHandler<CreateStageCommand, Cre
             stage.Id,
             stage.Name,
             stage.Description,
-            stage.Order);
+            stage.Order,
+            stage.QrToken,
+            stage.Latitude,
+            stage.Longitude);
     }
 }
