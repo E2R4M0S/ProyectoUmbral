@@ -22,7 +22,7 @@ public class CreateSessionEndpointTests
         null, null, DateTime.UtcNow);
 
     private static CreateSessionCommand MakeCommand() => new("Test",
-        new List<StageInput> { new(Guid.NewGuid(), "M1", "Trivia", 1) });
+        new List<StageInput> { new(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, "test-token") });
 
     [Fact]
     public async Task CreateSession_WithValidCommand_ReturnsCreated()

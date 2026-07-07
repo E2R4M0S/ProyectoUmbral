@@ -4,5 +4,8 @@ public record CreateStageCommandResult(
     Guid Id,
     string Name,
     string Description,
-    int Order
+    int Order,
+    string QrToken,
+    double? Latitude,
+    double? Longitude
 );

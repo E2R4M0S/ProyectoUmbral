@@ -6,5 +6,7 @@ public record CreateStageCommand(
     Guid MissionId,
     string Name,
     string Description,
-    int Order
+    int Order,
+    double? Latitude = null,
+    double? Longitude = null
 ) : IRequest<CreateStageCommandResult>;

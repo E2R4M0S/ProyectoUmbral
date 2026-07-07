@@ -1,4 +1,4 @@
-Ôªøusing FluentAssertions;
+using FluentAssertions;
 using Sessions.Application.Sessions.Transition.Chain;
 using Sessions.Domain.Entities;
 using Sessions.Domain.Enums;
@@ -13,7 +13,7 @@ public class NotTerminalHandlerTests
     {
         // Arrange
         var handler = new NotTerminalHandler();
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, "test-token") });
 
         // Act
         var act = () => handler.Handle(session, "Active");
@@ -31,7 +31,7 @@ public class NotTerminalHandlerTests
     {
         // Arrange
         var handler = new NotTerminalHandler();
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, "test-token") });
         SetSessionStatus(session, currentStatus);
 
         // Act
@@ -48,7 +48,7 @@ public class NotTerminalHandlerTests
     {
         // Arrange
         var handler = new NotTerminalHandler();
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), "Test Mission", "Trivia", 1) });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, "test-token") });
         SetSessionStatus(session, terminalStatus);
 
         // Act
@@ -56,7 +56,7 @@ public class NotTerminalHandlerTests
 
         // Assert
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage($"*La sesi√≥n ya est√° en estado '{terminalStatus}' y no puede transicionar*");
+            .WithMessage($"*La sesiÛn ya est· en estado '{terminalStatus}' y no puede transicionar*");
     }
 
     [Fact]

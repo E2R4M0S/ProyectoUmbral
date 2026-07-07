@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Sessions.Domain.Entities;
 using Sessions.Domain.Enums;
 using Xunit;
@@ -10,7 +10,7 @@ public class SessionStageProgressionTests
     private static Session CreateWithStages(int stageCount)
     {
         var stages = Enumerable.Range(1, stageCount)
-            .Select(i => SessionStage.Create(Guid.NewGuid(), $"Mission {i}", "Trivia", i))
+            .Select(i => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), $"Mission {i}", "Trivia", i, "test-token"))
             .ToList();
         return Session.Create("Test Session", "123456", stages);
     }
@@ -93,7 +93,7 @@ public class SessionStageProgressionTests
     [Fact]
     public void AdvanceStage_WhenNotActive_ShouldThrow()
     {
-        // Arrange â€” session in Scheduled state
+        // Arrange — session in Scheduled state
         var session = CreateWithStages(3);
 
         // Act
@@ -136,8 +136,8 @@ public class SessionStageProgressionTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), "M1", "Trivia", 1),
-            SessionStage.Create(Guid.NewGuid(), "M2", "Treasure", 1), // duplicate order
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, "test-token"),
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Treasure", 1, "test-token"), // duplicate order
         };
 
         // Act
@@ -154,8 +154,8 @@ public class SessionStageProgressionTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), "M1", "Trivia", 1),
-            SessionStage.Create(Guid.NewGuid(), "M2", "Treasure", 3), // missing 2
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, "test-token"),
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Treasure", 3, "test-token"), // missing 2
         };
 
         // Act
@@ -172,7 +172,7 @@ public class SessionStageProgressionTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), "Solo", "Trivia", 1)
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Solo", "Trivia", 1, "test-token")
         };
 
         // Act
