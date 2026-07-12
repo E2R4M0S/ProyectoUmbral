@@ -6,6 +6,10 @@ const initialState: GameState = {
   sessionId: null,
   sessionName: "",
   sessionStatus: null,
+  currentMissionType: null,
+  currentStageOrder: 0,
+  participantStageOrder: 1,
+  totalStages: 0,
   elapsedSeconds: 0,
   clues: [],
   score: 0,
@@ -13,6 +17,9 @@ const initialState: GameState = {
   ranking: [],
   currentQuestion: null,
   selectedAnswerIndex: null,
+  isWaiting: false,
+  gatePosition: 0,
+  gateThreshold: 0,
 };
 
 function gameReducer(state: GameState, action: GameAction): GameState {
@@ -22,6 +29,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         sessionName: action.name,
         sessionStatus: action.status,
+        currentMissionType: action.missionType,
+        currentStageOrder: action.stageOrder,
+        totalStages: action.totalStages,
+      };
+
+    case "STAGE_ADVANCED":
+      return {
+        ...state,
+        participantStageOrder: action.participantStageOrder,
+        totalStages: action.totalStages,
       };
 
     case "STATUS_CHANGED":
@@ -93,6 +110,22 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         currentQuestion: null,
         selectedAnswerIndex: null,
+      };
+
+    case "GATE_REACHED":
+      return {
+        ...state,
+        isWaiting: true,
+        gatePosition: action.position,
+        gateThreshold: action.threshold,
+      };
+
+    case "GATE_OPENED":
+      return {
+        ...state,
+        isWaiting: false,
+        gatePosition: 0,
+        gateThreshold: 0,
       };
 
     default:

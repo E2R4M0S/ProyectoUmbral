@@ -45,6 +45,9 @@ try
 
     builder.Services.AddAuthorization(options =>
     {
+        options.AddPolicy("authenticated", policy =>
+            policy.RequireAuthenticatedUser());
+
         options.AddPolicy("admin", policy =>
             policy.RequireRole("admin"));
 

@@ -45,6 +45,7 @@ export interface Stage {
   name: string;
   description: string;
   order: number;
+  qrToken: string;
   clues: Clue[];
 }
 

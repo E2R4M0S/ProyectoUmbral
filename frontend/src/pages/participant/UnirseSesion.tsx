@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { joinSession, ApiError } from "../../services/sessionsApi";
+import { getServerHost, isProductionApk } from "../../config/serverConfig";
 
 function validatePin(value: string): string | undefined {
   if (!value.trim()) return "El PIN es obligatorio.";
@@ -92,7 +93,9 @@ export function UnirseSesion() {
         if (err.status === 404) setSubmitError("PIN inválido. Verificá el código.");
         else setSubmitError("Error al unirse. Intentalo de nuevo.");
       } else {
-        setSubmitError("Error de conexión.");
+        const host = isProductionApk ? (getServerHost() || "no configurado") : "localhost";
+        const detail = (err as Error).message || String(err);
+        setSubmitError(`Error (${host}:5000): ${detail}`);
       }
     } finally {
       setIsSubmitting(false);

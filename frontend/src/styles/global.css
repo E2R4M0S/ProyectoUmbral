@@ -1002,6 +1002,69 @@ button, input, select, textarea { font-family: inherit; }
 .clue-options .clue-title { margin-bottom: var(--space-2); font-weight: 600; }
 .clue-options-grid  { display: flex; flex-direction: column; gap: var(--space-2); }
 
+/* ----------------------------------------------------------
+   NATIVE QR SCANNER (Capacitor BarcodeScanner)
+   Makes the WebView transparent so the native camera shows through.
+   ---------------------------------------------------------- */
+body.scanner-active,
+body.scanner-active #root {
+  background: transparent !important;
+}
+
+/* Hide ALL page content so the native camera (behind the WebView) shows through.
+   The scanner-native-overlay uses position:fixed + visibility:visible to stay on top. */
+body.scanner-active #root {
+  visibility: hidden !important;
+}
+
+body.scanner-active .scanner-native-overlay,
+body.scanner-active .scanner-native-overlay * {
+  visibility: visible !important;
+}
+
+.scanner-native-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  z-index: 100;
+}
+
+.scanner-native-frame {
+  width: 260px;
+  height: 260px;
+  position: relative;
+}
+
+.scanner-native-frame::before,
+.scanner-native-frame::after,
+.scanner-native-frame > span::before,
+.scanner-native-frame > span::after {
+  content: "";
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-color: #e94560;
+  border-style: solid;
+}
+
+.scanner-native-frame::before  { top: 0;    left: 0;   border-width: 4px 0 0 4px; border-radius: 4px 0 0 0; }
+.scanner-native-frame::after   { top: 0;    right: 0;  border-width: 4px 4px 0 0; border-radius: 0 4px 0 0; }
+.scanner-native-frame > span::before { bottom: 0; left: 0;   border-width: 0 0 4px 4px; border-radius: 0 0 0 4px; }
+.scanner-native-frame > span::after  { bottom: 0; right: 0;  border-width: 0 4px 4px 0; border-radius: 0 0 4px 0; }
+
+.scanner-native-label {
+  margin-top: 2rem;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  text-align: center;
+}
+
 .clue-option-btn {
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);

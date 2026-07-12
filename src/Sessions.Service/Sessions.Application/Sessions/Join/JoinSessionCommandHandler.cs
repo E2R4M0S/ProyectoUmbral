@@ -32,7 +32,11 @@ public class JoinSessionCommandHandler : IRequestHandler<JoinSessionCommand, Joi
             throw new InvalidOperationException($"Session with PIN '{request.Pin}' not found");
         }
 
-        if (session.Status != SessionStatus.Preparing)
+        var canJoin = session.Status == SessionStatus.Preparing
+            || session.Status == SessionStatus.Active
+            || session.Status == SessionStatus.Paused;
+
+        if (!canJoin)
         {
             throw new InvalidOperationException($"Cannot join session in '{session.Status}' status");
         }
@@ -43,6 +47,16 @@ public class JoinSessionCommandHandler : IRequestHandler<JoinSessionCommand, Joi
         if (userIdClaim is null || !Guid.TryParse(userIdClaim.Value, out var userId))
         {
             throw new InvalidOperationException("User identifier not found in token");
+        }
+
+        // Idempotent: if participant already exists, return their data without inserting
+        var existing = await _repository.GetParticipantAsync(session.Id, userId, cancellationToken);
+        if (existing is not null)
+        {
+            _logger.LogInformation(
+                "User {UserId} reconnected to session {SessionId}",
+                userId, session.Id);
+            return new JoinSessionCommandResult(session.Id, userId, existing.JoinedAt);
         }
 
         var userAlias = _httpContextAccessor.HttpContext?.User.FindFirst("alias")?.Value

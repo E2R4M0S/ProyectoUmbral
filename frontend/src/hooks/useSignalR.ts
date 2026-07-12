@@ -3,7 +3,8 @@ import { HubConnectionBuilder } from "@microsoft/signalr";
 import { userManager } from "../auth/keycloak";
 import type { ConnectionState, RankingEntry, TriviaQuestion } from "../types/game";
 
-const HUB_URL = "/hub/game";
+import { buildHubUrl } from "../config/serverConfig";
+const HUB_URL = buildHubUrl();
 const RECONNECT_DELAYS_MS = [0, 1000, 2000, 4000, 8000, 15000, 30000];
 
   interface UseSignalRCallbacks {
@@ -15,6 +16,7 @@ const RECONNECT_DELAYS_MS = [0, 1000, 2000, 4000, 8000, 15000, 30000];
     onConnectionStateChange: (state: ConnectionState) => void;
     onQuestionAsked?: (question: TriviaQuestion) => void;
     onRankingUpdated?: (ranking: RankingEntry[]) => void;
+    onGateOpened?: (nextStageIndex: number) => void;
   }
 
 export function useSignalR(callbacks: UseSignalRCallbacks): void {
@@ -76,6 +78,13 @@ export function useSignalR(callbacks: UseSignalRCallbacks): void {
       const p = payload as { sessionId: string; ranking: RankingEntry[] };
       if (p.sessionId === sessionId) {
         callbacksRef.current.onRankingUpdated?.(p.ranking);
+      }
+    });
+
+    hub.on("GateOpened", (payload: unknown) => {
+      const p = payload as { sessionId: string; nextStageIndex: number };
+      if (p.sessionId === sessionId) {
+        callbacksRef.current.onGateOpened?.(p.nextStageIndex);
       }
     });
 

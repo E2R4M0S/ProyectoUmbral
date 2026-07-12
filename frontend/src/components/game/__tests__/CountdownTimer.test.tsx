@@ -9,6 +9,10 @@ function renderTimer(timeLimitSeconds: number, overrides: Partial<GameState> = {
     sessionId: null,
     sessionName: "",
     sessionStatus: null,
+    currentMissionType: null,
+    currentStageOrder: 0,
+    participantStageOrder: 1,
+    totalStages: 0,
     elapsedSeconds: 0,
     clues: [],
     score: 0,
@@ -16,6 +20,9 @@ function renderTimer(timeLimitSeconds: number, overrides: Partial<GameState> = {
     ranking: [],
     currentQuestion: null,
     selectedAnswerIndex: null,
+    isWaiting: false,
+    gatePosition: 0,
+    gateThreshold: 0,
     ...overrides,
   };
 
