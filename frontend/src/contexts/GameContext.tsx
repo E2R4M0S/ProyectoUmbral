@@ -28,7 +28,9 @@ const initialState: GameState = {
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "SESSION_LOADED": {
-      const currentStage = action.stages.find(s => s.order === action.stageOrder)
+      // Backend stores currentStageOrder as 0-based index; stage.order is 1-based (starts at 1).
+      // session.GetCurrentStage() uses currentStageOrder + 1, so we must do the same here.
+      const currentStage = action.stages.find(s => s.order === action.stageOrder + 1)
         ?? action.stages[0]
         ?? null;
       const missionId = currentStage?.missionId ?? null;
@@ -37,12 +39,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         : [];
       const timeMinutes = missionStages[0]?.timeMinutes ?? 0;
       const quizId = currentStage?.quizId ?? null;
+      // When the session advances to a new stage (e.g. Trivia ends → Treasure starts),
+      // ensure the participant's local stage pointer also advances.
+      const newParticipantStageOrder = Math.max(state.participantStageOrder, action.stageOrder + 1);
       return {
         ...state,
         sessionName: action.name,
         sessionStatus: action.status,
-        currentMissionType: action.missionType,
+        currentMissionType: currentStage?.missionType ?? null,
         currentStageOrder: action.stageOrder,
+        participantStageOrder: newParticipantStageOrder,
         totalStages: action.totalStages,
         stages: action.stages,
         timeLimitSeconds: timeMinutes * 60,
