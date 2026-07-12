@@ -275,7 +275,7 @@ public class KeycloakAdminService : IKeycloakAdminService
 
         var request = new HttpRequestMessage(
             HttpMethod.Put,
-            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}/execute-actions-email?lifespan=43200&redirect_uri={Uri.EscapeDataString($"{_options.BaseUrl}/realms/{_options.Realm}/account")}")
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}/execute-actions-email?lifespan=43200&redirect_uri={Uri.EscapeDataString($"http://localhost:5173")}&client_id=umbral-frontend")
         {
             Content = JsonContent.Create(actions)
         };
