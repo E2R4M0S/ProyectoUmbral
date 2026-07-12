@@ -40,6 +40,7 @@ public class CreateSessionCommandHandler
                 s.MissionType,
                 s.Order,
                 s.QrToken,
+                s.TimeMinutes,
                 s.Latitude,
                 s.Longitude))
             .ToList();

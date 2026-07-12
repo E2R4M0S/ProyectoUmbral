@@ -1,8 +1,20 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { createSession, ApiError } from "../../services/sessionsApi";
 import { listMissions, getMissionById } from "../../services/missionsApi";
+import { listQuizzes, type QuizSummary } from "../../services/triviaApi";
 import type { MissionListItem } from "../../types/mission";
 import type { StageInput } from "../../types/session";
+
+interface MissionEntry {
+  missionId: string;
+  missionTitle: string;
+  missionType: string;
+  timeMinutes: number;
+  stageCount: number;
+  quizId?: string;
+  quizTitle?: string;
+  stages: StageInput[];
+}
 
 interface FieldErrors {
   name?: string;
@@ -100,29 +112,33 @@ const dropdownItemStyle: React.CSSProperties = {
   borderBottom: "1px solid #0f3460",
 };
 
-const stageCardStyle: React.CSSProperties = {
+const missionCardStyle: React.CSSProperties = {
   display: "flex",
-  alignItems: "center",
+  alignItems: "flex-start",
   justifyContent: "space-between",
-  padding: "8px 12px",
+  padding: "10px 12px",
   marginBottom: 6,
   backgroundColor: "#16213e",
   border: "1px solid #0f3460",
-  borderRadius: 4,
+  borderRadius: 6,
+  gap: 10,
 };
 
-const stageOrderBadge = (): React.CSSProperties => ({
-  display: "inline-block",
+const orderBadgeStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
   minWidth: 28,
-  padding: "2px 8px",
-  borderRadius: 12,
+  height: 28,
+  padding: "0 8px",
+  borderRadius: 14,
   backgroundColor: "#0f3460",
   color: "white",
   fontSize: 12,
-  fontWeight: 600,
-  textAlign: "center",
-  marginRight: 10,
-});
+  fontWeight: 700,
+  flexShrink: 0,
+  marginTop: 2,
+};
 
 const removeBtnStyle: React.CSSProperties = {
   background: "none",
@@ -132,17 +148,30 @@ const removeBtnStyle: React.CSSProperties = {
   padding: "4px 8px",
   fontSize: 12,
   cursor: "pointer",
+  flexShrink: 0,
+};
+
+const selectStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "6px 8px",
+  marginTop: 6,
+  border: "1px solid #0f3460",
+  borderRadius: 4,
+  backgroundColor: "#0d1b35",
+  color: "white",
+  fontSize: "0.85rem",
 };
 
 export function CrearSesion() {
   const [name, setName] = useState("");
-  const [stages, setStages] = useState<StageInput[]>([]);
+  const [missions, setMissions] = useState<MissionEntry[]>([]);
   const [missionSearch, setMissionSearch] = useState("");
   const [missionResults, setMissionResults] = useState<MissionListItem[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState(false);
   const [addingMission, setAddingMission] = useState(false);
+  const [quizzes, setQuizzes] = useState<QuizSummary[]>([]);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -150,10 +179,13 @@ export function CrearSesion() {
   const [createdSession, setCreatedSession] = useState<{ id: string; pin: string } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchIdRef = useRef(0);
-  const stagesRef = useRef<StageInput[]>([]); // always holds latest stages
+  const missionsRef = useRef<MissionEntry[]>([]);
 
-  // keep stagesRef in sync
-  useEffect(() => { stagesRef.current = stages; }, [stages]);
+  useEffect(() => { missionsRef.current = missions; }, [missions]);
+
+  useEffect(() => {
+    listQuizzes().then(setQuizzes).catch(() => {});
+  }, []);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -179,7 +211,7 @@ export function CrearSesion() {
     listMissions({ search: query, status: "Active", page: 1, pageSize: 10 })
       .then((result) => {
         if (thisSearchId !== searchIdRef.current) return;
-        const selectedIds = new Set(stagesRef.current.map((s) => s.missionId));
+        const selectedIds = new Set(missionsRef.current.map((m) => m.missionId));
         const filtered = result.items.filter((m) => !selectedIds.has(m.id));
         setMissionResults(filtered);
         setShowDropdown(true);
@@ -194,41 +226,109 @@ export function CrearSesion() {
       });
   }
 
-  async function addStage(item: MissionListItem) {
+  async function addMission(item: MissionListItem) {
     searchIdRef.current++;
     setMissionSearch("");
     setMissionResults([]);
     setShowDropdown(false);
     setAddingMission(true);
+    setSubmitError(null);
+
     try {
       const detail = await getMissionById(item.id);
-      const sortedStages = [...detail.stages].sort((a, b) => a.order - b.order);
-      if (sortedStages.length === 0) {
-        setSubmitError(`La misión "${item.title}" no tiene etapas configuradas.`);
-        return;
+      const isTreasure = item.type === "Treasure";
+
+      if (isTreasure) {
+        const sortedStages = [...detail.stages].sort((a, b) => a.order - b.order);
+        if (sortedStages.length === 0) {
+          setSubmitError(`La misión "${item.title}" no tiene etapas configuradas.`);
+          return;
+        }
+        setMissions((prev) => {
+          let nextOrder = prev.reduce((acc, m) => acc + m.stages.length, 0) + 1;
+          const newStages: StageInput[] = sortedStages.map(s => ({
+            missionId: item.id,
+            missionStageId: s.id,
+            missionTitle: item.title,
+            missionType: item.type,
+            order: nextOrder++,
+            qrToken: s.qrToken,
+            timeMinutes: detail.timeMinutes,
+          }));
+          const entry: MissionEntry = {
+            missionId: item.id,
+            missionTitle: item.title,
+            missionType: item.type,
+            timeMinutes: detail.timeMinutes,
+            stageCount: sortedStages.length,
+            stages: newStages,
+          };
+          return [...prev, entry];
+        });
+      } else {
+        // Trivia: one virtual stage using the quiz as the stage ID
+        // Quiz will be selected by the operator in the card below
+        setMissions((prev) => {
+          const nextOrder = prev.reduce((acc, m) => acc + m.stages.length, 0) + 1;
+          const entry: MissionEntry = {
+            missionId: item.id,
+            missionTitle: item.title,
+            missionType: item.type,
+            timeMinutes: detail.timeMinutes,
+            stageCount: 1,
+            quizId: undefined,
+            quizTitle: undefined,
+            stages: [], // will be built when quiz is selected
+          };
+          // Store a placeholder stage with order but no quizId yet
+          const placeholder: StageInput = {
+            missionId: item.id,
+            missionStageId: "",
+            missionTitle: item.title,
+            missionType: item.type,
+            order: nextOrder,
+            qrToken: "",
+            timeMinutes: detail.timeMinutes,
+          };
+          return [...prev, { ...entry, stages: [placeholder] }];
+        });
       }
-      setStages((prev) => {
-        let nextOrder = prev.length + 1;
-        const newEntries: StageInput[] = sortedStages.map(s => ({
-          missionId: item.id,
-          missionStageId: s.id,
-          missionTitle: item.title,
-          missionType: item.type,
-          order: nextOrder++,
-          qrToken: s.qrToken,
-        }));
-        return [...prev, ...newEntries];
-      });
     } catch {
-      setSubmitError(`No se pudo cargar las etapas de la misión "${item.title}".`);
+      setSubmitError(`No se pudo cargar la misión "${item.title}".`);
     } finally {
       setAddingMission(false);
     }
   }
 
-  function removeStage(index: number) {
-    const next = stages.filter((_, i) => i !== index).map((s, i) => ({ ...s, order: i + 1 }));
-    setStages(next);
+  function selectQuiz(missionId: string, quizId: string) {
+    const quiz = quizzes.find(q => q.id === quizId);
+    setMissions((prev) =>
+      prev.map((m) => {
+        if (m.missionId !== missionId) return m;
+        const updatedStage: StageInput = {
+          ...m.stages[0],
+          missionStageId: quizId,
+          qrToken: quizId,
+        };
+        return { ...m, quizId, quizTitle: quiz?.title, stages: [updatedStage] };
+      })
+    );
+  }
+
+  function removeMission(missionId: string) {
+    setMissions((prev) => {
+      const filtered = prev.filter((m) => m.missionId !== missionId);
+      // Recompute global stage orders
+      let order = 1;
+      return filtered.map((m) => ({
+        ...m,
+        stages: m.stages.map(s => ({ ...s, order: order++ })),
+      }));
+    });
+  }
+
+  function buildFlatStages(): StageInput[] {
+    return missions.flatMap(m => m.stages);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -237,22 +337,24 @@ export function CrearSesion() {
     setSuccess(false);
 
     const errors: FieldErrors = { name: validateName(name) };
-    if (stages.length === 0) errors.stages = "Agregá al menos una etapa.";
+    if (missions.length === 0) errors.stages = "Agregá al menos una misión.";
+    const triviaWithoutQuiz = missions.find(m => m.missionType === "Trivia" && !m.quizId);
+    if (triviaWithoutQuiz) {
+      errors.stages = `Seleccioná un quiz para la misión de Trivia "${triviaWithoutQuiz.missionTitle}".`;
+    }
     setFieldErrors(errors);
-
     if (Object.values(errors).some(Boolean)) return;
 
     setIsSubmitting(true);
-
     try {
       const result = await createSession({
         name: name.trim(),
-        stages,
+        stages: buildFlatStages(),
       });
       setSuccess(true);
       setCreatedSession({ id: result.id, pin: result.pin });
       setName("");
-      setStages([]);
+      setMissions([]);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 400) setSubmitError("Datos inválidos. Verificá los campos.");
@@ -297,23 +399,36 @@ export function CrearSesion() {
         </div>
 
         <div style={fieldGroupStyle}>
-          <label style={labelStyle}>Etapas ({stages.length})</label>
-          {stages.length > 0 && (
+          <label style={labelStyle}>Misiones ({missions.length})</label>
+          {missions.length > 0 && (
             <div data-testid="stage-list" style={{ marginBottom: 8 }}>
-              {stages.map((stage, i) => (
-                <div key={`${stage.missionStageId}-${i}`} style={stageCardStyle}>
-                  <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}>
-                    <span style={stageOrderBadge()}>{stage.order}</span>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{stage.missionTitle}</div>
-                      <div style={{ color: "#999", fontSize: "0.78rem" }}>{stage.missionType}</div>
+              {missions.map((m, i) => (
+                <div key={m.missionId} style={missionCardStyle}>
+                  <span style={orderBadgeStyle}>{i + 1}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{m.missionTitle}</div>
+                    <div style={{ color: "#999", fontSize: "0.78rem", marginTop: 2 }}>
+                      {m.missionType} · {m.timeMinutes} min
+                      {m.missionType === "Treasure" && ` · ${m.stageCount} etapa${m.stageCount !== 1 ? "s" : ""}`}
                     </div>
+                    {m.missionType === "Trivia" && (
+                      <select
+                        value={m.quizId ?? ""}
+                        onChange={(e) => selectQuiz(m.missionId, e.target.value)}
+                        style={selectStyle}
+                      >
+                        <option value="">-- Seleccioná un quiz --</option>
+                        {quizzes.map(q => (
+                          <option key={q.id} value={q.id}>{q.title}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   <button
                     type="button"
-                    onClick={() => removeStage(i)}
+                    onClick={() => removeMission(m.missionId)}
                     style={removeBtnStyle}
-                    aria-label={`Quitar etapa ${stage.order}`}
+                    aria-label={`Quitar misión ${m.missionTitle}`}
                   >
                     Quitar
                   </button>
@@ -323,12 +438,12 @@ export function CrearSesion() {
           )}
           {addingMission && (
             <div style={{ color: "#999", fontSize: "0.85rem", marginBottom: 8 }}>
-              Cargando etapas...
+              Cargando misión...
             </div>
           )}
 
           <div style={{ position: "relative" }} ref={dropdownRef}>
-            <label htmlFor="session-mission" style={labelStyle}>Agregar etapa</label>
+            <label htmlFor="session-mission" style={labelStyle}>Agregar misión</label>
             <input id="session-mission" type="text"
               value={missionSearch}
               onChange={(e) => searchMissions(e.target.value)}
@@ -349,12 +464,12 @@ export function CrearSesion() {
                 )}
                 {!searching && !searchError && missionResults.length === 0 && (
                   <li style={{ ...dropdownItemStyle, color: "#999" }}>
-                    No hay misiones activas con ese nombre. Activá la misión desde el catálogo primero.
+                    No hay misiones activas con ese nombre.
                   </li>
                 )}
                 {!searching && missionResults.map(m => (
                   <li key={m.id} style={dropdownItemStyle}
-                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); addStage(m); }}
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); addMission(m); }}
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#0f3460")}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>

@@ -8,6 +8,7 @@ public class SessionStage
     public string MissionType { get; private set; } = null!;
     public int Order { get; private set; }
     public string QrToken { get; private set; } = null!;
+    public int TimeMinutes { get; private set; }
     public double? Latitude { get; private set; }
     public double? Longitude { get; private set; }
 
@@ -20,6 +21,7 @@ public class SessionStage
         string missionType,
         int order,
         string qrToken,
+        int timeMinutes = 0,
         double? latitude = null,
         double? longitude = null)
     {
@@ -44,6 +46,7 @@ public class SessionStage
             MissionType = missionType,
             Order = order,
             QrToken = qrToken,
+            TimeMinutes = timeMinutes,
             Latitude = latitude,
             Longitude = longitude
         };

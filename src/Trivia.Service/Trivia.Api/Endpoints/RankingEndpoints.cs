@@ -1,4 +1,5 @@
 using MediatR;
+using Trivia.Application.Common.Interfaces;
 using Trivia.Application.Trivias.Ranking;
 
 namespace Trivia.Api.Endpoints;
@@ -7,6 +8,19 @@ public static class RankingEndpoints
 {
     public static void MapRankingEndpoints(this WebApplication app)
     {
+        app.MapGet("/ranking/{quizId:guid}", async (
+            Guid quizId,
+            ILeaderboardRepository leaderboard,
+            ILogger<Program> logger) =>
+        {
+            var entries = await leaderboard.GetByQuizAsync(quizId);
+            var result = entries
+                .Select((e, i) => new { position = i + 1, teamName = e.TeamName, score = e.Score });
+            return Results.Ok(result);
+        })
+        .WithName("GetRankingByQuiz")
+        .RequireAuthorization();
+
         app.MapPost("/ranking/{sessionId:guid}/update", async (
             Guid sessionId,
             IMediator mediator,

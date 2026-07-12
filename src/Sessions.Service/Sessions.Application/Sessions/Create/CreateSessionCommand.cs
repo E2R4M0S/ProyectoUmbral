@@ -13,5 +13,6 @@ public record StageInput(
     string MissionType,
     int Order,
     string QrToken,
+    int TimeMinutes = 0,
     double? Latitude = null,
     double? Longitude = null);

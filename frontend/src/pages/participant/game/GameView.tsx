@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { GameProvider, useGame } from "../../../contexts/GameContext";
 import { getSessionById } from "../../../services/sessionsApi";
+import { getRankingByQuiz } from "../../../services/triviaApi";
 import { useSignalR } from "../../../hooks/useSignalR";
 import { WaitingRoom } from "./WaitingRoom";
 import { ActiveGame } from "./ActiveGame";
@@ -94,11 +95,12 @@ function GameViewInner() {
       return;
     }
     getSessionById(sessionId)
-      .then((session) => {
-        const currentStage = session.stages.find(s => s.order === session.currentStageOrder)
-          ?? session.stages[0]
+      .then(async (session) => {
+        const sorted = [...session.stages].sort((a, b) => a.order - b.order);
+        const currentStage = sorted.find(s => s.order === session.currentStageOrder)
+          ?? sorted[0]
           ?? null;
-        const totalStages = session.stages.length;
+        const totalStages = sorted.length;
         dispatch({
           type: "SESSION_LOADED",
           name: session.name,
@@ -106,6 +108,7 @@ function GameViewInner() {
           missionType: currentStage?.missionType ?? null,
           stageOrder: session.currentStageOrder,
           totalStages,
+          stages: sorted,
         });
         // Restore participant's personal stage progress saved from previous QR scan
         try {
@@ -115,6 +118,19 @@ function GameViewInner() {
             dispatch({ type: "STAGE_ADVANCED", participantStageOrder, totalStages });
           }
         } catch { /* ignore */ }
+        // Load persisted trivia ranking from DB for trivia sessions
+        const triviaStage = sorted.find(s => s.missionType === "Trivia" && s.quizId);
+        if (triviaStage?.quizId) {
+          const stored = sessionStorage.getItem(`ranking_${sessionId}`);
+          if (!stored) {
+            try {
+              const ranking = await getRankingByQuiz(triviaStage.quizId);
+              if (ranking.length > 0) {
+                dispatch({ type: "RANKING_UPDATED", ranking });
+              }
+            } catch { /* ignore */ }
+          }
+        }
       })
       .catch(() => {});
   }, [sessionId, navigate, dispatch]);

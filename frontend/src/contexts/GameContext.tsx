@@ -10,6 +10,9 @@ const initialState: GameState = {
   currentStageOrder: 0,
   participantStageOrder: 1,
   totalStages: 0,
+  stages: [],
+  timeLimitSeconds: 0,
+  currentQuizId: null,
   elapsedSeconds: 0,
   clues: [],
   score: 0,
@@ -24,7 +27,16 @@ const initialState: GameState = {
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
-    case "SESSION_LOADED":
+    case "SESSION_LOADED": {
+      const currentStage = action.stages.find(s => s.order === action.stageOrder)
+        ?? action.stages[0]
+        ?? null;
+      const missionId = currentStage?.missionId ?? null;
+      const missionStages = missionId
+        ? action.stages.filter(s => s.missionId === missionId)
+        : [];
+      const timeMinutes = missionStages[0]?.timeMinutes ?? 0;
+      const quizId = currentStage?.quizId ?? null;
       return {
         ...state,
         sessionName: action.name,
@@ -32,7 +44,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         currentMissionType: action.missionType,
         currentStageOrder: action.stageOrder,
         totalStages: action.totalStages,
+        stages: action.stages,
+        timeLimitSeconds: timeMinutes * 60,
+        currentQuizId: quizId,
+        elapsedSeconds: 0,
       };
+    }
 
     case "STAGE_ADVANCED":
       return {
@@ -72,12 +89,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "TICK":
       if (state.sessionStatus === "Active") {
-        return {
-          ...state,
-          elapsedSeconds: state.elapsedSeconds + 1,
-        };
+        const next = state.elapsedSeconds + 1;
+        if (state.timeLimitSeconds > 0 && next >= state.timeLimitSeconds) {
+          return { ...state, elapsedSeconds: state.timeLimitSeconds };
+        }
+        return { ...state, elapsedSeconds: next };
       }
       return state;
+
+    case "TIME_UP":
+      return { ...state, elapsedSeconds: state.timeLimitSeconds };
 
     case "SET_SCORE":
       return {

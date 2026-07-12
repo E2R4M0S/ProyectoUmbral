@@ -7,8 +7,10 @@ export interface SessionStage {
   missionTitle: string;
   missionType: MissionType | string;
   order: number;
+  timeMinutes?: number;
   missionStageId?: string;
   qrToken?: string;
+  quizId?: string;
 }
 
 export interface SessionResponse {
@@ -66,6 +68,7 @@ export interface StageInput {
   missionType: string;
   order: number;
   qrToken: string;
+  timeMinutes?: number;
 }
 
 export interface CreateSessionRequest {

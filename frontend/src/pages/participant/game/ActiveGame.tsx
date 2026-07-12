@@ -17,6 +17,15 @@ export function ActiveGame() {
 
   const isTreasure = state.currentMissionType === "Treasure";
 
+  // Derive mission-relative stage info from the flat stages array
+  const currentStageInfo = state.stages.find(s => s.order === state.participantStageOrder);
+  const missionStages = currentStageInfo
+    ? state.stages.filter(s => s.missionId === currentStageInfo.missionId).sort((a, b) => a.order - b.order)
+    : [];
+  const missionStageIndex = missionStages.findIndex(s => s.order === state.participantStageOrder) + 1;
+  const missionStageTotal = missionStages.length;
+  const missionTitle = currentStageInfo?.missionTitle ?? state.sessionName;
+
   // ── Inline QR scan state ───────────────────────────────────────────────────
   const [scanPhase, setScanPhase] = useState<ScanPhase>("idle");
   const [scanError, setScanError] = useState("");
@@ -118,14 +127,22 @@ export function ActiveGame() {
 
   return (
     <div className="active-game">
-      {/* Stage badge */}
+      {/* Mission + stage badge */}
       {state.totalStages > 0 && (
         <div style={stageBadgeStyle}>
-          <span style={{ color: "#aaa", fontSize: 12 }}>ETAPA</span>
-          <span style={{ color: "white", fontWeight: 700, fontSize: 22, lineHeight: 1 }}>
-            {state.participantStageOrder}
-          </span>
-          <span style={{ color: "#666", fontSize: 12 }}>/ {state.totalStages}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ color: "#aaa", fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>
+              {missionTitle}
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 2 }}>
+              <span style={{ color: "white", fontWeight: 700, fontSize: 20, lineHeight: 1 }}>
+                {missionStageIndex > 0 ? missionStageIndex : state.participantStageOrder}
+              </span>
+              <span style={{ color: "#666", fontSize: 12 }}>
+                / {missionStageTotal > 0 ? missionStageTotal : state.totalStages}
+              </span>
+            </div>
+          </div>
         </div>
       )}
 
