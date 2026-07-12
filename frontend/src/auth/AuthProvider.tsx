@@ -3,7 +3,9 @@ import { userManager } from "./keycloak";
 import type { ReactNode } from "react";
 
 const onSigninCallback = () => {
-  window.history.replaceState({}, document.title, window.location.pathname);
+  // Always navigate to root — removes code/state params from URL so a WebView
+  // reload doesn't re-attempt an already-used authorization code.
+  window.history.replaceState({}, document.title, "/");
 };
 
 interface AuthProviderProps {

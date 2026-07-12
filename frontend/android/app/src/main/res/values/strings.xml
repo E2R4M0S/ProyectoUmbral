@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">UMBRAL</string>
+    <string name="title_activity_main">UMBRAL</string>
+    <string name="package_name">com.umbral.app</string>
+    <string name="custom_url_scheme">com.umbral.app</string>
+</resources>
