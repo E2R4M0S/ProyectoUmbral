@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { createSession, ApiError } from "../../services/sessionsApi";
-import { listMissions } from "../../services/missionsApi";
+import { listMissions, getMissionById } from "../../services/missionsApi";
 import type { MissionListItem } from "../../types/mission";
 import type { StageInput } from "../../types/session";
 
@@ -141,6 +141,8 @@ export function CrearSesion() {
   const [missionResults, setMissionResults] = useState<MissionListItem[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(false);
+  const [addingMission, setAddingMission] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -165,35 +167,63 @@ export function CrearSesion() {
 
   function searchMissions(query: string) {
     setMissionSearch(query);
-    if (query.trim().length < 2) { setMissionResults([]); setShowDropdown(false); return; }
+    if (query.trim().length < 2) {
+      setMissionResults([]);
+      setShowDropdown(false);
+      setSearchError(false);
+      return;
+    }
     setSearching(true);
+    setSearchError(false);
     const thisSearchId = ++searchIdRef.current;
     listMissions({ search: query, status: "Active", page: 1, pageSize: 10 })
       .then((result) => {
-        if (thisSearchId !== searchIdRef.current) return; // stale, ignore
+        if (thisSearchId !== searchIdRef.current) return;
         const selectedIds = new Set(stagesRef.current.map((s) => s.missionId));
         const filtered = result.items.filter((m) => !selectedIds.has(m.id));
         setMissionResults(filtered);
-        setShowDropdown(filtered.length > 0);
+        setShowDropdown(true);
         setSearching(false);
       })
-      .catch(() => { setMissionResults([]); setSearching(false); });
+      .catch(() => {
+        if (thisSearchId !== searchIdRef.current) return;
+        setMissionResults([]);
+        setSearchError(true);
+        setShowDropdown(true);
+        setSearching(false);
+      });
   }
 
-  function addStage(item: MissionListItem) {
-    searchIdRef.current++; // cancel any in-flight search
+  async function addStage(item: MissionListItem) {
+    searchIdRef.current++;
     setMissionSearch("");
     setMissionResults([]);
     setShowDropdown(false);
-    setStages((prev) => {
-      const nextOrder = prev.length + 1;
-      return [...prev, {
-        missionId: item.id,
-        missionTitle: item.title,
-        missionType: item.type,
-        order: nextOrder,
-      }];
-    });
+    setAddingMission(true);
+    try {
+      const detail = await getMissionById(item.id);
+      const sortedStages = [...detail.stages].sort((a, b) => a.order - b.order);
+      if (sortedStages.length === 0) {
+        setSubmitError(`La misión "${item.title}" no tiene etapas configuradas.`);
+        return;
+      }
+      setStages((prev) => {
+        let nextOrder = prev.length + 1;
+        const newEntries: StageInput[] = sortedStages.map(s => ({
+          missionId: item.id,
+          missionStageId: s.id,
+          missionTitle: item.title,
+          missionType: item.type,
+          order: nextOrder++,
+          qrToken: s.qrToken,
+        }));
+        return [...prev, ...newEntries];
+      });
+    } catch {
+      setSubmitError(`No se pudo cargar las etapas de la misión "${item.title}".`);
+    } finally {
+      setAddingMission(false);
+    }
   }
 
   function removeStage(index: number) {
@@ -271,13 +301,13 @@ export function CrearSesion() {
           {stages.length > 0 && (
             <div data-testid="stage-list" style={{ marginBottom: 8 }}>
               {stages.map((stage, i) => (
-                <div key={`${stage.missionId}-${i}`} style={stageCardStyle}>
-                  <div style={{ display: "flex", alignItems: "center", flex: 1 }}>
+                <div key={`${stage.missionStageId}-${i}`} style={stageCardStyle}>
+                  <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}>
                     <span style={stageOrderBadge()}>{stage.order}</span>
-                    <span style={{ fontWeight: 600 }}>{stage.missionTitle}</span>
-                    <span style={{ color: "#999", marginLeft: 8, fontSize: "0.8rem" }}>
-                      {stage.missionType}
-                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{stage.missionTitle}</div>
+                      <div style={{ color: "#999", fontSize: "0.78rem" }}>{stage.missionType}</div>
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -289,6 +319,11 @@ export function CrearSesion() {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+          {addingMission && (
+            <div style={{ color: "#999", fontSize: "0.85rem", marginBottom: 8 }}>
+              Cargando etapas...
             </div>
           )}
 
@@ -304,16 +339,30 @@ export function CrearSesion() {
             {fieldErrors.stages && <p style={errorStyle}>{fieldErrors.stages}</p>}
             {showDropdown && (
               <ul style={dropdownStyle}>
-                {searching && <li style={{ ...dropdownItemStyle, color: "#999" }}>Buscando...</li>}
-                {missionResults.map(m => (
+                {searching && (
+                  <li style={{ ...dropdownItemStyle, color: "#999" }}>Buscando...</li>
+                )}
+                {!searching && searchError && (
+                  <li style={{ ...dropdownItemStyle, color: "#e94560" }}>
+                    Error al buscar misiones. Verificá la conexión.
+                  </li>
+                )}
+                {!searching && !searchError && missionResults.length === 0 && (
+                  <li style={{ ...dropdownItemStyle, color: "#999" }}>
+                    No hay misiones activas con ese nombre. Activá la misión desde el catálogo primero.
+                  </li>
+                )}
+                {!searching && missionResults.map(m => (
                   <li key={m.id} style={dropdownItemStyle}
                     onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); addStage(m); }}
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#0f3460")}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}>
-                    <span style={{ fontWeight: 600 }}>{m.title}</span>
-                    <span style={{ color: "#999", marginLeft: 8, fontSize: "0.8rem" }}>
-                      {m.difficulty} · {m.type} · {m.status === "Active" ? "Activa" : "Borrador"}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <span style={{ fontWeight: 600 }}>{m.title}</span>
+                      <span style={{ color: "#999", fontSize: "0.78rem", flexShrink: 0 }}>
+                        {m.difficulty} · {m.type}
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ul>

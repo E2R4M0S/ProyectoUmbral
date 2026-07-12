@@ -19,4 +19,6 @@ public interface ISessionRepository
         CancellationToken ct);
     Task UpdateAsync(Session session, CancellationToken ct);
     Task AddParticipantAsync(SessionParticipant participant, CancellationToken ct);
+    Task<SessionParticipant?> GetParticipantAsync(Guid sessionId, Guid userId, CancellationToken ct);
+    Task UpdateParticipantAsync(SessionParticipant participant, CancellationToken ct);
 }

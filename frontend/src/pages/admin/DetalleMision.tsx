@@ -1,28 +1,66 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getMissionById, createStage, updateStage, deleteStage, createClue, deleteClue, ApiError } from "../../services/missionsApi";
+import { fetchWithAuth } from "../../services/api";
 import type { MissionDetail } from "../../types/mission";
 
-const s: Record<string, React.CSSProperties> = {
-  container: { maxWidth: 800, margin: "0 auto", color: "white", fontFamily: "sans-serif" },
-  header: { marginBottom: "1.5rem" },
-  title: { fontSize: "1.5rem", margin: 0, color: "#e94560" },
-  meta: { color: "#999", fontSize: "0.9rem", marginTop: "0.25rem" },
-  sectionTitle: { fontSize: "1.1rem", color: "#e94560", margin: "1.5rem 0 0.5rem" },
-  stageCard: { padding: "1rem", backgroundColor: "#16213e", borderRadius: 8, border: "1px solid #0f3460", marginBottom: "0.75rem" },
-  stageHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  stageName: { fontWeight: 600, fontSize: "1rem" },
-  stageDesc: { color: "#aaa", fontSize: "0.85rem", marginTop: "0.25rem" },
-  clueItem: { padding: "0.5rem 0.75rem", backgroundColor: "#0f3460", borderRadius: 4, marginTop: "0.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  clueText: { fontSize: "0.85rem" },
-  badge: (bg: string) => ({ display: "inline-block", padding: "2px 8px", borderRadius: 12, fontSize: 12, fontWeight: 600, color: "white", backgroundColor: bg }),
-  btn: (bg: string) => ({ padding: "6px 12px", backgroundColor: bg, color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, marginLeft: "0.5rem" }),
-  btnSmall: (bg: string) => ({ padding: "4px 8px", backgroundColor: bg, color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.75rem" }),
-  input: { width: "100%", padding: 8, border: "1px solid #0f3460", borderRadius: 4, backgroundColor: "#16213e", color: "white", marginBottom: 8, boxSizing: "border-box" as const },
-  backLink: { color: "#e94560", textDecoration: "none", fontSize: "0.9rem" },
-  error: { color: "#e94560", marginBottom: 12, padding: "8px 12px", backgroundColor: "#2d1a1a", border: "1px solid #e94560", borderRadius: 4, fontSize: "0.85rem" } as React.CSSProperties,
-  success: { color: "#28a745", marginBottom: 8, fontSize: "0.85rem" },
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const css = {
+  container: { maxWidth: 820, margin: "0 auto", color: "white", padding: "0 0 2rem" } as React.CSSProperties,
+  backLink: { color: "#e94560", textDecoration: "none", fontSize: "0.875rem", display: "inline-flex", alignItems: "center", gap: 4, marginBottom: "1.25rem" } as React.CSSProperties,
+
+  // Mission header
+  missionCard: { backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 10, padding: "1.25rem 1.5rem", marginBottom: "1.75rem" } as React.CSSProperties,
+  missionTitle: { fontSize: "1.4rem", fontWeight: 700, color: "#e94560", margin: "0 0 0.25rem" } as React.CSSProperties,
+  missionDesc: { color: "#ccc", fontSize: "0.9rem", margin: "0 0 0.75rem", lineHeight: 1.5 } as React.CSSProperties,
+  metaRow: { display: "flex", flexWrap: "wrap" as const, gap: "0.5rem", alignItems: "center" } as React.CSSProperties,
+  metaChip: (bg: string): React.CSSProperties => ({ padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, backgroundColor: bg, color: "white" }),
+
+  // Section
+  sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" } as React.CSSProperties,
+  sectionTitle: { fontSize: "1rem", fontWeight: 700, color: "#e94560", margin: 0, textTransform: "uppercase" as const, letterSpacing: 1 } as React.CSSProperties,
+
+  // Stage card
+  stageCard: { backgroundColor: "#16213e", border: "1px solid #0f3460", borderLeft: "4px solid #e94560", borderRadius: 8, marginBottom: "0.75rem", overflow: "hidden" } as React.CSSProperties,
+  stageBody: { padding: "0.875rem 1rem" } as React.CSSProperties,
+  stageTop: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" } as React.CSSProperties,
+  stageInfo: { flex: 1, minWidth: 0 } as React.CSSProperties,
+  stageOrderBadge: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: "50%", backgroundColor: "#e94560", color: "white", fontSize: 12, fontWeight: 700, flexShrink: 0, marginRight: 8 } as React.CSSProperties,
+  stageName: { fontWeight: 600, fontSize: "0.95rem", display: "flex", alignItems: "center" } as React.CSSProperties,
+  stageDesc: { color: "#aaa", fontSize: "0.82rem", marginTop: 4, marginLeft: 32, lineHeight: 1.4 } as React.CSSProperties,
+  stageActions: { display: "flex", gap: "0.375rem", flexShrink: 0, flexWrap: "wrap" as const } as React.CSSProperties,
+
+  // Buttons
+  btnPrimary: { padding: "5px 12px", backgroundColor: "#0f3460", color: "white", border: "none", borderRadius: 5, cursor: "pointer", fontSize: "0.78rem", fontWeight: 600, whiteSpace: "nowrap" as const } as React.CSSProperties,
+  btnDanger: { padding: "5px 12px", backgroundColor: "transparent", color: "#e94560", border: "1px solid #e94560", borderRadius: 5, cursor: "pointer", fontSize: "0.78rem", fontWeight: 600, whiteSpace: "nowrap" as const } as React.CSSProperties,
+  btnSuccess: { padding: "5px 12px", backgroundColor: "#1a4d2e", color: "#4caf50", border: "1px solid #4caf50", borderRadius: 5, cursor: "pointer", fontSize: "0.78rem", fontWeight: 600, whiteSpace: "nowrap" as const } as React.CSSProperties,
+  btnSecondary: { padding: "5px 12px", backgroundColor: "transparent", color: "#888", border: "1px solid #444", borderRadius: 5, cursor: "pointer", fontSize: "0.78rem", fontWeight: 600 } as React.CSSProperties,
+  btnAddStage: { padding: "10px 20px", backgroundColor: "#e94560", color: "white", border: "none", borderRadius: 7, cursor: "pointer", fontSize: "0.875rem", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 } as React.CSSProperties,
+
+  // Inline edit/create form
+  inlineForm: { borderTop: "1px solid #0f3460", backgroundColor: "#0d1b35", padding: "1rem" } as React.CSSProperties,
+  formRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" } as React.CSSProperties,
+  formRowFull: { marginBottom: "0.75rem" } as React.CSSProperties,
+  label: { display: "block", fontSize: "0.78rem", fontWeight: 600, color: "#aaa", marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: 0.5 } as React.CSSProperties,
+  input: { width: "100%", padding: "8px 10px", border: "1px solid #0f3460", borderRadius: 5, backgroundColor: "#16213e", color: "white", fontSize: "0.875rem", boxSizing: "border-box" as const, outline: "none" } as React.CSSProperties,
+  formActions: { display: "flex", gap: "0.5rem", justifyContent: "flex-end" } as React.CSSProperties,
+
+  // Clues
+  clueList: { borderTop: "1px solid #0f3460", padding: "0.5rem 1rem" } as React.CSSProperties,
+  clueItem: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0.75rem", backgroundColor: "#0f2040", borderRadius: 5, marginBottom: "0.35rem" } as React.CSSProperties,
+  clueText: { fontSize: "0.82rem", color: "#ccc", flex: 1 } as React.CSSProperties,
+  clueDeleteBtn: { background: "none", border: "none", color: "#e94560", cursor: "pointer", fontSize: 14, padding: "0 4px", lineHeight: 1, marginLeft: 8 } as React.CSSProperties,
+  addClueRow: { display: "flex", gap: "0.5rem", marginTop: "0.5rem", paddingBottom: "0.5rem" } as React.CSSProperties,
+  addClueInput: { flex: 1, padding: "6px 10px", border: "1px solid #0f3460", borderRadius: 5, backgroundColor: "#16213e", color: "white", fontSize: "0.82rem", outline: "none" } as React.CSSProperties,
+  addClueBtn: { padding: "6px 14px", backgroundColor: "#4caf50", color: "white", border: "none", borderRadius: 5, cursor: "pointer", fontSize: "0.82rem", fontWeight: 600, whiteSpace: "nowrap" as const } as React.CSSProperties,
+
+  // Notifications
+  msgSuccess: { padding: "10px 14px", backgroundColor: "#1a3d1a", border: "1px solid #4caf50", borderRadius: 6, color: "#4caf50", fontSize: "0.85rem", marginBottom: "1rem" } as React.CSSProperties,
+  msgError: { padding: "10px 14px", backgroundColor: "#2d1a1a", border: "1px solid #e94560", borderRadius: 6, color: "#e94560", fontSize: "0.85rem", marginBottom: "1rem" } as React.CSSProperties,
 };
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function DetalleMision() {
   const { id } = useParams<{ id: string }>();
@@ -30,113 +68,256 @@ export function DetalleMision() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showStageForm, setShowStageForm] = useState(false);
-  const [stageForm, setStageForm] = useState({ name: "", description: "", order: (mission?.stages.length ?? 0) + 1 });
+  const [stageForm, setStageForm] = useState({ name: "", description: "" });
   const [editingStage, setEditingStage] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", description: "", order: 1 });
   const [clueForm, setClueForm] = useState<Record<string, string>>({});
   const [showClueForm, setShowClueForm] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
+  const [msgType, setMsgType] = useState<"success" | "error">("success");
+
+  function notify(text: string, type: "success" | "error" = "success") {
+    setMsg(text);
+    setMsgType(type);
+    if (type === "success") setTimeout(() => setMsg(""), 3000);
+  }
 
   async function load() {
     if (!id) return;
     setLoading(true);
-    try { setMission(await getMissionById(id)); setError(""); } catch { setError("No se pudo cargar la misión."); }
+    try { setMission(await getMissionById(id)); setError(""); }
+    catch { setError("No se pudo cargar la misión."); }
     finally { setLoading(false); }
   }
   useEffect(() => { load(); }, [id]);
 
-  async function handleCreateStage() {
-    if (!id || !stageForm.name.trim()) return;
-    try { await createStage(id, { ...stageForm, order: stageForm.order }); setShowStageForm(false); setStageForm({ name: "", description: "", order: (mission?.stages.length ?? 0) + 1 }); load(); } catch (e) { setMsg(e instanceof ApiError ? e.body : "Error al crear etapa"); }
+  function nextOrder(stages: MissionDetail["stages"]) {
+    if (!stages.length) return 1;
+    return Math.max(...stages.map(s => s.order)) + 1;
   }
+
+  async function handleCreateStage() {
+    if (!id || !stageForm.name.trim() || !mission) return;
+    try {
+      await createStage(id, { ...stageForm, order: nextOrder(mission.stages) });
+      setShowStageForm(false);
+      setStageForm({ name: "", description: "" });
+      notify("Etapa creada correctamente");
+      load();
+    } catch (e) { notify(e instanceof ApiError ? e.body : "Error al crear etapa", "error"); }
+  }
+
   async function handleUpdateStage(stageId: string) {
     if (!id) return;
-    const s = stageForm;
-    try { await updateStage(id, stageId, { name: s.name, description: s.description, order: s.order }); setEditingStage(null); setMsg("Etapa actualizada"); load(); } catch { setMsg("Error al actualizar"); }
+    try {
+      await updateStage(id, stageId, editForm);
+      setEditingStage(null);
+      notify("Etapa actualizada correctamente");
+      load();
+    } catch { notify("Error al actualizar la etapa", "error"); }
   }
+
   async function handleDeleteStage(stageId: string) {
     if (!id || !confirm("¿Eliminar esta etapa y todas sus pistas?")) return;
-    try { await deleteStage(id, stageId); load(); } catch (e) { setMsg(e instanceof ApiError ? e.body : "Error al eliminar etapa"); }
+    try { await deleteStage(id, stageId); notify("Etapa eliminada"); load(); }
+    catch (e) { notify(e instanceof ApiError ? e.body : "Error al eliminar etapa", "error"); }
   }
+
   async function handleAddClue(stageId: string) {
     if (!id || !clueForm[stageId]?.trim()) return;
-    try { await createClue(id, stageId, { content: clueForm[stageId] }); setClueForm(f => ({ ...f, [stageId]: "" })); setShowClueForm(null); load(); } catch { setMsg("Error al agregar pista"); }
+    try {
+      await createClue(id, stageId, { content: clueForm[stageId] });
+      setClueForm(f => ({ ...f, [stageId]: "" }));
+      setShowClueForm(null);
+      load();
+    } catch { notify("Error al agregar pista", "error"); }
   }
+
   async function handleDeleteClue(stageId: string, clueId: string) {
     if (!id) return;
-    try { await deleteClue(id, stageId, clueId); load(); } catch { setMsg("Error al eliminar"); }
+    try { await deleteClue(id, stageId, clueId); load(); }
+    catch { notify("Error al eliminar pista", "error"); }
   }
 
-  if (loading) return <div style={s.container}><p>Cargando...</p></div>;
-  if (error || !mission) return <div style={s.container}><p style={s.error}>{error || "Misión no encontrada"}</p><Link to="/admin/misiones" style={s.backLink}>← Volver</Link></div>;
+  async function handleDownloadQr(stageId: string, stageName: string) {
+    if (!id) return;
+    try {
+      const response = await fetchWithAuth(`/api/missions/${id}/stages/${stageId}/qr`);
+      if (!response.ok) { notify("Error al generar el QR", "error"); return; }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `qr-${stageName.replace(/\s+/g, "-").toLowerCase()}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { notify("Error al descargar el QR", "error"); }
+  }
+
+  if (loading) return <div style={css.container}><p style={{ color: "#aaa" }}>Cargando...</p></div>;
+  if (error || !mission) return (
+    <div style={css.container}>
+      <p style={css.msgError}>{error || "Misión no encontrada"}</p>
+      <Link to="/admin/misiones" style={css.backLink}>← Volver</Link>
+    </div>
+  );
 
   const statusColors: Record<string, string> = { Active: "#007bff", Draft: "#6c757d", Inactive: "#dc3545" };
+  const difficultyColors: Record<string, string> = { Easy: "#28a745", Medium: "#fd7e14", Hard: "#dc3545" };
 
   return (
-    <div style={s.container}>
-      <Link to="/admin/misiones" style={s.backLink}>← Volver al catálogo</Link>
-      <div style={s.header}>
-        <h2 style={s.title}>{mission.title}</h2>
-        <p style={{ ...s.meta, color: "#ccc" }}>{mission.description}</p>
-        <p style={s.meta}>
-          {mission.difficulty} · {mission.timeMinutes}min · {mission.type} · <span style={s.badge(statusColors[mission.status] || "#6c757d")}>{mission.status}</span>
-        </p>
+    <div style={css.container}>
+      <Link to="/admin/misiones" style={css.backLink}>← Volver al catálogo</Link>
+
+      {/* Mission header card */}
+      <div style={css.missionCard}>
+        <h2 style={css.missionTitle}>{mission.title}</h2>
+        <p style={css.missionDesc}>{mission.description}</p>
+        <div style={css.metaRow}>
+          <span style={css.metaChip(difficultyColors[mission.difficulty] || "#6c757d")}>{mission.difficulty}</span>
+          <span style={css.metaChip("#0f3460")}>{mission.timeMinutes} min</span>
+          <span style={css.metaChip("#1a3a4a")}>{mission.type}</span>
+          <span style={css.metaChip(statusColors[mission.status] || "#6c757d")}>{mission.status}</span>
+        </div>
       </div>
 
-      {msg && <p style={msg.includes("Error") ? s.error : s.success}>{msg}</p>}
+      {msg && <div style={msgType === "error" ? css.msgError : css.msgSuccess}>{msg}</div>}
 
-      {mission.type === "Treasure" ? (
+      {mission.type === "Treasure" && (
         <>
-      <h3 style={s.sectionTitle}>Etapas ({mission.stages.length})</h3>
-      {mission.stages.map(stage => (
-        <div key={stage.id} style={s.stageCard}>
-          <div style={s.stageHeader}>
-            <div>
-              <span style={s.stageName}>#{stage.order} {stage.name}</span>
-              <p style={s.stageDesc}>{stage.description}</p>
-            </div>
-            <div>
-              <button style={s.btn("#0f3460")} onClick={() => { setEditingStage(stage.id); setStageForm({ name: stage.name, description: stage.description, order: stage.order }); }}>Editar</button>
-              <button style={s.btn("#e94560")} onClick={() => handleDeleteStage(stage.id)}>Eliminar</button>
-              <button style={s.btn("#e94560")} onClick={() => { setShowClueForm(showClueForm === stage.id ? null : stage.id); }}>+ Pista</button>
-            </div>
+          <div style={css.sectionHeader}>
+            <h3 style={css.sectionTitle}>Etapas &nbsp;<span style={{ color: "#666", fontWeight: 400 }}>({mission.stages.length})</span></h3>
+            {!showStageForm && (
+              <button style={css.btnAddStage} onClick={() => { setShowStageForm(true); setStageForm({ name: "", description: "" }); }}>
+                + Nueva Etapa
+              </button>
+            )}
           </div>
-          {editingStage === stage.id && (
-            <div style={{ marginTop: "0.5rem", padding: "0.75rem", backgroundColor: "#0f3460", borderRadius: 4 }}>
-              <input style={s.input} placeholder="Nombre" value={stageForm.name} onChange={e => setStageForm(f => ({ ...f, name: e.target.value }))} />
-              <input style={s.input} placeholder="Descripción" value={stageForm.description} onChange={e => setStageForm(f => ({ ...f, description: e.target.value }))} />
-              <input style={s.input} placeholder="Orden" type="number" min="1" value={stageForm.order} onChange={e => setStageForm(f => ({ ...f, order: Number(e.target.value) }))} />
-              <button style={s.btn("#28a745")} onClick={() => handleUpdateStage(stage.id)}>Guardar</button>
-              <button style={s.btn("#6c757d")} onClick={() => setEditingStage(null)}>Cancelar</button>
+
+          {/* New stage form */}
+          {showStageForm && (
+            <div style={{ ...css.stageCard, marginBottom: "1rem" }}>
+              <div style={{ ...css.stageBody, borderLeft: "4px solid #4caf50" }}>
+                <p style={{ margin: "0 0 0.75rem", fontWeight: 600, color: "#4caf50", fontSize: "0.875rem" }}>
+                  Nueva etapa — Orden {nextOrder(mission.stages)} (asignado automáticamente)
+                </p>
+              </div>
+              <div style={css.inlineForm}>
+                <div style={css.formRow}>
+                  <div>
+                    <label style={css.label}>Nombre *</label>
+                    <input
+                      style={css.input}
+                      placeholder="Ej: Biblioteca Central"
+                      value={stageForm.name}
+                      autoFocus
+                      onChange={e => setStageForm(f => ({ ...f, name: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label style={css.label}>Descripción</label>
+                    <input
+                      style={css.input}
+                      placeholder="Descripción de la ubicación"
+                      value={stageForm.description}
+                      onChange={e => setStageForm(f => ({ ...f, description: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div style={css.formActions}>
+                  <button style={css.btnSecondary} onClick={() => setShowStageForm(false)}>Cancelar</button>
+                  <button style={{ ...css.btnAddStage, padding: "8px 18px", fontSize: "0.82rem" }} onClick={handleCreateStage}>
+                    Crear Etapa
+                  </button>
+                </div>
+              </div>
             </div>
           )}
-          {stage.clues.map(clue => (
-            <div key={clue.id} style={s.clueItem}>
-              <span style={s.clueText}>💡 {clue.content} {clue.penalty != null ? `(-${clue.penalty}pts)` : ""}</span>
-              <button style={s.btnSmall("#dc3545")} onClick={() => handleDeleteClue(stage.id, clue.id)}>✕</button>
+
+          {/* Stage list */}
+          {mission.stages.length === 0 && !showStageForm && (
+            <p style={{ color: "#555", fontSize: "0.875rem", padding: "1rem 0" }}>
+              No hay etapas. Agregá la primera para estructurar la búsqueda.
+            </p>
+          )}
+
+          {[...mission.stages].sort((a, b) => a.order - b.order).map(stage => (
+            <div key={stage.id} style={css.stageCard}>
+              <div style={css.stageBody}>
+                <div style={css.stageTop}>
+                  <div style={css.stageInfo}>
+                    <div style={css.stageName}>
+                      <span style={css.stageOrderBadge}>{stage.order}</span>
+                      {stage.name}
+                    </div>
+                    {stage.description && <p style={css.stageDesc}>{stage.description}</p>}
+                  </div>
+                  <div style={css.stageActions}>
+                    <button style={css.btnSuccess} onClick={() => handleDownloadQr(stage.id, stage.name)}>⬇ QR</button>
+                    <button style={css.btnPrimary} onClick={() => {
+                      setEditingStage(stage.id);
+                      setEditForm({ name: stage.name, description: stage.description, order: stage.order });
+                    }}>Editar</button>
+                    <button style={css.btnPrimary} onClick={() => setShowClueForm(showClueForm === stage.id ? null : stage.id)}>
+                      {showClueForm === stage.id ? "Cerrar" : "+ Pista"}
+                    </button>
+                    <button style={css.btnDanger} onClick={() => handleDeleteStage(stage.id)}>Eliminar</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Inline edit form */}
+              {editingStage === stage.id && (
+                <div style={css.inlineForm}>
+                  <div style={css.formRow}>
+                    <div>
+                      <label style={css.label}>Nombre *</label>
+                      <input style={css.input} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label style={css.label}>Descripción</label>
+                      <input style={css.input} value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: "0.75rem", maxWidth: 120 }}>
+                    <label style={css.label}>Orden</label>
+                    <input style={css.input} type="number" min="1" value={editForm.order} onChange={e => setEditForm(f => ({ ...f, order: Number(e.target.value) }))} />
+                  </div>
+                  <div style={css.formActions}>
+                    <button style={css.btnSecondary} onClick={() => setEditingStage(null)}>Cancelar</button>
+                    <button style={{ ...css.btnAddStage, padding: "8px 18px", fontSize: "0.82rem" }} onClick={() => handleUpdateStage(stage.id)}>Guardar</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Clues */}
+              {(stage.clues.length > 0 || showClueForm === stage.id) && (
+                <div style={css.clueList}>
+                  {stage.clues.map(clue => (
+                    <div key={clue.id} style={css.clueItem}>
+                      <span style={css.clueText}>💡 {clue.content}{clue.penalty != null ? <span style={{ color: "#e94560", marginLeft: 8 }}>−{clue.penalty} pts</span> : null}</span>
+                      <button style={css.clueDeleteBtn} onClick={() => handleDeleteClue(stage.id, clue.id)}>✕</button>
+                    </div>
+                  ))}
+                  {showClueForm === stage.id && (
+                    <div style={css.addClueRow}>
+                      <input
+                        style={css.addClueInput}
+                        placeholder="Escribí el contenido de la pista..."
+                        value={clueForm[stage.id] || ""}
+                        autoFocus
+                        onChange={e => setClueForm(f => ({ ...f, [stage.id]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === "Enter") handleAddClue(stage.id); }}
+                      />
+                      <button style={css.addClueBtn} onClick={() => handleAddClue(stage.id)}>Agregar</button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
-          {showClueForm === stage.id && (
-            <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
-              <input style={{ ...s.input, marginBottom: 0 }} placeholder="Contenido de la pista" value={clueForm[stage.id] || ""} onChange={e => setClueForm(f => ({ ...f, [stage.id]: e.target.value }))} />
-              <button style={s.btn("#28a745")} onClick={() => handleAddClue(stage.id)}>✓</button>
-            </div>
-          )}
-        </div>
-      ))}
-
-      {showStageForm ? (
-        <div style={{ ...s.stageCard, marginTop: "1rem" }}>
-          <input style={s.input} placeholder="Nombre de la etapa" value={stageForm.name} onChange={e => setStageForm(f => ({ ...f, name: e.target.value }))} />
-          <input style={s.input} placeholder="Descripción" value={stageForm.description} onChange={e => setStageForm(f => ({ ...f, description: e.target.value }))} />
-          <input style={s.input} placeholder="Orden" type="number" value={stageForm.order} onChange={e => setStageForm(f => ({ ...f, order: Number(e.target.value) }))} />
-          <button style={s.btn("#28a745")} onClick={handleCreateStage}>Crear Etapa</button>
-          <button style={s.btn("#6c757d")} onClick={() => setShowStageForm(false)}>Cancelar</button>
-        </div>
-      ) : (
-        <button style={{ ...s.btn("#e94560"), marginTop: "1rem", marginLeft: 0 }} onClick={() => setShowStageForm(true)}>+ Agregar Etapa</button>
-      )}
         </>
-      ) : null}
+      )}
     </div>
   );
 }

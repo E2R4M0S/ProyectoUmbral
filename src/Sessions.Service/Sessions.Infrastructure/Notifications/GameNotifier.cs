@@ -81,4 +81,20 @@ public class GameNotifier : IGameNotifier
             _logger.LogWarning(ex, "Failed to send question closed notification for {SessionId}", sessionId);
         }
     }
+
+    public async Task NotifyGateOpenedAsync(Guid sessionId, int nextStageIndex, CancellationToken ct = default)
+    {
+        try
+        {
+            await _httpClient.PostAsJsonAsync("/internal/notifications/gate-opened", new
+            {
+                SessionId = sessionId,
+                NextStageIndex = nextStageIndex
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send gate-opened notification for {SessionId}", sessionId);
+        }
+    }
 }

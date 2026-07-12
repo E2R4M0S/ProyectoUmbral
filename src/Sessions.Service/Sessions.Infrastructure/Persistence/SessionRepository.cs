@@ -108,4 +108,16 @@ public class SessionRepository : ISessionRepository
         await _context.Set<SessionParticipant>().AddAsync(participant, ct);
         await _context.SaveChangesAsync(ct);
     }
+
+    public async Task<SessionParticipant?> GetParticipantAsync(Guid sessionId, Guid userId, CancellationToken ct)
+    {
+        return await _context.Set<SessionParticipant>()
+            .FirstOrDefaultAsync(p => p.SessionId == sessionId && p.UserId == userId, ct);
+    }
+
+    public async Task UpdateParticipantAsync(SessionParticipant participant, CancellationToken ct)
+    {
+        _context.Set<SessionParticipant>().Update(participant);
+        await _context.SaveChangesAsync(ct);
+    }
 }

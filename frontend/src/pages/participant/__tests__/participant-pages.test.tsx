@@ -63,6 +63,10 @@ const defaultState: GameState = {
   sessionId: "sess-1",
   sessionName: "Test Session",
   sessionStatus: "Active",
+  currentMissionType: null,
+  currentStageOrder: 0,
+  participantStageOrder: 1,
+  totalStages: 0,
   elapsedSeconds: 30,
   clues: [],
   score: 0,
@@ -70,6 +74,9 @@ const defaultState: GameState = {
   ranking: [],
   currentQuestion: null,
   selectedAnswerIndex: null,
+  isWaiting: false,
+  gatePosition: 0,
+  gateThreshold: 0,
 };
 
 function withGame(ui: React.ReactElement, stateOverride: Partial<GameState> = {}) {

@@ -33,6 +33,10 @@ function GameContent() {
     onQuestionAsked: (question: TriviaQuestion) => {
       dispatch({ type: "QUESTION_RECEIVED", question });
     },
+    onGateOpened: (_nextStageIndex: number) => {
+      dispatch({ type: "GATE_OPENED" });
+      try { sessionStorage.removeItem(`gate_waiting_${sessionId}`); } catch { /* ignore */ }
+    },
   });
 
   // Persist clues and ranking to sessionStorage so they survive a reload
@@ -61,9 +65,10 @@ function GameContent() {
   if (!sessionId) return null;
 
   switch (state.sessionStatus) {
+    case null:
+      return <WaitingRoom loading />;
     case "Scheduled":
     case "Preparing":
-    case null:
       return <WaitingRoom />;
     case "Active":
     case "Paused":
@@ -90,16 +95,31 @@ function GameViewInner() {
     }
     getSessionById(sessionId)
       .then((session) => {
+        const currentStage = session.stages.find(s => s.order === session.currentStageOrder)
+          ?? session.stages[0]
+          ?? null;
+        const totalStages = session.stages.length;
         dispatch({
           type: "SESSION_LOADED",
           name: session.name,
           status: session.status,
+          missionType: currentStage?.missionType ?? null,
+          stageOrder: session.currentStageOrder,
+          totalStages,
         });
+        // Restore participant's personal stage progress saved from previous QR scan
+        try {
+          const savedStage = sessionStorage.getItem(`participantStage_${sessionId}`);
+          if (savedStage) {
+            const { participantStageOrder } = JSON.parse(savedStage);
+            dispatch({ type: "STAGE_ADVANCED", participantStageOrder, totalStages });
+          }
+        } catch { /* ignore */ }
       })
       .catch(() => {});
   }, [sessionId, navigate, dispatch]);
 
-  // Restore clues, score and ranking from sessionStorage on reload
+  // Restore clues, score, ranking and gate-waiting state from sessionStorage on reload
   useEffect(() => {
     if (!sessionId) return;
     try {
@@ -115,6 +135,11 @@ function GameViewInner() {
       const savedRanking = sessionStorage.getItem(`ranking_${sessionId}`);
       if (savedRanking) {
         dispatch({ type: "RANKING_UPDATED", ranking: JSON.parse(savedRanking) });
+      }
+      const gateWaiting = sessionStorage.getItem(`gate_waiting_${sessionId}`);
+      if (gateWaiting) {
+        const { position, threshold } = JSON.parse(gateWaiting);
+        dispatch({ type: "GATE_REACHED", position, threshold });
       }
     } catch { /* ignore */ }
   }, [sessionId, dispatch]);

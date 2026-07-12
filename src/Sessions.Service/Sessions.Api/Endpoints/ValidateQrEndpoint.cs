@@ -12,16 +12,22 @@ public static class ValidateQrEndpoint
             [FromRoute] Guid sessionId,
             [FromBody] ValidateQrRequest request,
             IMediator mediator,
-            ILogger<Program> logger) =>
+            ILogger<Program> logger,
+            HttpContext httpContext) =>
         {
-            var command = new ValidateQrCommand(sessionId, request.StageId, request.Token);
+            var userIdClaim = httpContext.User.FindFirst("sub")
+                ?? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+
+            if (userIdClaim is null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                return Results.Unauthorized();
+
+            var command = new ValidateQrCommand(sessionId, userId, request.StageId, request.Token);
             var result = await mediator.Send(command);
 
             if (!result.IsValid)
             {
                 logger.LogWarning("QR validation rejected: SessionId={SessionId}, Reason={Reason}",
                     sessionId, result.ErrorMessage);
-                return Results.BadRequest(new { error = "QR inválido", message = result.ErrorMessage });
             }
 
             return Results.Ok(new
@@ -30,7 +36,13 @@ public static class ValidateQrEndpoint
                 advanced = result.Advanced,
                 currentStageOrder = result.CurrentStageOrder,
                 totalStages = result.TotalStages,
-                isLastStage = result.IsLastStage
+                isLastStage = result.IsLastStage,
+                isAtGate = result.IsAtGate,
+                gateOpened = result.GateOpened,
+                gatePosition = result.GatePosition,
+                gateThreshold = result.GateThreshold,
+                isEliminated = result.IsEliminated,
+                errorMessage = result.ErrorMessage,
             });
         })
         .WithName("ValidateQr")
