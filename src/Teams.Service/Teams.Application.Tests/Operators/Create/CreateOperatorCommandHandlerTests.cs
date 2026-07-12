@@ -23,12 +23,11 @@ public class CreateOperatorCommandHandlerTests
     public async Task Handle_ShouldCreateOperatorAndReturnResult()
     {
         // Arrange
-        var command = new CreateOperatorCommand("Juan Pérez", "juan@test.com", "Pass1234");
+        var command = new CreateOperatorCommand("Juan Pérez", "juan@test.com");
         var expectedResult = new CreateOperatorResult("Juan Pérez", "juan@test.com", "kc-user-id");
 
         _keycloakService
             .CreateOperatorAsync(
-                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
@@ -46,7 +45,6 @@ public class CreateOperatorCommandHandlerTests
         await _keycloakService.Received(1).CreateOperatorAsync(
             "Juan Pérez",
             "juan@test.com",
-            "Pass1234",
             Arg.Any<CancellationToken>());
     }
 
@@ -54,11 +52,10 @@ public class CreateOperatorCommandHandlerTests
     public async Task Handle_ShouldThrowWhenKeycloakServiceThrows()
     {
         // Arrange
-        var command = new CreateOperatorCommand("Juan Pérez", "juan@test.com", "Pass1234");
+        var command = new CreateOperatorCommand("Juan Pérez", "juan@test.com");
 
         _keycloakService
             .CreateOperatorAsync(
-                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())

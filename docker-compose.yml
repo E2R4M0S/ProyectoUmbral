@@ -1,4 +1,13 @@
 services:
+  # ─── MailHog (SMTP mock server for dev) ────────────────────
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "8025:8025"   # Web UI
+      - "1025:1025"   # SMTP
+    networks:
+      - umbral-network
+
   # ─── Keycloak ─────────────────────────────────────────────
   keycloak:
     image: quay.io/keycloak/keycloak:26.1
@@ -12,6 +21,8 @@ services:
       KC_DB_PASSWORD: keycloak123
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin123
+      KC_HOSTNAME_URL: http://localhost:8080
+      KC_HOSTNAME_ADMIN_URL: http://localhost:8080
     ports:
       - "8080:8080"
     volumes:

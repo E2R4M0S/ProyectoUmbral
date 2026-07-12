@@ -170,9 +170,11 @@ public class KeycloakAdminServiceTests
         handler.Enqueue(createResp);
         handler.Enqueue(Json("""[{"id":"r2","name":"operator"}]"""));
         handler.Enqueue(EmptyOk());
+        handler.Enqueue(TokenResponse()); // second token for execute-actions-email
+        handler.Enqueue(EmptyOk());        // execute-actions-email
 
         var svc = Build(handler);
-        var result = await svc.CreateOperatorAsync("Alice", "alice@test.com", "pass", CancellationToken.None);
+        var result = await svc.CreateOperatorAsync("Alice", "alice@test.com", CancellationToken.None);
 
         result.Email.Should().Be("alice@test.com");
         result.KeycloakUserId.Should().Be("op-123");
@@ -189,7 +191,7 @@ public class KeycloakAdminServiceTests
         });
 
         var svc = Build(handler);
-        await svc.Invoking(s => s.CreateOperatorAsync("A", "dup@test.com", "p", CancellationToken.None))
+        await svc.Invoking(s => s.CreateOperatorAsync("A", "dup@test.com", CancellationToken.None))
             .Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*dup@test.com*");
     }

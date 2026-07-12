@@ -175,9 +175,9 @@ public class KeycloakAdminService : IKeycloakAdminService
     // ─── Operator-specific methods ────────────────────────────────────────
 
     private async Task<string> CreateKeycloakOperatorUserAsync(
-        string token, string name, string email, string password, CancellationToken ct)
+        string token, string name, string email, CancellationToken ct)
     {
-        var payload = BuildOperatorPayload(name, email, password);
+        var payload = BuildOperatorPayload(name, email);
 
         var request = new HttpRequestMessage(
             HttpMethod.Post,
@@ -213,25 +213,14 @@ public class KeycloakAdminService : IKeycloakAdminService
         return userId;
     }
 
-    private static object BuildOperatorPayload(string name, string email, string password)
+    private static object BuildOperatorPayload(string name, string email)
     {
-        var credentials = new[]
-        {
-            new
-            {
-                type = "password",
-                value = password,
-                temporary = false
-            }
-        };
-
         return new
         {
             username = email,
             email,
             emailVerified = true,
             enabled = true,
-            credentials,
             attributes = new Dictionary<string, string[]>
             {
                 ["name"] = new[] { name }
@@ -280,14 +269,44 @@ public class KeycloakAdminService : IKeycloakAdminService
         }
     }
 
-    public async Task<CreateOperatorResult> CreateOperatorAsync(
-        string name, string email, string password, CancellationToken ct)
+    public async Task ExecuteActionsEmailAsync(string userId, List<string> actions, CancellationToken ct)
     {
         var token = await GetAdminTokenAsync(ct);
 
-        var userId = await CreateKeycloakOperatorUserAsync(token, name, email, password, ct);
+        var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}/execute-actions-email?lifespan=43200&redirect_uri={Uri.EscapeDataString($"{_options.BaseUrl}/realms/{_options.Realm}/account")}")
+        {
+            Content = JsonContent.Create(actions)
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError(
+                "Keycloak execute-actions-email failed for user {UserId} with actions {Actions}: {StatusCode} {Error}",
+                userId, string.Join(", ", actions), response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
+
+        _logger.LogInformation(
+            "execute-actions-email dispatched to user {UserId} for actions: {Actions}",
+            userId, string.Join(", ", actions));
+    }
+
+    public async Task<CreateOperatorResult> CreateOperatorAsync(
+        string name, string email, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var userId = await CreateKeycloakOperatorUserAsync(token, name, email, ct);
 
         await AssignOperatorRoleAsync(token, userId, ct);
+
+        await ExecuteActionsEmailAsync(userId, ["UPDATE_PASSWORD"], ct);
 
         return new CreateOperatorResult(name, email, userId);
     }
@@ -401,7 +420,7 @@ public class KeycloakAdminService : IKeycloakAdminService
             {
                 username,
                 email,
-                emailVerified = true,
+                emailVerified = false,
                 enabled = true,
                 credentials,
                 attributes = new Dictionary<string, string[]>
@@ -415,7 +434,7 @@ public class KeycloakAdminService : IKeycloakAdminService
         {
             username,
             email,
-            emailVerified = true,
+            emailVerified = false,
             enabled = true,
             credentials
         };

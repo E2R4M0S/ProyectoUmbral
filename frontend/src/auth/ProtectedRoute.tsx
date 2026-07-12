@@ -16,6 +16,15 @@ function getRoles(accessToken: string): string[] {
   }
 }
 
+function isEmailVerified(accessToken: string): boolean {
+  try {
+    const payload = JSON.parse(atob(accessToken.split(".")[1]));
+    return payload.email_verified === true;
+  } catch {
+    return false;
+  }
+}
+
 export function ProtectedRoute({ requiredRole, children }: ProtectedRouteProps) {
   const auth = useAuth();
 
@@ -25,6 +34,23 @@ export function ProtectedRoute({ requiredRole, children }: ProtectedRouteProps) 
 
   if (!auth.isAuthenticated) {
     return <Navigate to="/" replace />;
+  }
+
+  if (auth.user?.access_token && !isEmailVerified(auth.user.access_token)) {
+    return (
+      <div style={{ padding: "4rem 2rem", textAlign: "center", color: "white", backgroundColor: "#1a1a2e", minHeight: "100vh", fontFamily: "sans-serif" }}>
+        <h2 style={{ color: "#e94560", fontSize: "2rem" }}>Correo no verificado</h2>
+        <p style={{ color: "#ccc", marginBottom: "2rem", maxWidth: 500, marginInline: "auto" }}>
+          Por favor verificá tu correo electrónico antes de continuar. Revisá tu bandeja de entrada
+          y seguí el enlace de verificación.
+        </p>
+        <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
+          <button onClick={() => auth.signoutRedirect()} style={{ padding: "10px 24px", backgroundColor: "#e94560", color: "white", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
+            Cerrar Sesión
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (requiredRole && auth.user?.access_token) {

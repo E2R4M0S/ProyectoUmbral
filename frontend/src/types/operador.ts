@@ -1,7 +1,6 @@
 export interface CreateOperadorRequest {
   name: string;
   email: string;
-  password: string;
 }
 
 export interface OperadorResponse {

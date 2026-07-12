@@ -128,7 +128,7 @@ public class TeamsApiEndpointTests
     [Fact]
     public async Task CreateOperator_ValidCommand_CallsMediator()
     {
-        var command = new CreateOperatorCommand("operator1", "op@test.com", "Pass123!");
+        var command = new CreateOperatorCommand("operator1", "op@test.com");
         var result = new CreateOperatorResult("operator1", "op@test.com", "kc-user-123");
         _mediator.Send(command, Arg.Any<CancellationToken>()).Returns(Task.FromResult(result));
 
