@@ -23,6 +23,8 @@ const initialState: GameState = {
   isWaiting: false,
   gatePosition: 0,
   gateThreshold: 0,
+  myUserId: null,
+  myTeam: null,
 };
 
 function gameReducer(state: GameState, action: GameAction): GameState {
@@ -38,6 +40,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ? action.stages.filter(s => s.missionId === missionId)
         : [];
       const timeMinutes = missionStages[0]?.timeMinutes ?? 0;
+      // -1 is a test sentinel: 10 real seconds instead of the normal minutes×60 conversion.
+      const timeLimitSeconds = timeMinutes === -1 ? 10 : timeMinutes * 60;
       const quizId = currentStage?.quizId ?? null;
       // When the session advances to a new stage (e.g. Trivia ends → Treasure starts),
       // ensure the participant's local stage pointer also advances.
@@ -51,18 +55,37 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         participantStageOrder: newParticipantStageOrder,
         totalStages: action.totalStages,
         stages: action.stages,
-        timeLimitSeconds: timeMinutes * 60,
+        timeLimitSeconds,
         currentQuizId: quizId,
         elapsedSeconds: 0,
       };
     }
 
-    case "STAGE_ADVANCED":
+    case "STAGE_ADVANCED": {
+      const newStage = state.stages.find(s => s.order === action.participantStageOrder);
+      const oldStage = state.stages.find(s => s.order === state.participantStageOrder);
+      const missionChanged = newStage && oldStage && newStage.missionId !== oldStage.missionId;
+
+      if (missionChanged) {
+        const newMissionStages = state.stages.filter(s => s.missionId === newStage!.missionId);
+        const rawTimeMinutes = newMissionStages[0]?.timeMinutes ?? 0;
+        const newTimeLimitSeconds = rawTimeMinutes === -1 ? 10 : rawTimeMinutes * 60;
+        return {
+          ...state,
+          participantStageOrder: action.participantStageOrder,
+          totalStages: action.totalStages,
+          currentMissionType: newStage!.missionType,
+          timeLimitSeconds: newTimeLimitSeconds,
+          elapsedSeconds: 0,
+        };
+      }
+
       return {
         ...state,
         participantStageOrder: action.participantStageOrder,
         totalStages: action.totalStages,
       };
+    }
 
     case "STATUS_CHANGED":
       return {
@@ -153,6 +176,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         isWaiting: false,
         gatePosition: 0,
         gateThreshold: 0,
+      };
+
+    case "MY_IDENTITY_LOADED":
+      return {
+        ...state,
+        myUserId: action.userId,
+        myTeam: action.team,
       };
 
     default:

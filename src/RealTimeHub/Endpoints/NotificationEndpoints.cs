@@ -71,7 +71,8 @@ public static class NotificationEndpoints
             {
                 position = i + 1,
                 teamName = e.TeamName ?? e.TeamId.ToString()?.Substring(0, 8) ?? $"Jugador {i + 1}",
-                score = e.Score
+                score = e.Score,
+                userId = e.TeamId.ToString()
             }).ToList();
 
             var notification = new { SessionId = sessionId, Ranking = ranking };

@@ -13,7 +13,7 @@ export function Timer() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const hasLimit = state.timeLimitSeconds > 0;
-  const remaining = hasLimit ? state.timeLimitSeconds - state.elapsedSeconds : state.elapsedSeconds;
+  const remaining = state.timeLimitSeconds - state.elapsedSeconds;
   const isUrgent = hasLimit && remaining <= 60 && remaining > 0;
   const isTimeUp = hasLimit && remaining <= 0;
 
@@ -30,6 +30,8 @@ export function Timer() {
     };
   }, [dispatch]);
 
+  if (!hasLimit || state.currentMissionType === "Trivia") return null;
+
   return (
     <div className="timer">
       <div
@@ -38,11 +40,9 @@ export function Timer() {
       >
         {isTimeUp ? "00:00" : formatTime(remaining)}
       </div>
-      {hasLimit && (
-        <div style={{ fontSize: 10, color: "#666", textAlign: "center", marginTop: 2 }}>
-          {isTimeUp ? "Tiempo agotado" : "restante"}
-        </div>
-      )}
+      <div style={{ fontSize: 10, color: "#666", textAlign: "center", marginTop: 2 }}>
+        {isTimeUp ? "Tiempo agotado" : "restante"}
+      </div>
     </div>
   );
 }

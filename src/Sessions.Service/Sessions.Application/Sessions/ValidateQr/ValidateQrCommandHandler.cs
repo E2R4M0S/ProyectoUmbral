@@ -57,8 +57,14 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
         if (!currentStage.ValidateQrToken(command.ScannedStageId, command.ScannedToken))
         {
             _logger.LogWarning(
-                "QR validation failed: SessionId={SessionId}, UserId={UserId}, ScannedStageId={ScannedStageId}",
-                command.SessionId, command.UserId, command.ScannedStageId);
+                "QR validation failed: SessionId={SessionId}, UserId={UserId}, StageIndex={StageIndex}, " +
+                "ScannedStageId={ScannedStageId}, StoredMissionStageId={StoredMissionStageId}, " +
+                "ScannedTokenLength={ScannedTokenLength}, StoredTokenLength={StoredTokenLength}, " +
+                "TokensMatch={TokensMatch}",
+                command.SessionId, command.UserId, stageIndex,
+                command.ScannedStageId, currentStage.MissionStageId,
+                command.ScannedToken?.Length ?? -1, currentStage.QrToken?.Length ?? -1,
+                command.ScannedToken == currentStage.QrToken);
             return new ValidateQrResult(false, false, participant.CurrentStageOrder,
                 sortedStages.Count, false, ErrorMessage: "Invalid QR code for current stage");
         }
@@ -70,7 +76,7 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
             || sortedStages[stageIndex + 1].MissionId != currentStage.MissionId;
 
         int totalParticipants = session.Participants.Count;
-        int threshold = Math.Min(3, totalParticipants);
+        int threshold = Math.Max(1, Math.Min(3, totalParticipants));
 
         if (isGate)
         {

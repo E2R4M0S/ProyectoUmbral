@@ -1,6 +1,5 @@
 import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Outlet, Link, Navigate } from "react-router-dom";
-import { Capacitor } from "@capacitor/core";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Registro } from "./pages/public/Registro";
 import { ServerSetup } from "./pages/public/ServerSetup";

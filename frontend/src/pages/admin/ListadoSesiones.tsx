@@ -1,5 +1,5 @@
-import { useState, useEffect, type FormEvent } from "react";
-import { listSessions, transitionSession, ApiError } from "../../services/sessionsApi";
+import { useState, useEffect } from "react";
+import { listSessions, transitionSession } from "../../services/sessionsApi";
 import { Link, useLocation } from "react-router-dom";
 import type { SessionListItem, GetSessionsParams, SessionStatus } from "../../types/session";
 
@@ -57,12 +57,12 @@ export function ListadoSesiones() {
   }
   useEffect(() => { loadSessions(); }, [page]);
 
-  const cs: Record<string, React.CSSProperties> = {
-    table: { width: "100%", borderCollapse: "collapse", fontSize: 14 },
-    th: { textAlign: "left", padding: "10px 12px", borderBottom: "2px solid #e94560", backgroundColor: "#16213e", fontWeight: 600, color: "white" },
-    td: { padding: "10px 12px", borderBottom: "1px solid #0f3460", verticalAlign: "middle", color: "white" },
-    inp: { width: "100%", padding: 8, border: "1px solid #0f3460", borderRadius: 4, boxSizing: "border-box", backgroundColor: "#16213e", color: "white" },
-    badge: (bg: string) => ({ display: "inline-block", padding: "2px 8px", borderRadius: 12, fontSize: 12, fontWeight: 600, color: "white", backgroundColor: bg }),
+  const cs = {
+    table: { width: "100%", borderCollapse: "collapse", fontSize: 14 } as React.CSSProperties,
+    th: { textAlign: "left" as const, padding: "10px 12px", borderBottom: "2px solid #e94560", backgroundColor: "#16213e", fontWeight: 600, color: "white" } as React.CSSProperties,
+    td: { padding: "10px 12px", borderBottom: "1px solid #0f3460", verticalAlign: "middle", color: "white" } as React.CSSProperties,
+    inp: { width: "100%", padding: 8, border: "1px solid #0f3460", borderRadius: 4, boxSizing: "border-box" as const, backgroundColor: "#16213e", color: "white" } as React.CSSProperties,
+    badge: (bg: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 12, fontSize: 12, fontWeight: 600, color: "white", backgroundColor: bg }),
   };
 
   const statusColors: Record<string, string> = { Scheduled: "#6c757d", Preparing: "#ffc107", Active: "#28a745", Paused: "#ffc107", Finished: "#007bff", Cancelled: "#dc3545" };

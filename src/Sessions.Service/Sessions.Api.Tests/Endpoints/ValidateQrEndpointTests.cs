@@ -40,7 +40,7 @@ public class ValidateQrEndpointTests
     {
         var sessionId = Guid.NewGuid();
         var stageId = Guid.NewGuid();
-        var commandResult = new ValidateQrResult(false, false, 0, 1, false, "Invalid QR code for current stage");
+        var commandResult = new ValidateQrResult(false, false, 0, 1, false, ErrorMessage: "Invalid QR code for current stage");
         _mediator.Send(Arg.Any<ValidateQrCommand>(), Arg.Any<CancellationToken>())
             .Returns(commandResult);
 
@@ -58,7 +58,7 @@ public class ValidateQrEndpointTests
     public async Task ValidateQr_SessionNotFound_ReturnsBadRequest()
     {
         var sessionId = Guid.NewGuid();
-        var commandResult = new ValidateQrResult(false, false, 0, 0, false, "Session not found");
+        var commandResult = new ValidateQrResult(false, false, 0, 0, false, ErrorMessage: "Session not found");
         _mediator.Send(Arg.Any<ValidateQrCommand>(), Arg.Any<CancellationToken>())
             .Returns(commandResult);
 
@@ -90,7 +90,7 @@ public class ValidateQrEndpointTests
     // Mirrors the body of ValidateQrEndpoint.MapValidateQrEndpoint
     private async Task<IActionResult> SimulateEndpoint(Guid sessionId, Guid stageId, string token)
     {
-        var command = new ValidateQrCommand(sessionId, stageId, token);
+        var command = new ValidateQrCommand(sessionId, Guid.NewGuid(), stageId, token);
         var result = await _mediator.Send(command, CancellationToken.None);
 
         if (!result.IsValid)

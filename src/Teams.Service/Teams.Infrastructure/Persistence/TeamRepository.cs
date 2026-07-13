@@ -73,4 +73,12 @@ public class TeamRepository : ITeamRepository
             .Include(t => t.Members)
             .FirstOrDefaultAsync(t => t.JoinCode == code, ct);
     }
+
+    public async Task<IEnumerable<Team>> GetByMemberIdAsync(string userId, CancellationToken ct)
+    {
+        return await _context.Teams
+            .Include(t => t.Members)
+            .Where(t => t.Members.Any(m => m.UserId == userId))
+            .ToListAsync(ct);
+    }
 }

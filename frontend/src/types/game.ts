@@ -12,6 +12,13 @@ export interface RankingEntry {
   position: number;
   teamName: string;
   score: number;
+  userId?: string;
+}
+
+export interface MyTeam {
+  id: string;
+  name: string;
+  memberIds: string[];
 }
 
 export interface TriviaQuestion {
@@ -45,6 +52,8 @@ export interface GameState {
   isWaiting: boolean;
   gatePosition: number;
   gateThreshold: number;
+  myUserId: string | null;
+  myTeam: MyTeam | null;
 }
 
 export type GameAction =
@@ -62,4 +71,5 @@ export type GameAction =
   | { type: "ANSWER_SELECTED"; answerIndex: number }
   | { type: "QUESTION_CLEARED" }
   | { type: "GATE_REACHED"; position: number; threshold: number }
-  | { type: "GATE_OPENED" };
+  | { type: "GATE_OPENED" }
+  | { type: "MY_IDENTITY_LOADED"; userId: string; team: MyTeam | null };

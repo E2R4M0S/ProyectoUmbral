@@ -5,6 +5,7 @@ public class SessionStage
     public Guid MissionId { get; private set; }
     public Guid MissionStageId { get; private set; }
     public string MissionTitle { get; private set; } = null!;
+    public string StageName { get; private set; } = null!;
     public string MissionType { get; private set; } = null!;
     public int Order { get; private set; }
     public string QrToken { get; private set; } = null!;
@@ -18,6 +19,7 @@ public class SessionStage
         Guid missionId,
         Guid missionStageId,
         string missionTitle,
+        string stageName,
         string missionType,
         int order,
         string qrToken,
@@ -27,15 +29,17 @@ public class SessionStage
     {
         if (missionId == Guid.Empty)
             throw new InvalidOperationException("SessionStage MissionId cannot be empty");
-        if (missionStageId == Guid.Empty)
-            throw new InvalidOperationException("SessionStage MissionStageId cannot be empty");
         if (string.IsNullOrWhiteSpace(missionTitle))
             throw new InvalidOperationException("SessionStage MissionTitle is required");
+        if (string.IsNullOrWhiteSpace(stageName))
+            throw new InvalidOperationException("SessionStage StageName is required");
         if (string.IsNullOrWhiteSpace(missionType))
             throw new InvalidOperationException("SessionStage MissionType is required");
         if (order < 1)
             throw new InvalidOperationException("SessionStage Order must be a positive integer");
-        if (string.IsNullOrWhiteSpace(qrToken))
+        if (missionType == "Treasure" && missionStageId == Guid.Empty)
+            throw new InvalidOperationException("SessionStage MissionStageId cannot be empty");
+        if (missionType == "Treasure" && string.IsNullOrWhiteSpace(qrToken))
             throw new InvalidOperationException("SessionStage QrToken is required");
 
         return new SessionStage
@@ -43,6 +47,7 @@ public class SessionStage
             MissionId = missionId,
             MissionStageId = missionStageId,
             MissionTitle = missionTitle.Trim(),
+            StageName = stageName.Trim(),
             MissionType = missionType,
             Order = order,
             QrToken = qrToken,

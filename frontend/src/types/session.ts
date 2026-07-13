@@ -5,6 +5,7 @@ export type SessionStatus = "Scheduled" | "Preparing" | "Active" | "Paused" | "F
 export interface SessionStage {
   missionId: string;
   missionTitle: string;
+  stageName: string;
   missionType: MissionType | string;
   order: number;
   timeMinutes?: number;
@@ -65,6 +66,7 @@ export interface StageInput {
   missionId: string;
   missionStageId: string;
   missionTitle: string;
+  stageName: string;
   missionType: string;
   order: number;
   qrToken: string;

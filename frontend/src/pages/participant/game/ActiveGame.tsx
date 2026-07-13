@@ -34,6 +34,34 @@ export function ActiveGame() {
   const scanPhaseRef = useRef<ScanPhase>("idle");
   useEffect(() => { scanPhaseRef.current = scanPhase; }, [scanPhase]);
 
+  // Auto-advance past the current mission when the timer runs out
+  const timeUpHandledRef = useRef(false);
+  useEffect(() => {
+    if (state.timeLimitSeconds <= 0) return;
+    if (state.elapsedSeconds < state.timeLimitSeconds) {
+      timeUpHandledRef.current = false;
+      return;
+    }
+    if (timeUpHandledRef.current) return;
+    timeUpHandledRef.current = true;
+
+    const current = state.stages.find(s => s.order === state.participantStageOrder);
+    if (!current) {
+      navigate(`/juego/${sessionId}/completada`, { replace: true });
+      return;
+    }
+
+    const missionStages = state.stages.filter(s => s.missionId === current.missionId);
+    const lastOrder = Math.max(...missionStages.map(s => s.order));
+    const nextOrder = lastOrder + 1;
+
+    if (state.stages.some(s => s.order === nextOrder)) {
+      dispatch({ type: "STAGE_ADVANCED", participantStageOrder: nextOrder, totalStages: state.totalStages });
+    } else {
+      navigate(`/juego/${sessionId}/completada`, { replace: true });
+    }
+  }, [state.elapsedSeconds, state.timeLimitSeconds, state.stages, state.participantStageOrder, state.totalStages, dispatch, navigate, sessionId]);
+
   const handleScan = useCallback(async (text: string) => {
     if (scanPhaseRef.current !== "idle") return;
 

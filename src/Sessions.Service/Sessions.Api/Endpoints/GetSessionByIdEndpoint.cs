@@ -27,6 +27,7 @@ public static class GetSessionByIdEndpoint
                 {
                     s.MissionId,
                     s.MissionTitle,
+                    s.StageName,
                     s.MissionType,
                     s.Order,
                     s.MissionStageId,

@@ -7,6 +7,7 @@ import type {
   GetTeamsParams,
   GetTeamsResponse,
 } from "../types/team";
+import type { MyTeam } from "../types/game";
 
 export class ApiError extends Error {
   constructor(
@@ -95,6 +96,13 @@ export async function joinTeam(joinCode: string): Promise<{ success: boolean }> 
 
   if (response.status === 204) return { success: true };
   return response.json();
+}
+
+export async function getMyTeams(): Promise<MyTeam[]> {
+  const response = await fetchWithAuth("/api/teams/mine", { method: "GET" });
+  if (!response.ok) return [];
+  const data: Array<{ id: string; name: string; memberIds: string[] }> = await response.json();
+  return data.map(t => ({ id: t.id, name: t.name, memberIds: t.memberIds }));
 }
 
 export async function removeMember(teamId: string, memberId: string): Promise<void> {

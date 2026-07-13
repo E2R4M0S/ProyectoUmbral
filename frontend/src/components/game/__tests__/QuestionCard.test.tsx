@@ -47,6 +47,8 @@ function renderCard(stateOverride: Partial<GameState> = {}) {
     isWaiting: false,
     gatePosition: 0,
     gateThreshold: 0,
+    myUserId: null,
+    myTeam: null,
     ...stateOverride,
   };
   render(

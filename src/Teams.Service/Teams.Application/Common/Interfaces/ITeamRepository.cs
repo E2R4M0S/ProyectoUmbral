@@ -12,4 +12,5 @@ public interface ITeamRepository
     Task<Team?> GetByIdWithMembersAsync(Guid id, CancellationToken ct);
     Task<Team?> GetByJoinCodeAsync(string joinCode, CancellationToken ct);
     Task AddMemberAsync(Team team, TeamMember member, CancellationToken ct);
+    Task<IEnumerable<Team>> GetByMemberIdAsync(string userId, CancellationToken ct);
 }

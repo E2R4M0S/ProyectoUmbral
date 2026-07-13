@@ -7,7 +7,7 @@ interface Quiz {
   questionCount: number;
 }
 
-const s: Record<string, React.CSSProperties> = {
+const s = {
   container: { maxWidth: 700, margin: "0 auto", color: "white", fontFamily: "sans-serif", padding: "1rem" },
   title: { fontSize: "1.5rem", color: "#e94560", margin: "0 0 1rem" },
   card: { padding: "1rem", backgroundColor: "#16213e", borderRadius: 8, border: "1px solid #0f3460", marginBottom: "0.75rem" },

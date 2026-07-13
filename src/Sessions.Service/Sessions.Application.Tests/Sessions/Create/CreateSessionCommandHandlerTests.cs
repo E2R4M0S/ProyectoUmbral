@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Sessions.Application.Common.Interfaces;
@@ -23,15 +23,15 @@ public class CreateSessionCommandHandlerTests
     private static CreateSessionCommand SingleStageCommand(string name = "Test Session")
         => new(name, new List<StageInput>
         {
-            new(Guid.NewGuid(), Guid.NewGuid(), "Trivia Facil", "Trivia", 1, "test-token")
+            new(Guid.NewGuid(), Guid.NewGuid(), "Trivia Facil", "Stage", "Trivia", 1, "test-token")
         });
 
     private static CreateSessionCommand MultiStageCommand(string name = "Multi Session")
         => new(name, new List<StageInput>
         {
-            new(Guid.NewGuid(), Guid.NewGuid(), "Trivia A", "Trivia", 1, "test-token"),
-            new(Guid.NewGuid(), Guid.NewGuid(), "Búsqueda Pirata", "Treasure", 2, "test-token"),
-            new(Guid.NewGuid(), Guid.NewGuid(), "Trivia C", "Trivia", 3, "test-token")
+            new(Guid.NewGuid(), Guid.NewGuid(), "Trivia A", "Stage", "Trivia", 1, "test-token"),
+            new(Guid.NewGuid(), Guid.NewGuid(), "Búsqueda Pirata", "Stage", "Treasure", 2, "test-token"),
+            new(Guid.NewGuid(), Guid.NewGuid(), "Trivia C", "Stage", "Trivia", 3, "test-token")
         });
 
     [Fact]
@@ -85,13 +85,13 @@ public class CreateSessionCommandHandlerTests
         var existing = Session.Create(
             "Existing",
             "999999",
-            new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M", "Trivia", 1, "test-token") });
+            new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M", "Stage", "Trivia", 1, "test-token") });
         _repository.GetByNameAsync("Existing", Arg.Any<CancellationToken>()).Returns(existing);
 
         Func<Task> act = async () => await _sut.Handle(command, CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Ya existe una sesi�n*");
+            .WithMessage("*Ya existe una sesión*");
     }
 
     [Fact]
@@ -131,8 +131,8 @@ public class CreateSessionCommandHandlerTests
             "Mapping Test",
             new List<StageInput>
             {
-                new(missionId1, Guid.NewGuid(), "Trivia Facil", "Trivia", 1, "test-token"),
-                new(missionId2, Guid.NewGuid(), "Busqueda", "Treasure", 2, "test-token")
+                new(missionId1, Guid.NewGuid(), "Trivia Facil", "Stage", "Trivia", 1, "test-token"),
+                new(missionId2, Guid.NewGuid(), "Busqueda", "Stage", "Treasure", 2, "test-token")
             });
 
         Session? captured = null;

@@ -15,7 +15,7 @@ public static class RankingEndpoints
         {
             var entries = await leaderboard.GetByQuizAsync(quizId);
             var result = entries
-                .Select((e, i) => new { position = i + 1, teamName = e.TeamName, score = e.Score });
+                .Select((e, i) => new { position = i + 1, teamName = e.TeamName, score = e.Score, userId = e.TeamId.ToString() });
             return Results.Ok(result);
         })
         .WithName("GetRankingByQuiz")

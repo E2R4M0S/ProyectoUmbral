@@ -104,6 +104,7 @@ try
 
     app.MapCreateTeamEndpoint();
 
+    app.MapGetMyTeamsEndpoint();
     app.MapGetTeamsEndpoint();
     app.MapGetTeamByIdEndpoint();
 

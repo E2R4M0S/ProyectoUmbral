@@ -26,6 +26,8 @@ function renderTimer(timeLimitSeconds: number, overrides: Partial<GameState> = {
     isWaiting: false,
     gatePosition: 0,
     gateThreshold: 0,
+    myUserId: null,
+    myTeam: null,
     ...overrides,
   };
 

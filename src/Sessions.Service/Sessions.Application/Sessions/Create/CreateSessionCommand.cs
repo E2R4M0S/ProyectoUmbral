@@ -10,6 +10,7 @@ public record StageInput(
     Guid MissionId,
     Guid MissionStageId,
     string MissionTitle,
+    string StageName,
     string MissionType,
     int Order,
     string QrToken,

@@ -80,6 +80,8 @@ const defaultState: GameState = {
   isWaiting: false,
   gatePosition: 0,
   gateThreshold: 0,
+  myUserId: null,
+  myTeam: null,
 };
 
 function withGame(ui: React.ReactElement, stateOverride: Partial<GameState> = {}) {
@@ -146,7 +148,7 @@ describe("UnirseEquipo", () => {
   });
 
   it("calls joinTeam when code is valid", async () => {
-    vi.mocked(joinTeam).mockResolvedValue(undefined);
+    vi.mocked(joinTeam).mockResolvedValue({ success: true });
     withRouter(<UnirseEquipo />);
     fireEvent.change(screen.getByPlaceholderText("ABC123"), { target: { value: "ABC123" } });
     fireEvent.click(screen.getByRole("button", { name: /unirse al equipo/i }));
