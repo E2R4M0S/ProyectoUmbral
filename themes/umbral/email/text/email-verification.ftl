@@ -2,7 +2,7 @@ UMBRAL - Verifica tu correo
 
 Hola ${user.firstName!},
 
-Gracias por registrarte en UMBRAL. Para activar tu cuenta, segui este enlace:
+Gracias por registrarte en UMBRAL. Para activar tu cuenta, ingresa al siguiente enlace:
 
 ${link}
 

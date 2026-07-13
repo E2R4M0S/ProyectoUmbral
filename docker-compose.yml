@@ -27,7 +27,7 @@ services:
       - "8080:8080"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
-      - ./themes:/opt/keycloak/themes:ro
+      - ./themes/umbral:/opt/keycloak/themes/umbral:ro
     networks:
       - umbral-network
     depends_on:
