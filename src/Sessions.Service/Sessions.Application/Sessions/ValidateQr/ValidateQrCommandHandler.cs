@@ -80,8 +80,6 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
 
         if (isGate)
         {
-            participant.AddScore(100);
-
             // Count participants who already passed this gate (before this one)
             int alreadyPassed = session.Participants.Count(p =>
                 p.UserId != command.UserId && p.CurrentStageOrder > stageIndex);
@@ -102,6 +100,11 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
 
             participant.AdvanceStage();
             int newCount = alreadyPassed + 1;
+
+            // Podium scoring: 1st=300, 2nd=200, 3rd=100 — only top 3 receive points
+            int gateScore = newCount switch { 1 => 300, 2 => 200, 3 => 100, _ => 0 };
+            if (gateScore > 0) participant.AddScore(gateScore);
+
             bool gateOpens = newCount >= threshold;
 
             if (gateOpens)
@@ -155,9 +158,9 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
         }
         else
         {
-            // Within same mission — advance immediately, no waiting
+            // Within same mission — advance immediately, no waiting (flat 50 pts per intermediate QR)
             participant.AdvanceStage();
-            participant.AddScore(100);
+            participant.AddScore(50);
             await _repository.UpdateParticipantAsync(participant, ct);
 
             _logger.LogInformation(
