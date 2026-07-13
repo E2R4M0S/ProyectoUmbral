@@ -16,6 +16,8 @@ export function QuestionCard({ question }: Props) {
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   const [pointsAwarded, setPointsAwarded] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number>(question.timeLimitSeconds || 30);
+  const [correctIndex, setCorrectIndex] = useState<number | null>(null);
+  const [questionClosed, setQuestionClosed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -43,8 +45,22 @@ export function QuestionCard({ question }: Props) {
     }
   }, [sent]);
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ questionId: string; correctAnswerId: string }>).detail;
+      if (detail.questionId !== question.questionId) return;
+      const lastChar = detail.correctAnswerId[detail.correctAnswerId.length - 1];
+      const idx = parseInt(lastChar, 10);
+      setCorrectIndex(isNaN(idx) ? null : idx);
+      setQuestionClosed(true);
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+    window.addEventListener("QuestionClosed", handler);
+    return () => window.removeEventListener("QuestionClosed", handler);
+  }, [question.questionId]);
+
   const isTimedOut = timeLeft === 0 && !sent;
-  const isDisabled = sent || !!state.answersDisabled || isTimedOut;
+  const isDisabled = sent || !!state.answersDisabled || isTimedOut || questionClosed;
   const limit = question.timeLimitSeconds || 30;
   const timerPercent = (timeLeft / limit) * 100;
   const timerColor = timeLeft <= 5 ? "#e94560" : timeLeft <= 10 ? "#fbbf24" : "#34d399";
@@ -100,9 +116,10 @@ export function QuestionCard({ question }: Props) {
   function optionClass(i: number): string {
     const classes = ["question-option"];
     if (isDisabled) classes.push("disabled");
-    if (feedback === "correct" && selectedIndex === i) classes.push("feedback-correct");
+    if (questionClosed && correctIndex === i) classes.push("feedback-correct");
+    else if (feedback === "correct" && selectedIndex === i) classes.push("feedback-correct");
     else if (feedback === "wrong" && selectedIndex === i) classes.push("feedback-wrong");
-    else if (!sent && selectedIndex === i) classes.push("selected");
+    else if (!sent && !questionClosed && selectedIndex === i) classes.push("selected");
     return classes.join(" ");
   }
 
@@ -154,9 +171,15 @@ export function QuestionCard({ question }: Props) {
           <span className="points">0 pts</span>
         </div>
       )}
-      {isTimedOut && !feedback && (
+      {isTimedOut && !feedback && !questionClosed && (
         <div className="question-feedback wrong">
           <span>⏰ Sin respuesta</span>
+          <span className="points">0 pts</span>
+        </div>
+      )}
+      {questionClosed && !feedback && (
+        <div className="question-feedback wrong">
+          <span>⏰ Ronda terminada</span>
           <span className="points">0 pts</span>
         </div>
       )}

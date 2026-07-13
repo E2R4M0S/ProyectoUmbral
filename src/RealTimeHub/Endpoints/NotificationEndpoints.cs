@@ -61,6 +61,24 @@ public static class NotificationEndpoints
             return Results.Ok();
         });
 
+        app.MapPost("/internal/notifications/question-closed", async (
+            [FromBody] QuestionClosedNotification notification,
+            IHubContext<GameHub> hubContext) =>
+        {
+            await hubContext.Clients.Group(notification.SessionId.ToString())
+                .SendAsync("QuestionClosed", notification, CancellationToken.None);
+            return Results.Ok();
+        });
+
+        app.MapPost("/internal/events/QuestionResultsUpdated", async (
+            [FromBody] QuestionResultsPayload payload,
+            IHubContext<GameHub> hubContext) =>
+        {
+            await hubContext.Clients.Group(payload.QuizId.ToString())
+                .SendAsync("QuestionResultsUpdated", payload, CancellationToken.None);
+            return Results.Ok();
+        });
+
         app.MapPost("/internal/events/LeaderboardUpdated", async (
             [FromBody] List<LeaderboardEntryDto> entries,
             IHubContext<GameHub> hubContext) =>
@@ -94,3 +112,5 @@ public record QuestionClosedNotification(Guid SessionId, Guid QuestionId, Guid C
 public record RankingEntryDto(int Position, string TeamName, int Score);
 public record RankingUpdatedNotification(Guid SessionId, List<RankingEntryDto> Ranking);
 public record GateOpenedNotification(Guid SessionId, int NextStageIndex);
+public record QuestionResultsPayload(Guid QuizId, Guid QuestionId, List<AnswerResultItemDto> Results);
+public record AnswerResultItemDto(Guid AnswerId, string Text, int Count, double Percentage);
