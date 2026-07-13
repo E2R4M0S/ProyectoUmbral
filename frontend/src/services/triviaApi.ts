@@ -17,3 +17,17 @@ export async function getRankingByQuiz(quizId: string): Promise<RankingEntry[]> 
   if (!response.ok) return [];
   return response.json();
 }
+
+export interface GlobalRankingEntry {
+  position: number;
+  userId: string;
+  displayName: string;
+  totalScore: number;
+  lastUpdated: string;
+}
+
+export async function getGlobalRanking(period: "all" | "monthly"): Promise<GlobalRankingEntry[]> {
+  const response = await fetchWithAuth(`/api/trivia/ranking/global?period=${period}`, { method: "GET" });
+  if (!response.ok) return [];
+  return response.json();
+}
