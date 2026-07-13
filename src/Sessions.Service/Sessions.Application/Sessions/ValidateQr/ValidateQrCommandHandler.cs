@@ -80,6 +80,8 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
 
         if (isGate)
         {
+            participant.AddScore(100);
+
             // Count participants who already passed this gate (before this one)
             int alreadyPassed = session.Participants.Count(p =>
                 p.UserId != command.UserId && p.CurrentStageOrder > stageIndex);
@@ -155,6 +157,7 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
         {
             // Within same mission — advance immediately, no waiting
             participant.AdvanceStage();
+            participant.AddScore(100);
             await _repository.UpdateParticipantAsync(participant, ct);
 
             _logger.LogInformation(

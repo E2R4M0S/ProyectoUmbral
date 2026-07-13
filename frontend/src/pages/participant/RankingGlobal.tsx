@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "react-oidc-context";
-import { getGlobalRanking, type GlobalRankingEntry } from "../../services/triviaApi";
+import { getUnifiedRanking, type UnifiedRankingEntry as GlobalRankingEntry } from "../../services/sessionsApi";
 
 const medal = (pos: number): string => {
   if (pos === 1) return "🥇";
@@ -23,7 +23,7 @@ export function RankingGlobal() {
   useEffect(() => {
     setLoading(true);
     setError("");
-    getGlobalRanking(period)
+    getUnifiedRanking(period)
       .then(setEntries)
       .catch(() => setError("No se pudo cargar el ranking."))
       .finally(() => setLoading(false));

@@ -36,4 +36,8 @@ public class SessionParticipant
     public void SetWaiting() => IsWaitingAtGate = true;
 
     public void ClearWaiting() => IsWaitingAtGate = false;
+
+    public int Score { get; private set; }
+
+    public void AddScore(int delta) { if (delta > 0) Score += delta; }
 }

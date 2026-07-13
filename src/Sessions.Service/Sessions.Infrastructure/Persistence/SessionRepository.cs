@@ -120,4 +120,33 @@ public class SessionRepository : ISessionRepository
         _context.Set<SessionParticipant>().Update(participant);
         await _context.SaveChangesAsync(ct);
     }
+
+    public async Task AddParticipantScoreAsync(Guid sessionId, Guid userId, int delta, CancellationToken ct = default)
+    {
+        var participant = await GetParticipantAsync(sessionId, userId, ct);
+        if (participant is null) return;
+        participant.AddScore(delta);
+        _context.Set<SessionParticipant>().Update(participant);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<(Guid UserId, string Alias, int TotalScore)>> GetGlobalParticipantRankingAsync(DateTime? since = null, CancellationToken ct = default)
+    {
+        var query = _context.Set<SessionParticipant>().AsQueryable();
+        if (since.HasValue)
+            query = query.Where(p => p.JoinedAt >= since.Value);
+
+        var all = await query.ToListAsync(ct);
+
+        return all
+            .GroupBy(p => p.UserId)
+            .Select(g => (
+                UserId: g.Key,
+                Alias: g.First().UserAlias,
+                TotalScore: g.Sum(p => p.Score)
+            ))
+            .Where(r => r.TotalScore > 0)
+            .OrderByDescending(r => r.TotalScore)
+            .ToList();
+    }
 }

@@ -168,6 +168,19 @@ export interface ValidateQrResponse {
   errorMessage: string | null;
 }
 
+export interface UnifiedRankingEntry {
+  position: number;
+  userId: string;
+  displayName: string;
+  totalScore: number;
+}
+
+export async function getUnifiedRanking(period: "all" | "monthly"): Promise<UnifiedRankingEntry[]> {
+  const response = await fetchWithAuth(`/api/sessions/participants/ranking?period=${period}`);
+  if (!response.ok) return [];
+  return response.json();
+}
+
 export async function validateQr(sessionId: string, body: ValidateQrRequest): Promise<ValidateQrResponse> {
   const response = await fetchWithAuth(`/api/sessions/${sessionId}/validate-qr`, {
     method: "POST",
