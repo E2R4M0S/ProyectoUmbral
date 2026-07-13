@@ -9,15 +9,18 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
 {
     private readonly ISessionRepository _repository;
     private readonly IGameSessionFacade _facade;
+    private readonly IGameNotifier _notifier;
     private readonly ILogger<ValidateQrCommandHandler> _logger;
 
     public ValidateQrCommandHandler(
         ISessionRepository repository,
         IGameSessionFacade facade,
+        IGameNotifier notifier,
         ILogger<ValidateQrCommandHandler> logger)
     {
         _repository = repository;
         _facade = facade;
+        _notifier = notifier;
         _logger = logger;
     }
 
@@ -80,6 +83,11 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
                 "Participant {UserId} completed all stages (position {Position}) in session {SessionId}",
                 command.UserId, completedBefore + 1, command.SessionId);
 
+            await _notifier.NotifyRankingUpdatedAsync(
+                command.SessionId,
+                session.Participants.Select(p => (p.UserId, p.UserAlias, p.Score)),
+                ct);
+
             bool allDone = session.Participants.All(p => p.UserId == command.UserId || p.HasCompleted);
             if (allDone && session.Status == SessionStatus.Active)
                 await _facade.TransitionAndNotify(command.SessionId, "Finished", ct);
@@ -93,6 +101,11 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
         _logger.LogInformation(
             "Participant {UserId} advanced to stage {NewOrder} in session {SessionId}",
             command.UserId, participant.CurrentStageOrder, command.SessionId);
+
+        await _notifier.NotifyRankingUpdatedAsync(
+            command.SessionId,
+            session.Participants.Select(p => (p.UserId, p.UserAlias, p.Score)),
+            ct);
 
         return new ValidateQrResult(true, true, participant.CurrentStageOrder,
             sortedStages.Count, false);

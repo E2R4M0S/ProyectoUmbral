@@ -23,4 +23,5 @@ public interface ISessionRepository
     Task UpdateParticipantAsync(SessionParticipant participant, CancellationToken ct);
     Task AddParticipantScoreAsync(Guid sessionId, Guid userId, int delta, CancellationToken ct = default);
     Task<List<(Guid UserId, string Alias, int TotalScore)>> GetGlobalParticipantRankingAsync(DateTime? since = null, CancellationToken ct = default);
+    Task ResetParticipantScoresAsync(Guid sessionId, CancellationToken ct = default);
 }

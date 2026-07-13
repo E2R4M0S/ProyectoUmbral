@@ -46,6 +46,11 @@ public class TransitionSessionCommandHandler
 
         await _repository.UpdateAsync(session, ct);
 
+        if (session.Status == SessionStatus.Cancelled)
+        {
+            await _repository.ResetParticipantScoresAsync(session.Id, ct);
+        }
+
         _logger.LogInformation(
             "Session status transitioned: Id={SessionId}, Status={Status}",
             session.Id, session.Status);

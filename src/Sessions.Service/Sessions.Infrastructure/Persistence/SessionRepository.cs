@@ -130,6 +130,16 @@ public class SessionRepository : ISessionRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public async Task ResetParticipantScoresAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        var participants = await _context.Set<SessionParticipant>()
+            .Where(p => p.SessionId == sessionId)
+            .ToListAsync(ct);
+        foreach (var p in participants)
+            p.ResetScore();
+        await _context.SaveChangesAsync(ct);
+    }
+
     public async Task<List<(Guid UserId, string Alias, int TotalScore)>> GetGlobalParticipantRankingAsync(DateTime? since = null, CancellationToken ct = default)
     {
         var query = _context.Set<SessionParticipant>().AsQueryable();
