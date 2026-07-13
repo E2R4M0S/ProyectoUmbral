@@ -7,6 +7,13 @@ import { buildHubUrl } from "../config/serverConfig";
 const HUB_URL = buildHubUrl();
 const RECONNECT_DELAYS_MS = [0, 1000, 2000, 4000, 8000, 15000, 30000];
 
+export interface AnswerResult {
+  answerId: string;
+  text: string;
+  count: number;
+  percentage: number;
+}
+
   interface UseSignalRCallbacks {
     sessionId: string;
     onStatusChanged: (status: string) => void;
@@ -17,6 +24,7 @@ const RECONNECT_DELAYS_MS = [0, 1000, 2000, 4000, 8000, 15000, 30000];
     onQuestionAsked?: (question: TriviaQuestion) => void;
     onRankingUpdated?: (ranking: RankingEntry[]) => void;
     onGateOpened?: (nextStageIndex: number) => void;
+    onQuestionResultsUpdated?: (questionId: string, results: AnswerResult[]) => void;
   }
 
 export function useSignalR(callbacks: UseSignalRCallbacks): void {
@@ -85,6 +93,13 @@ export function useSignalR(callbacks: UseSignalRCallbacks): void {
       const p = payload as { sessionId: string; nextStageIndex: number };
       if (p.sessionId === sessionId) {
         callbacksRef.current.onGateOpened?.(p.nextStageIndex);
+      }
+    });
+
+    hub.on("QuestionResultsUpdated", (payload: unknown) => {
+      const p = payload as { quizId: string; questionId: string; results: AnswerResult[] };
+      if (p.quizId === sessionId) {
+        callbacksRef.current.onQuestionResultsUpdated?.(p.questionId, p.results);
       }
     });
 

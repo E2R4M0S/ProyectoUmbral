@@ -5,6 +5,7 @@ import { getSessionProgress, getSessionById, transitionSession, advanceStage, Ap
 import { getMissionById } from "../../services/missionsApi";
 import { fetchWithAuth } from "../../services/api";
 import { useSignalR } from "../../hooks/useSignalR";
+import type { AnswerResult } from "../../hooks/useSignalR";
 import type { SessionProgress, ParticipantProgress, SessionStatus, SessionStage } from "../../types/session";
 import type { MissionDetail, Clue } from "../../types/mission";
 import type { RankingEntry } from "../../types/game";
@@ -103,6 +104,7 @@ export function PanelSesion() {
   const [advancing, setAdvancing] = useState(false);
   const [advanceMsg, setAdvanceMsg] = useState("");
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
+  const [questionResults, setQuestionResults] = useState<AnswerResult[]>([]);
 
   async function load() {
     if (!id) return;
@@ -163,6 +165,7 @@ export function PanelSesion() {
     onClueReleased: () => {},
     onConnectionStateChange: () => {},
     onRankingUpdated: (incoming) => { setRanking(incoming); },
+    onQuestionResultsUpdated: (_, results) => { setQuestionResults(results); },
   });
 
   const allClues: Clue[] = mission?.stages?.flatMap(st => st.clues ?? []) ?? [];
@@ -388,7 +391,7 @@ export function PanelSesion() {
           {selectedQuizId && (
             <>
               <div style={{ ...css.sectionTitle, marginTop: "1.25rem" }}>Enviar Preguntas</div>
-              <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} totalParticipants={progress.participants?.length || 0} />
+              <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} totalParticipants={progress.participants?.length || 0} questionResults={questionResults} onClearResults={() => setQuestionResults([])} />
             </>
           )}
           {ranking.length > 0 && (
@@ -444,10 +447,12 @@ function QuizSelector({ selectedQuizId, onSelect }: { selectedQuizId: string; on
   );
 }
 
-function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionId: string; quizId: string; totalParticipants: number }) {
+function QuizQuestionSender({ sessionId, quizId, totalParticipants, questionResults, onClearResults }: { sessionId: string; quizId: string; totalParticipants: number; questionResults: AnswerResult[]; onClearResults: () => void }) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [questions, setQuestions] = useState<{ id: string; text: string; answers: { id: string; text: string; isCorrect: boolean }[] }[]>([]);
   const [sending, setSending] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [questionClosed, setQuestionClosed] = useState(false);
   const [msg, setMsg] = useState("");
   const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
   const [answerCount, setAnswerCount] = useState(0);
@@ -496,6 +501,7 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
     if (!questions.length) return;
     const q = questions[currentIdx];
     setSending(true); setCurrentQuestionId(null); setAnswerCount(0); setMsg(""); setCooldown(0);
+    setQuestionClosed(false); onClearResults();
     prevAllAnswered.current = false;
     try {
       const resp = await fetchWithAuth("/api/trivia/questions/ask", {
@@ -519,9 +525,27 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
     }
   };
 
+  const closeQuestion = async () => {
+    if (!currentQuestionId) return;
+    setClosing(true);
+    try {
+      await fetchWithAuth(`/api/trivia/questions/${currentQuestionId}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+      setQuestionClosed(true);
+    } catch {
+      setMsg("Error al cerrar la pregunta");
+    } finally {
+      setClosing(false);
+    }
+  };
+
   const goNext = () => {
     if (currentIdx < questions.length - 1) {
       setCurrentIdx(i => i + 1); setCurrentQuestionId(null); setAnswerCount(0); setMsg(""); setCooldown(0);
+      setQuestionClosed(false); onClearResults();
       prevAllAnswered.current = false;
     } else {
       setMsg("¡Todas las preguntas enviadas!");
@@ -552,19 +576,39 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
           {allAnswered && cooldown === 0 && <span style={{ color: "#4caf50", marginLeft: 8 }}>✅ Todos respondieron</span>}
         </div>
       )}
-      <div style={{ display: "flex", gap: "0.5rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         {!currentQuestionId ? (
           <button onClick={sendQuestion} disabled={sending} style={{ padding: "8px 18px", backgroundColor: sending ? "#555" : "#e94560", color: "white", border: "none", borderRadius: 6, cursor: sending ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
             {sending ? "Enviando..." : "Enviar Pregunta"}
           </button>
-        ) : currentIdx < questions.length - 1 ? (
-          <button onClick={goNext} disabled={!canGoNext} style={{ padding: "8px 18px", backgroundColor: canGoNext ? "#1a4d2e" : "#2a2a2a", color: canGoNext ? "#4caf50" : "#555", border: `1px solid ${canGoNext ? "#4caf50" : "#333"}`, borderRadius: 6, cursor: canGoNext ? "pointer" : "not-allowed", fontWeight: 600, fontSize: "0.875rem" }}>
-            {!allAnswered ? "Esperando respuestas..." : cooldown > 0 ? `Siguiente en ${cooldown}s` : "Siguiente →"}
+        ) : !questionClosed ? (
+          <button onClick={closeQuestion} disabled={closing || !canGoNext} style={{ padding: "8px 18px", backgroundColor: closing ? "#555" : canGoNext ? "#1a2d4a" : "#2a2a2a", color: closing ? "#888" : canGoNext ? "#3b82f6" : "#555", border: `1px solid ${canGoNext ? "#3b82f6" : "#333"}`, borderRadius: 6, cursor: (closing || !canGoNext) ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+            {closing ? "Cerrando..." : !allAnswered ? "Esperando respuestas..." : cooldown > 0 ? `Cerrar en ${cooldown}s` : "Cerrar Pregunta"}
           </button>
-        ) : allAnswered ? (
+        ) : currentIdx < questions.length - 1 ? (
+          <button onClick={goNext} style={{ padding: "8px 18px", backgroundColor: "#1a4d2e", color: "#4caf50", border: "1px solid #4caf50", borderRadius: 6, cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+            Siguiente →
+          </button>
+        ) : (
           <div style={{ color: "#4caf50", fontSize: "0.82rem", padding: "8px 0" }}>✅ Quiz completado</div>
-        ) : null}
+        )}
       </div>
+      {questionClosed && questionResults.length > 0 && (
+        <div style={{ marginTop: "0.75rem", backgroundColor: "#0d1b35", borderRadius: 6, padding: "0.75rem" }}>
+          <div style={{ fontSize: "0.72rem", color: "#888", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: "0.5rem" }}>Distribución de respuestas</div>
+          {questionResults.map((r, i) => (
+            <div key={r.answerId} style={{ marginBottom: "0.45rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "#ccc", marginBottom: 3 }}>
+                <span>{String.fromCharCode(65 + i)}. {r.text}</span>
+                <span style={{ color: "#fbbf24", fontWeight: 700 }}>{r.count} ({r.percentage.toFixed(0)}%)</span>
+              </div>
+              <div style={{ height: 6, backgroundColor: "#1a2a4a", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${r.percentage}%`, backgroundColor: "#3b82f6", borderRadius: 3, transition: "width 0.5s ease" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       {msg && <div style={{ marginTop: "0.5rem", color: msg.includes("Error") ? "#e94560" : "#4caf50", fontSize: "0.82rem" }}>{msg}</div>}
     </div>
   );
