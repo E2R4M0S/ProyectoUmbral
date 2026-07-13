@@ -5,6 +5,7 @@ import { Registro } from "./pages/public/Registro";
 import { ServerSetup } from "./pages/public/ServerSetup";
 import { needsServerSetup, getServerHost, isProductionApk } from "./config/serverConfig";
 import { MiPerfil } from "./pages/participant/MiPerfil";
+import { RankingGlobal } from "./pages/participant/RankingGlobal";
 import { UnirseEquipo } from "./pages/participant/UnirseEquipo";
 import { QuizBank } from "./pages/admin/QuizBank";
 import { UnirseSesion } from "./pages/participant/UnirseSesion";
@@ -218,6 +219,7 @@ function ParticipantPanel() {
       <Link to="/participant/equipo/unirse" className="sidebar-link">🔗 Unirse a Equipo</Link>
       <div className="sidebar-section">Juego</div>
       <Link to="/participant/sessions/join" className="sidebar-link">🎮 Unirse a Sesión</Link>
+      <Link to="/participant/ranking" className="sidebar-link">🏆 Ranking Global</Link>
     </Sidebar>
   );
 }
@@ -319,6 +321,7 @@ function App() {
             <Route path="perfil" element={<MiPerfil />} />
             <Route path="equipo/unirse" element={<UnirseEquipo />} />
             <Route path="sessions/join" element={<UnirseSesion />} />
+            <Route path="ranking" element={<RankingGlobal />} />
           </Route>
         </Route>
         <Route path="/juego/:sessionId" element={<GameView />} />

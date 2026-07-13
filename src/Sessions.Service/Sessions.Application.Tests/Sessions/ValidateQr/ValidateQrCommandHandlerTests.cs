@@ -95,14 +95,13 @@ public class ValidateQrCommandHandlerTests
         result.IsValid.Should().BeTrue();
         result.Advanced.Should().BeTrue();
         result.IsLastStage.Should().BeTrue();
-        result.IsAtGate.Should().BeTrue();
-        result.GateOpened.Should().BeTrue();
         await _repository.Received(1).UpdateParticipantAsync(Arg.Any<SessionParticipant>(), Arg.Any<CancellationToken>());
+        await _notifier.Received(1).NotifyRankingUpdatedAsync(sessionId, Arg.Any<IEnumerable<(Guid, string, int)>>(), Arg.Any<CancellationToken>());
         await _facade.Received(1).TransitionAndNotify(sessionId, "Finished", Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_ValidQrNotLastStage_ShouldAdvanceAndNotifyGateOpened()
+    public async Task Handle_ValidQrNotLastStage_ShouldAdvanceAndNotifyRankingUpdated()
     {
         var sessionId = Guid.NewGuid();
         var userId = Guid.NewGuid();
@@ -120,10 +119,8 @@ public class ValidateQrCommandHandlerTests
         result.IsValid.Should().BeTrue();
         result.Advanced.Should().BeTrue();
         result.IsLastStage.Should().BeFalse();
-        result.IsAtGate.Should().BeTrue();
-        result.GateOpened.Should().BeTrue();
         await _repository.Received(1).UpdateParticipantAsync(Arg.Any<SessionParticipant>(), Arg.Any<CancellationToken>());
-        await _notifier.Received(1).NotifyGateOpenedAsync(sessionId, 1, Arg.Any<CancellationToken>());
+        await _notifier.Received(1).NotifyRankingUpdatedAsync(sessionId, Arg.Any<IEnumerable<(Guid, string, int)>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

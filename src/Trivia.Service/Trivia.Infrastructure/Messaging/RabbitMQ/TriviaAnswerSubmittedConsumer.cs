@@ -222,6 +222,27 @@ public class TriviaAnswerSubmittedConsumer : BackgroundService
                                         var leaderboard = leaderboardRepo.GetByQuizAsync(quizId).GetAwaiter().GetResult();
                                         publisher.PublishAsync("LeaderboardUpdated", leaderboard).GetAwaiter().GetResult();
                                     }
+
+                                    // quizId == sessionId (see QuestionCard.tsx): sync session participant score
+                                    if (delta > 0)
+                                    {
+                                        try
+                                        {
+                                            var httpFactory = scope.ServiceProvider.GetService<System.Net.Http.IHttpClientFactory>();
+                                            if (httpFactory != null)
+                                            {
+                                                var sessionsUrl = Environment.GetEnvironmentVariable("SESSIONS_SERVICE_URL") ?? "http://sessions.service:80";
+                                                var scoreJson = System.Text.Json.JsonSerializer.Serialize(new { sessionId = quizId, userId = teamId, delta });
+                                                var content = new System.Net.Http.StringContent(scoreJson, Encoding.UTF8, "application/json");
+                                                var client = httpFactory.CreateClient();
+                                                client.PostAsync($"{sessionsUrl}/internal/participants/score", content).GetAwaiter().GetResult();
+                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            _logger.LogWarning(ex, "Failed to sync trivia score to Sessions.Service");
+                                        }
+                                    }
                                 }
                             }
                         }

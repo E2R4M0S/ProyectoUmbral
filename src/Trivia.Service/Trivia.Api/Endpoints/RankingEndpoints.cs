@@ -8,6 +8,29 @@ public static class RankingEndpoints
 {
     public static void MapRankingEndpoints(this WebApplication app)
     {
+        app.MapGet("/ranking/global", async (
+            HttpContext http,
+            ILeaderboardRepository leaderboard,
+            ILogger<Program> logger) =>
+        {
+            var period = http.Request.Query["period"].ToString();
+            DateTime? since = period == "monthly" ? DateTime.UtcNow.AddDays(-30) : null;
+
+            var entries = await leaderboard.GetGlobalAsync(since);
+            var result = entries
+                .Select((e, i) => new
+                {
+                    position = i + 1,
+                    userId = e.TeamId.ToString(),
+                    displayName = e.TeamName ?? e.TeamId.ToString()[..8],
+                    totalScore = e.Score,
+                    lastUpdated = e.UpdatedAt,
+                });
+            return Results.Ok(result);
+        })
+        .WithName("GetGlobalRanking")
+        .RequireAuthorization();
+
         app.MapGet("/ranking/{quizId:guid}", async (
             Guid quizId,
             ILeaderboardRepository leaderboard,
