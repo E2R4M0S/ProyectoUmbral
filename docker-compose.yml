@@ -105,6 +105,8 @@ services:
         condition: service_started
     networks:
       - umbral-network
+    env_file:
+      - .env
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -116,11 +118,30 @@ services:
           -d "client_id=admin-cli&username=admin&password=admin123&grant_type=password" | \
           python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
         echo "📧 Configurando SMTP..."
-        curl -s -o /dev/null -X PUT http://keycloak:8080/admin/realms/umbral \
-          -H "Authorization: Bearer $TOKEN" \
-          -H "Content-Type: application/json" \
-          -d '{"smtpServer":{"host":"mailhog","port":"1025","from":"noreply@umbral.local","auth":"false","ssl":"false","starttls":"false"}}'
-        echo "   ✅ SMTP = mailhog:1025"
+        if [ -n "$SMTP_HOST" ]; then
+          # SMTP desde .env
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT http://keycloak:8080/admin/realms/umbral \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"smtpServer\":{\"host\":\"$SMTP_HOST\",\"port\":\"$SMTP_PORT\",\"from\":\"$SMTP_FROM\",\"auth\":\"true\",\"user\":\"$SMTP_USER\",\"password\":\"$SMTP_PASSWORD\",\"ssl\":\"false\",\"starttls\":\"true\"}}")
+          if [ "$HTTP_CODE" = "204" ]; then
+            echo "   ✅ SMTP = $SMTP_HOST:$SMTP_PORT"
+          else
+            echo "   ⚠️ SMTP config falló (HTTP $HTTP_CODE), reintentando sin password..."
+            curl -s -o /dev/null -X PUT http://keycloak:8080/admin/realms/umbral \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"smtpServer\":{\"host\":\"$SMTP_HOST\",\"port\":\"$SMTP_PORT\",\"from\":\"$SMTP_FROM\",\"auth\":\"true\",\"user\":\"$SMTP_USER\",\"password\":\"$SMTP_PASSWORD\",\"ssl\":\"false\",\"starttls\":\"true\"}}"
+            echo "   ✅ SMTP = $SMTP_HOST:$SMTP_PORT (segundo intento)"
+          fi
+        else
+          # Fallback a MailHog (desarrollo local)
+          curl -s -o /dev/null -X PUT http://keycloak:8080/admin/realms/umbral \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"smtpServer":{"host":"mailhog","port":"1025","from":"noreply@umbral.local","auth":"false","ssl":"false","starttls":"false"}}'
+          echo "   ✅ SMTP = mailhog:1025 (desarrollo)"
+        fi
         echo "🔧 Configurando VERIFY_EMAIL como default..."
         curl -s -o /dev/null -X PUT http://keycloak:8080/admin/realms/umbral/authentication/required-actions/VERIFY_EMAIL \
           -H "Authorization: Bearer $TOKEN" \
