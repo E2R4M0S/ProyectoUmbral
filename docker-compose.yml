@@ -97,6 +97,46 @@ services:
     networks:
       - umbral-network
 
+  # ─── Keycloak setup (SMTP + Required Actions) ────────────
+  keycloak-setup:
+    image: alpine:latest
+    depends_on:
+      keycloak:
+        condition: service_started
+    networks:
+      - umbral-network
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache curl python3 py3-pip >/dev/null 2>&1
+        echo "⏳ Esperando 25s a que Keycloak termine de arrancar..."
+        sleep 25
+        echo "🔑 Obteniendo token..."
+        TOKEN=$(curl -s -X POST http://keycloak:8080/realms/master/protocol/openid-connect/token \
+          -d "client_id=admin-cli&username=admin&password=admin123&grant_type=password" | \
+          python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+        echo "📧 Configurando SMTP..."
+        curl -s -o /dev/null -X PUT http://keycloak:8080/admin/realms/umbral \
+          -H "Authorization: Bearer $TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{"smtpServer":{"host":"mailhog","port":"1025","from":"noreply@umbral.local","auth":"false","ssl":"false","starttls":"false"}}'
+        echo "   ✅ SMTP = mailhog:1025"
+        echo "🔧 Configurando VERIFY_EMAIL como default..."
+        curl -s -o /dev/null -X PUT http://keycloak:8080/admin/realms/umbral/authentication/required-actions/VERIFY_EMAIL \
+          -H "Authorization: Bearer $TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{"alias":"VERIFY_EMAIL","name":"Verify Email","providerId":"VERIFY_EMAIL","enabled":true,"defaultAction":true,"priority":50,"config":{}}'
+        echo "   ✅ VERIFY_EMAIL = enabled + defaultAction"
+        echo "🔧 Asegurando UPDATE_PASSWORD habilitado..."
+        curl -s -o /dev/null -X PUT http://keycloak:8080/admin/realms/umbral/authentication/required-actions/UPDATE_PASSWORD \
+          -H "Authorization: Bearer $TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{"alias":"UPDATE_PASSWORD","name":"Update Password","providerId":"UPDATE_PASSWORD","enabled":true,"defaultAction":false,"priority":40,"config":{}}'
+        echo "   ✅ UPDATE_PASSWORD = enabled"
+        echo "========================================="
+        echo "🎉 Keycloak setup completado con éxito"
+        echo "========================================="
+
   # ─── RabbitMQ ─────────────────────────────────────────────
   rabbitmq:
     image: rabbitmq:4-management-alpine
