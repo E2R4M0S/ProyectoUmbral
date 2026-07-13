@@ -1,5 +1,4 @@
-import React from "react";
-import { describe, it, test, expect, vi } from "vitest";
+import { describe, it, test, expect } from "vitest";
 import { act } from "@testing-library/react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ClueCard } from "../ClueCard";

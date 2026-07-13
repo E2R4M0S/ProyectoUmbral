@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getMissionById, updateMission, ApiError } from "../../services/missionsApi";
-import type { MissionDetail, Difficulty, MissionType } from "../../types/mission";
+import type { MissionDetail, Difficulty } from "../../types/mission";
 
 interface FieldErrors {
   title?: string;
@@ -30,15 +30,10 @@ function validateDifficulty(value: string): string | undefined {
 }
 
 function validateTimeMinutes(value: number): string | undefined {
-  if (![15, 30, 60, 90].includes(value)) return "El tiempo debe ser 15, 30, 60 o 90 minutos.";
+  if (![-1, 15, 30, 60, 90].includes(value)) return "El tiempo debe ser 15, 30, 60 o 90 minutos.";
   return undefined;
 }
 
-function validateType(value: string): string | undefined {
-  if (!value) return "El tipo es obligatorio.";
-  if (!["Treasure", "Trivia"].includes(value)) return "Tipo inválido.";
-  return undefined;
-}
 
 const inputStyle = (hasError: boolean): React.CSSProperties => ({
   width: "100%",
@@ -109,6 +104,7 @@ export function EditarMision() {
   const [description, setDescription] = useState("");
   const [difficulty, setDifficulty] = useState("");
   const [timeMinutes, setTimeMinutes] = useState("");
+  const [missionType, setMissionType] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -125,6 +121,7 @@ export function EditarMision() {
         setDescription(mission.description);
         setDifficulty(mission.difficulty);
         setTimeMinutes(String(mission.timeMinutes));
+        setMissionType(mission.type);
       } catch {
         setSubmitError("No se pudo cargar la misión.");
       } finally {
@@ -143,7 +140,7 @@ export function EditarMision() {
       title: validateTitle(title),
       description: validateDescription(description),
       difficulty: validateDifficulty(difficulty),
-      timeMinutes: validateTimeMinutes(Number(timeMinutes)),
+      timeMinutes: missionType === "Treasure" ? validateTimeMinutes(Number(timeMinutes)) : undefined,
     };
     setFieldErrors(errors);
 
@@ -241,24 +238,27 @@ export function EditarMision() {
           {fieldErrors.difficulty && <p style={errorStyle}>{fieldErrors.difficulty}</p>}
         </div>
 
-        <div style={{ ...fieldGroupStyle, marginBottom: 20 }}>
-          <label htmlFor="mission-time" style={labelStyle}>
-            Tiempo (minutos)
-          </label>
-          <select
-            id="mission-time"
-            value={timeMinutes}
-            onChange={(e) => setTimeMinutes(e.target.value)}
-            style={inputStyle(Boolean(fieldErrors.timeMinutes))}
-          >
-            <option value="">Seleccionar tiempo</option>
-            <option value="15">15 minutos</option>
-            <option value="30">30 minutos</option>
-            <option value="60">60 minutos</option>
-            <option value="90">90 minutos</option>
-          </select>
-          {fieldErrors.timeMinutes && <p style={errorStyle}>{fieldErrors.timeMinutes}</p>}
-        </div>
+        {missionType === "Treasure" && (
+          <div style={{ ...fieldGroupStyle, marginBottom: 20 }}>
+            <label htmlFor="mission-time" style={labelStyle}>
+              Tiempo (minutos)
+            </label>
+            <select
+              id="mission-time"
+              value={timeMinutes}
+              onChange={(e) => setTimeMinutes(e.target.value)}
+              style={inputStyle(Boolean(fieldErrors.timeMinutes))}
+            >
+              <option value="">Seleccionar tiempo</option>
+              <option value="-1">10 seg (prueba)</option>
+              <option value="15">15 minutos</option>
+              <option value="30">30 minutos</option>
+              <option value="60">60 minutos</option>
+              <option value="90">90 minutos</option>
+            </select>
+            {fieldErrors.timeMinutes && <p style={errorStyle}>{fieldErrors.timeMinutes}</p>}
+          </div>
+        )}
 
         <button type="submit" disabled={isSubmitting} style={submitBtnStyle(isSubmitting)}>
           {isSubmitting ? "Guardando..." : "Guardar Cambios"}

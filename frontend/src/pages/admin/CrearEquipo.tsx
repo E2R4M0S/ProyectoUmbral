@@ -1,5 +1,4 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { useAuth } from "../../auth/useAuth";
 import { createTeam, ApiError } from "../../services/teamsApi";
 import { fetchWithAuth } from "../../services/api";
 

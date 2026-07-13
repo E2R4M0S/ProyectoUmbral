@@ -13,7 +13,6 @@ const FILE_READER_ID = "qr-file-reader";
 
 export function QrScanner({ active, onScan }: QrScannerProps) {
   const isNative = Capacitor.isNativePlatform();
-  const isSecure = window.isSecureContext;
 
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [decoding, setDecoding] = useState(false);

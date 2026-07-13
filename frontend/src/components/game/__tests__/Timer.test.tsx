@@ -18,6 +18,9 @@ function renderTimer(state: Partial<GameState> = {}) {
     currentStageOrder: 0,
     participantStageOrder: 1,
     totalStages: 0,
+    stages: [],
+    timeLimitSeconds: 0,
+    currentQuizId: null,
     elapsedSeconds: 0,
     clues: [],
     score: 0,
@@ -28,6 +31,8 @@ function renderTimer(state: Partial<GameState> = {}) {
     isWaiting: false,
     gatePosition: 0,
     gateThreshold: 0,
+    myUserId: null,
+    myTeam: null,
   };
 
   const contextValue = {
@@ -54,17 +59,17 @@ describe("Timer", () => {
   });
 
   it("renders initial time as 00:00", () => {
-    renderTimer({ elapsedSeconds: 0 });
-    expect(screen.getByText("00:00")).toBeInTheDocument();
+    renderTimer({ elapsedSeconds: 0, timeLimitSeconds: 3600 });
+    expect(screen.getByText("60:00")).toBeInTheDocument();
   });
 
   it("renders elapsed time correctly", () => {
-    renderTimer({ elapsedSeconds: 65 });
-    expect(screen.getByText("01:05")).toBeInTheDocument();
+    renderTimer({ elapsedSeconds: 65, timeLimitSeconds: 3600 });
+    expect(screen.getByText("58:55")).toBeInTheDocument();
   });
 
   it("renders large time values", () => {
-    renderTimer({ elapsedSeconds: 3661 });
+    renderTimer({ elapsedSeconds: 3, timeLimitSeconds: 3664 });
     expect(screen.getByText("61:01")).toBeInTheDocument();
   });
 

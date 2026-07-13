@@ -4,8 +4,10 @@ import QRCode from "qrcode";
 import { getSessionProgress, getSessionById, transitionSession, advanceStage, ApiError } from "../../services/sessionsApi";
 import { getMissionById } from "../../services/missionsApi";
 import { fetchWithAuth } from "../../services/api";
+import { useSignalR } from "../../hooks/useSignalR";
 import type { SessionProgress, ParticipantProgress, SessionStatus, SessionStage } from "../../types/session";
 import type { MissionDetail, Clue } from "../../types/mission";
+import type { RankingEntry } from "../../types/game";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -100,6 +102,7 @@ export function PanelSesion() {
   const [selectedQuizId, setSelectedQuizId] = useState<string>("");
   const [advancing, setAdvancing] = useState(false);
   const [advanceMsg, setAdvanceMsg] = useState("");
+  const [ranking, setRanking] = useState<RankingEntry[]>([]);
 
   async function load() {
     if (!id) return;
@@ -131,10 +134,12 @@ export function PanelSesion() {
     if (!id) return;
     getSessionById(id)
       .then((detail) => {
-        setStages(detail.stages ?? []);
-        setCurrentStageOrder(detail.currentStageOrder ?? 0);
+        const stageList = detail.stages ?? [];
+        const currentOrder = detail.currentStageOrder ?? 0;
+        setStages(stageList);
+        setCurrentStageOrder(currentOrder);
         setPin(detail.pin ?? "");
-        return loadMissionForStage(detail.stages ?? [], detail.currentStageOrder ?? 0);
+        return loadMissionForStage(stageList, currentOrder);
       })
       .catch(() => {});
   }, [id]);
@@ -150,6 +155,15 @@ export function PanelSesion() {
   useEffect(() => {
     if (progress) setLocalSeconds(progress.elapsedSeconds);
   }, [progress?.elapsedSeconds]);
+
+  useSignalR({
+    sessionId: id ?? "",
+    onStatusChanged: () => { load(); },
+    onProgressUpdated: () => {},
+    onClueReleased: () => {},
+    onConnectionStateChange: () => {},
+    onRankingUpdated: (incoming) => { setRanking(incoming); },
+  });
 
   const allClues: Clue[] = mission?.stages?.flatMap(st => st.clues ?? []) ?? [];
   const selectedClue = allClues.find(c => c.id === selectedClueId);
@@ -367,25 +381,35 @@ export function PanelSesion() {
       )}
 
       {/* Trivia controls */}
-      {!isTreasure && !isTerminal && (
+      {!isTreasure && !isTerminal && progress.status === "Active" && (
         <>
-          {progress.status === "Preparing" && (
+          <div style={css.sectionTitle}>Quiz de Trivia</div>
+          <QuizSelector selectedQuizId={selectedQuizId} onSelect={setSelectedQuizId} />
+          {selectedQuizId && (
             <>
-              <div style={css.sectionTitle}>Quiz de Trivia</div>
-              <QuizSelector selectedQuizId={selectedQuizId} onSelect={setSelectedQuizId} />
-            </>
-          )}
-          {progress.status === "Active" && selectedQuizId && (
-            <>
-              <div style={css.sectionTitle}>Enviar Preguntas</div>
+              <div style={{ ...css.sectionTitle, marginTop: "1.25rem" }}>Enviar Preguntas</div>
               <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} totalParticipants={progress.participants?.length || 0} />
             </>
           )}
-          {progress.status === "Active" && !selectedQuizId && (
+          {ranking.length > 0 && (
             <>
-              <div style={css.sectionTitle}>Quiz de Trivia</div>
-              <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "1rem" }}>
-                <p style={{ color: "#888", fontSize: "0.875rem", margin: 0 }}>Seleccioná un quiz en "En Preparación" para poder enviar preguntas durante la sesión activa.</p>
+              <div style={css.sectionTitle}>Ranking en vivo</div>
+              <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, overflow: "hidden" }}>
+                {ranking.map((entry, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "0.6rem 1rem",
+                    borderBottom: i < ranking.length - 1 ? "1px solid #0f3460" : "none",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <span style={{ fontWeight: 700, minWidth: 24, color: i === 0 ? "#fbbf24" : i === 1 ? "#9ca3af" : i === 2 ? "#cd7f32" : "#555" }}>
+                        #{entry.position}
+                      </span>
+                      <span style={{ color: "white", fontSize: "0.9rem" }}>{entry.teamName}</span>
+                    </div>
+                    <span style={{ fontWeight: 700, color: "#e94560" }}>{entry.score} pts</span>
+                  </div>
+                ))}
               </div>
             </>
           )}
@@ -427,10 +451,13 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
   const [msg, setMsg] = useState("");
   const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
   const [answerCount, setAnswerCount] = useState(0);
+  const [cooldown, setCooldown] = useState(0);
+  const prevAllAnswered = useRef(false);
 
   useEffect(() => {
     if (!quizId) return;
-    setCurrentIdx(0); setCurrentQuestionId(null); setAnswerCount(0); setMsg("");
+    setCurrentIdx(0); setCurrentQuestionId(null); setAnswerCount(0); setMsg(""); setCooldown(0);
+    prevAllAnswered.current = false;
     fetchWithAuth(`/api/quizzes/${quizId}`).then(r => r.json())
       .then(data => setQuestions(data.questions || []))
       .catch(() => setMsg("Error al cargar preguntas"));
@@ -447,10 +474,29 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
     return () => clearInterval(interval);
   }, [currentQuestionId]);
 
+  const allAnswered = totalParticipants > 0 && answerCount >= totalParticipants;
+
+  // Start 5-second review cooldown when all participants finish answering
+  useEffect(() => {
+    if (allAnswered && !prevAllAnswered.current) {
+      setCooldown(5);
+    }
+    prevAllAnswered.current = allAnswered;
+  }, [allAnswered]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  const canGoNext = allAnswered && cooldown === 0;
+
   const sendQuestion = async () => {
     if (!questions.length) return;
     const q = questions[currentIdx];
-    setSending(true); setCurrentQuestionId(null); setAnswerCount(0); setMsg("");
+    setSending(true); setCurrentQuestionId(null); setAnswerCount(0); setMsg(""); setCooldown(0);
+    prevAllAnswered.current = false;
     try {
       const resp = await fetchWithAuth("/api/trivia/questions/ask", {
         method: "POST",
@@ -475,7 +521,8 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
 
   const goNext = () => {
     if (currentIdx < questions.length - 1) {
-      setCurrentIdx(i => i + 1); setCurrentQuestionId(null); setAnswerCount(0); setMsg("");
+      setCurrentIdx(i => i + 1); setCurrentQuestionId(null); setAnswerCount(0); setMsg(""); setCooldown(0);
+      prevAllAnswered.current = false;
     } else {
       setMsg("¡Todas las preguntas enviadas!");
     }
@@ -484,7 +531,6 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
   if (!questions.length) return <p style={{ color: "#555", fontSize: "0.875rem" }}>Cargando preguntas...</p>;
 
   const q = questions[currentIdx];
-  const allAnswered = totalParticipants > 0 && answerCount >= totalParticipants;
 
   return (
     <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "1rem" }}>
@@ -501,7 +547,9 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
       </div>
       {currentQuestionId && totalParticipants > 0 && (
         <div style={{ color: "#ccc", fontSize: "0.82rem", marginBottom: "0.75rem" }}>
-          Respondieron: {answerCount} / {totalParticipants} {allAnswered ? "✅" : ""}
+          Respondieron: {answerCount} / {totalParticipants}
+          {allAnswered && cooldown > 0 && <span style={{ color: "#fbbf24", marginLeft: 8 }}>— revisando ({cooldown}s)</span>}
+          {allAnswered && cooldown === 0 && <span style={{ color: "#4caf50", marginLeft: 8 }}>✅ Todos respondieron</span>}
         </div>
       )}
       <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -510,9 +558,11 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
             {sending ? "Enviando..." : "Enviar Pregunta"}
           </button>
         ) : currentIdx < questions.length - 1 ? (
-          <button onClick={goNext} disabled={!allAnswered} style={{ padding: "8px 18px", backgroundColor: allAnswered ? "#1a4d2e" : "#2a2a2a", color: allAnswered ? "#4caf50" : "#555", border: `1px solid ${allAnswered ? "#4caf50" : "#333"}`, borderRadius: 6, cursor: allAnswered ? "pointer" : "not-allowed", fontWeight: 600, fontSize: "0.875rem" }}>
-            {allAnswered ? "Siguiente →" : "Esperando respuestas..."}
+          <button onClick={goNext} disabled={!canGoNext} style={{ padding: "8px 18px", backgroundColor: canGoNext ? "#1a4d2e" : "#2a2a2a", color: canGoNext ? "#4caf50" : "#555", border: `1px solid ${canGoNext ? "#4caf50" : "#333"}`, borderRadius: 6, cursor: canGoNext ? "pointer" : "not-allowed", fontWeight: 600, fontSize: "0.875rem" }}>
+            {!allAnswered ? "Esperando respuestas..." : cooldown > 0 ? `Siguiente en ${cooldown}s` : "Siguiente →"}
           </button>
+        ) : allAnswered ? (
+          <div style={{ color: "#4caf50", fontSize: "0.82rem", padding: "8px 0" }}>✅ Quiz completado</div>
         ) : null}
       </div>
       {msg && <div style={{ marginTop: "0.5rem", color: msg.includes("Error") ? "#e94560" : "#4caf50", fontSize: "0.82rem" }}>{msg}</div>}

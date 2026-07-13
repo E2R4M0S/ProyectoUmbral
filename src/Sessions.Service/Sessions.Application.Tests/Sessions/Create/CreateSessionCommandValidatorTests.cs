@@ -10,7 +10,7 @@ public class CreateSessionCommandValidatorTests
     private readonly CreateSessionCommandValidator _sut = new();
 
     private static StageInput ValidStage(int order = 1, Guid? missionId = null)
-        => new(missionId ?? Guid.NewGuid(), Guid.NewGuid(), "Trivia Facil", "Trivia", order, "test-token");
+        => new(missionId ?? Guid.NewGuid(), Guid.NewGuid(), "Trivia Facil", "Stage", "Trivia", order, "test-token");
 
     [Fact]
     public void Validate_ValidCommand_ShouldPass()
@@ -92,7 +92,7 @@ public class CreateSessionCommandValidatorTests
     {
         var command = new CreateSessionCommand(
             "Test Session",
-            new List<StageInput> { new(Guid.NewGuid(), Guid.NewGuid(), "Title", "", 1, "test-token") });
+            new List<StageInput> { new(Guid.NewGuid(), Guid.NewGuid(), "Title", "Stage", "", 1, "test-token") });
 
         var result = _sut.TestValidate(command);
 
@@ -140,7 +140,7 @@ public class CreateSessionCommandValidatorTests
             "Test Session",
             new List<StageInput>
             {
-                new(Guid.NewGuid(), Guid.NewGuid(), "Title", "Trivia", 0, "test-token")
+                new(Guid.NewGuid(), Guid.NewGuid(), "Title", "Stage", "Trivia", 0, "test-token")
             });
 
         var result = _sut.TestValidate(command);

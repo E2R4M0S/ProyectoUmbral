@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
 import { joinTeam, ApiError } from "../../services/teamsApi";
 
 function validateJoinCode(value: string): string | undefined {
@@ -22,60 +21,8 @@ const inputStyle = (hasError: boolean): React.CSSProperties => ({
   textTransform: "uppercase",
 });
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: 4,
-  fontWeight: 600,
-};
-
-const errorStyle: React.CSSProperties = {
-  color: "#e94560",
-  fontSize: 12,
-  margin: "4px 0 0",
-};
-
-const fieldGroupStyle: React.CSSProperties = {
-  marginBottom: 14,
-};
-
-const submitBtnStyle = (disabled: boolean): React.CSSProperties => ({
-  width: "100%",
-  padding: 10,
-  backgroundColor: disabled ? "#999" : "#0f3460",
-  color: "#fff",
-  border: "none",
-  borderRadius: 4,
-  cursor: disabled ? "not-allowed" : "pointer",
-  fontSize: 16,
-  fontWeight: 600,
-});
-
-const containerStyle: React.CSSProperties = {
-  maxWidth: 400,
-  margin: "0 auto",
-  padding: "1rem",
-};
-
-const successStyle: React.CSSProperties = {
-  marginBottom: 16,
-  padding: "12px 16px",
-  border: "1px solid #28a745",
-  borderRadius: 4,
-  backgroundColor: "#1a4d1a",
-  color: "#28a745",
-};
-
-const errorMsgStyle: React.CSSProperties = {
-  color: "#e94560",
-  marginBottom: 16,
-  padding: "8px 12px",
-  border: "1px solid #e94560",
-  borderRadius: 4,
-  backgroundColor: "#2d1a1a",
-};
 
 export function UnirseEquipo() {
-  const navigate = useNavigate();
   const [joinCode, setJoinCode] = useState("");
   const [codeError, setCodeError] = useState<string>();
   const [submitError, setSubmitError] = useState<string | null>(null);

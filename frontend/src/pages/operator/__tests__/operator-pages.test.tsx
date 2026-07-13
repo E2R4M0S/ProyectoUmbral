@@ -46,14 +46,14 @@ describe("IniciarJuego", () => {
   });
 
   it("calls startSession when form is submitted", async () => {
-    vi.mocked(startSession).mockResolvedValue(undefined);
+    vi.mocked(startSession).mockResolvedValue({ id: "s1", status: "Active" });
     wrap(<IniciarJuego sessionId="s1" sessionName="Test" />);
     fireEvent.click(screen.getByRole("button", { name: /iniciar partida/i }));
     await waitFor(() => expect(startSession).toHaveBeenCalledWith("s1"));
   });
 
   it("calls onGameStarted callback after success", async () => {
-    vi.mocked(startSession).mockResolvedValue(undefined);
+    vi.mocked(startSession).mockResolvedValue({ id: "s1", status: "Active" });
     const onStarted = vi.fn();
     wrap(<IniciarJuego sessionId="s1" sessionName="Test" onGameStarted={onStarted} />);
     fireEvent.click(screen.getByRole("button", { name: /iniciar partida/i }));

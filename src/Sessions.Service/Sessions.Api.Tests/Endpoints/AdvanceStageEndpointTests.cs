@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -24,7 +24,7 @@ public class AdvanceStageEndpointTests
     private static Session CreateActiveSessionWithStages(int stageCount)
     {
         var stages = Enumerable.Range(1, stageCount)
-            .Select(i => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), $"M{i}", "Trivia", i, "test-token"))
+            .Select(i => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), $"M{i}", "Stage", "Trivia", i, "test-token"))
             .ToList();
         var session = Session.Create("Test", "123456", stages);
         session.TransitionTo(SessionStatus.Preparing);
@@ -97,8 +97,8 @@ public class AdvanceStageEndpointTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, "test-token"),
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Treasure", 2, "test-token")
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Stage", "Trivia", 1, "test-token"),
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Stage", "Treasure", 2, "test-token")
         };
         var session = Session.Create("Test", "123456", stages);
         // session is Scheduled (no transitions)
@@ -123,8 +123,8 @@ public class AdvanceStageEndpointTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, "test-token"),
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Treasure", 2, "test-token")
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Stage", "Trivia", 1, "test-token"),
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Stage", "Treasure", 2, "test-token")
         };
         var session = Session.Create("Test", "123456", stages);
         session.TransitionTo(SessionStatus.Preparing);

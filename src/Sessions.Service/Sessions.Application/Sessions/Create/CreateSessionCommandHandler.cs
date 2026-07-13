@@ -37,9 +37,11 @@ public class CreateSessionCommandHandler
                 s.MissionId,
                 s.MissionStageId,
                 s.MissionTitle,
+                s.StageName,
                 s.MissionType,
                 s.Order,
                 s.QrToken,
+                s.TimeMinutes,
                 s.Latitude,
                 s.Longitude))
             .ToList();

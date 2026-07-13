@@ -888,6 +888,146 @@ button, input, select, textarea { font-family: inherit; }
 
 @media (min-width: 768px) { .active-game { padding: var(--space-6); } }
 
+/* Game header: mission info + score */
+.game-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.game-stage-info { flex: 1; min-width: 0; }
+.game-mission-type-chip {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+}
+.game-mission-name {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.game-stage-name {
+  font-size: var(--font-size-sm);
+  color: var(--accent);
+  font-weight: 600;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.game-stage-counter {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.game-stage-counter strong { color: var(--accent); }
+.game-score-badge {
+  text-align: right;
+  flex-shrink: 0;
+}
+.game-score-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+.game-score-value {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+  font-family: var(--font-mono);
+}
+
+/* Trivia waiting screen */
+.trivia-waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-10) var(--space-4);
+  text-align: center;
+}
+.trivia-waiting-pulse {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent-glow);
+  border: 3px solid var(--accent);
+  animation: pulse 1.6s ease-in-out infinite;
+  margin-bottom: var(--space-4);
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.6; }
+}
+.trivia-waiting-title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2);
+}
+.trivia-waiting-sub {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Question card: countdown timer bar */
+.question-timer-bar-wrap {
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+  overflow: hidden;
+}
+.question-timer-bar {
+  height: 100%;
+  border-radius: var(--radius-sm);
+  transition: width 1s linear, background-color 0.3s;
+}
+.question-timer-label {
+  text-align: right;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
+  margin-bottom: var(--space-2);
+  min-height: 1.2em;
+}
+
+/* Scan section */
+.scan-section {
+  margin: var(--space-4) 0;
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+.scan-hint {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-4);
+}
+.scan-feedback {
+  padding: var(--space-6);
+  border-radius: var(--radius-md);
+}
+.scan-feedback--success { background: rgba(52,211,153,0.1); border: 1px solid #34d399; }
+.scan-feedback--warning { background: rgba(251,191,36,0.1); border: 1px solid #fbbf24; }
+.scan-feedback--error   { background: rgba(233,69,96,0.1);  border: 1px solid var(--accent); }
+
 /* GameResults */
 .game-results {
   display: flex;
@@ -1176,6 +1316,80 @@ body.scanner-active .scanner-native-overlay * {
 .ranking-row.first   { border-left: 3px solid var(--color-gold); }
 .ranking-row.second  { border-left: 3px solid var(--color-silver); }
 .ranking-row.third   { border-left: 3px solid var(--color-bronze); }
+.ranking-row.me      { border-left: 3px solid #a78bfa; background: rgba(167, 139, 250, 0.08); }
 .ranking-row .rank-name  { color: var(--text-secondary); font-size: var(--font-size-base); }
 .ranking-row.podium .rank-name { color: var(--text-primary); font-weight: 700; }
+.ranking-row.me .rank-name { color: #c4b5fd; font-weight: 700; }
 .ranking-row .rank-score { color: var(--accent); font-weight: 700; font-size: var(--font-size-base); }
+
+.rank-me-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: rgba(167, 139, 250, 0.2);
+  color: #a78bfa;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: middle;
+  letter-spacing: 0.02em;
+}
+
+.ranking-board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+.ranking-board-header h3 { color: var(--accent); margin: 0; font-size: var(--font-size-base); }
+
+.ranking-tabs {
+  display: flex;
+  gap: 4px;
+}
+.ranking-tab {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+}
+.ranking-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.ranking-team-card {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+  border: 1px solid rgba(167, 139, 250, 0.25);
+}
+.ranking-team-name {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: #c4b5fd;
+  margin-bottom: var(--space-2);
+}
+.ranking-team-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ranking-team-total-label { color: var(--text-secondary); font-size: 0.8rem; }
+.ranking-team-total-score { color: var(--accent); font-size: 1.25rem; font-weight: 700; }
+
+.ranking-team-members-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-2);
+}

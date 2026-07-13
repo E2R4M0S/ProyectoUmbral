@@ -13,6 +13,9 @@ function renderTimer(timeLimitSeconds: number, overrides: Partial<GameState> = {
     currentStageOrder: 0,
     participantStageOrder: 1,
     totalStages: 0,
+    stages: [],
+    timeLimitSeconds: 0,
+    currentQuizId: null,
     elapsedSeconds: 0,
     clues: [],
     score: 0,
@@ -23,6 +26,8 @@ function renderTimer(timeLimitSeconds: number, overrides: Partial<GameState> = {
     isWaiting: false,
     gatePosition: 0,
     gateThreshold: 0,
+    myUserId: null,
+    myTeam: null,
     ...overrides,
   };
 

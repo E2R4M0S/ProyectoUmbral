@@ -1,8 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { GameProvider, useGame } from "../../../contexts/GameContext";
 import { getSessionById } from "../../../services/sessionsApi";
+import { getRankingByQuiz } from "../../../services/triviaApi";
+import { getMyTeams } from "../../../services/teamsApi";
 import { useSignalR } from "../../../hooks/useSignalR";
+import { userManager } from "../../../auth/keycloak";
 import { WaitingRoom } from "./WaitingRoom";
 import { ActiveGame } from "./ActiveGame";
 import { GameResults } from "./GameResults";
@@ -13,13 +16,67 @@ function GameContent() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const { state, dispatch } = useGame();
 
+  // Refs so the polling interval always reads current values without restarting
+  const currentStageOrderRef = useRef(state.currentStageOrder);
+  useEffect(() => { currentStageOrderRef.current = state.currentStageOrder; });
+  const sessionStatusRef = useRef(state.sessionStatus);
+  useEffect(() => { sessionStatusRef.current = state.sessionStatus; });
+
+  // Fallback polling: if the SignalR ProgressUpdated event is missed (e.g. Docker not rebuilt),
+  // re-fetch session state every 8s and update stage if the operator advanced it.
+  useEffect(() => {
+    if (!sessionId) return;
+    const poll = setInterval(async () => {
+      const status = sessionStatusRef.current;
+      if (status !== "Active" && status !== "Paused") return;
+      try {
+        const session = await getSessionById(sessionId);
+        if (session.currentStageOrder !== currentStageOrderRef.current) {
+          dispatch({ type: "QUESTION_CLEARED" });
+          const sorted = [...session.stages].sort((a, b) => a.order - b.order);
+          const currentStage = sorted.find(s => s.order === session.currentStageOrder) ?? sorted[0] ?? null;
+          dispatch({
+            type: "SESSION_LOADED",
+            name: session.name,
+            status: session.status as SessionStatus,
+            missionType: currentStage?.missionType ?? null,
+            stageOrder: session.currentStageOrder,
+            totalStages: sorted.length,
+            stages: sorted,
+          });
+        }
+      } catch { /* ignore */ }
+    }, 8000);
+    return () => clearInterval(poll);
+  }, [sessionId, dispatch]);
+
   useSignalR({
     sessionId: sessionId!,
     onStatusChanged: (status: string) => {
       dispatch({ type: "STATUS_CHANGED", status: status as SessionStatus });
     },
     onProgressUpdated: (data: unknown) => {
-      dispatch({ type: "PROGRESS_UPDATED", data });
+      const p = data as { stageAdvanced?: boolean };
+      if (p?.stageAdvanced === true && sessionId) {
+        dispatch({ type: "QUESTION_CLEARED" });
+        getSessionById(sessionId)
+          .then(session => {
+            const sorted = [...session.stages].sort((a, b) => a.order - b.order);
+            const currentStage = sorted.find(s => s.order === session.currentStageOrder) ?? sorted[0] ?? null;
+            dispatch({
+              type: "SESSION_LOADED",
+              name: session.name,
+              status: session.status as SessionStatus,
+              missionType: currentStage?.missionType ?? null,
+              stageOrder: session.currentStageOrder,
+              totalStages: sorted.length,
+              stages: sorted,
+            });
+          })
+          .catch(() => {});
+      } else {
+        dispatch({ type: "PROGRESS_UPDATED", data });
+      }
     },
     onClueReleased: (clue: unknown) => {
       dispatch({ type: "CLUE_RELEASED", clue });
@@ -62,6 +119,18 @@ function GameContent() {
     }
   }, [state.sessionStatus, sessionId]);
 
+  // Clear score and ranking when session is cancelled
+  useEffect(() => {
+    if (sessionId && state.sessionStatus === "Cancelled") {
+      try {
+        sessionStorage.removeItem(`score_${sessionId}`);
+        sessionStorage.removeItem(`ranking_${sessionId}`);
+      } catch { /* ignore */ }
+      dispatch({ type: "SET_SCORE", score: 0 });
+      dispatch({ type: "RANKING_UPDATED", ranking: [] });
+    }
+  }, [state.sessionStatus, sessionId, dispatch]);
+
   if (!sessionId) return null;
 
   switch (state.sessionStatus) {
@@ -94,11 +163,12 @@ function GameViewInner() {
       return;
     }
     getSessionById(sessionId)
-      .then((session) => {
-        const currentStage = session.stages.find(s => s.order === session.currentStageOrder)
-          ?? session.stages[0]
+      .then(async (session) => {
+        const sorted = [...session.stages].sort((a, b) => a.order - b.order);
+        const currentStage = sorted.find(s => s.order === session.currentStageOrder)
+          ?? sorted[0]
           ?? null;
-        const totalStages = session.stages.length;
+        const totalStages = sorted.length;
         dispatch({
           type: "SESSION_LOADED",
           name: session.name,
@@ -106,6 +176,7 @@ function GameViewInner() {
           missionType: currentStage?.missionType ?? null,
           stageOrder: session.currentStageOrder,
           totalStages,
+          stages: sorted,
         });
         // Restore participant's personal stage progress saved from previous QR scan
         try {
@@ -115,6 +186,33 @@ function GameViewInner() {
             dispatch({ type: "STAGE_ADVANCED", participantStageOrder, totalStages });
           }
         } catch { /* ignore */ }
+        // Load persisted trivia ranking from DB for trivia sessions
+        const triviaStage = sorted.find(s => s.missionType === "Trivia" && s.quizId);
+        if (triviaStage?.quizId) {
+          const stored = sessionStorage.getItem(`ranking_${sessionId}`);
+          if (!stored) {
+            try {
+              const ranking = await getRankingByQuiz(triviaStage.quizId);
+              if (ranking.length > 0) {
+                dispatch({ type: "RANKING_UPDATED", ranking });
+              }
+            } catch { /* ignore */ }
+          }
+        }
+
+        // Load the current user's identity and team membership
+        try {
+          const user = await userManager.getUser();
+          const userId = user?.profile?.sub as string | undefined;
+          if (userId) {
+            const teams = await getMyTeams();
+            dispatch({
+              type: "MY_IDENTITY_LOADED",
+              userId,
+              team: teams.length > 0 ? teams[0] : null,
+            });
+          }
+        } catch { /* ignore — team info is optional */ }
       })
       .catch(() => {});
   }, [sessionId, navigate, dispatch]);

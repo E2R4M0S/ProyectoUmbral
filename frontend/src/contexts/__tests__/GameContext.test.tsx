@@ -43,6 +43,7 @@ describe("GameContext reducer", () => {
         missionType: "Treasure",
         stageOrder: 0,
         totalStages: 4,
+        stages: [],
       });
     });
 

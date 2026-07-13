@@ -86,7 +86,7 @@ describe("DetalleMision", () => {
   it("shows mission data after load", async () => {
     vi.mocked(getMissionById).mockResolvedValue({
       id: "m1", title: "Misión Test", description: "Desc", difficulty: "Easy",
-      type: "Treasure", status: "Draft", timeMinutes: 30, stages: [], createdAt: ""
+      type: "Treasure", status: "Draft", timeMinutes: 30, stages: []
     });
     renderWithId(<DetalleMision />, "/admin/misiones/m1", "/admin/misiones/:id");
     await waitFor(() => expect(screen.getByText("Misión Test")).toBeInTheDocument());
@@ -123,7 +123,7 @@ describe("EditarMision", () => {
   it("shows edit form after load", async () => {
     vi.mocked(getMissionById).mockResolvedValue({
       id: "m1", title: "Misión Editable", description: "Desc", difficulty: "Medium",
-      type: "Treasure", status: "Draft", timeMinutes: 60, stages: [], createdAt: ""
+      type: "Treasure", status: "Draft", timeMinutes: 60, stages: []
     });
     renderWithId(<EditarMision />, "/admin/misiones/m1/editar", "/admin/misiones/:id/editar");
     await waitFor(() => expect(screen.getByDisplayValue("Misión Editable")).toBeInTheDocument());
@@ -141,7 +141,7 @@ describe("EditarEquipo", () => {
   it("shows edit form after load", async () => {
     vi.mocked(getTeamById).mockResolvedValue({
       id: "t1", name: "Team Beta", description: "Test team",
-      leaderId: "u1", joinCode: "XYZ123", members: [], createdAt: ""
+      leaderId: "u1", leaderName: "", joinCode: "XYZ123", members: [], createdAt: ""
     });
     renderWithId(<EditarEquipo />, "/admin/equipos/t1/editar", "/admin/equipos/:id/editar");
     await waitFor(() => expect(screen.getByDisplayValue("Team Beta")).toBeInTheDocument());
@@ -159,7 +159,7 @@ describe("EquipoDetalle", () => {
   it("shows team data after load", async () => {
     vi.mocked(getTeamById).mockResolvedValue({
       id: "t1", name: "Team Gamma", description: "Gamma desc",
-      leaderId: "u1", joinCode: "AAA111", members: [], createdAt: ""
+      leaderId: "u1", leaderName: "", joinCode: "AAA111", members: [], createdAt: ""
     });
     renderWithId(<EquipoDetalle />, "/admin/equipos/t1", "/admin/equipos/:id");
     await waitFor(() => expect(screen.getByText("Team Gamma")).toBeInTheDocument());
@@ -179,12 +179,12 @@ describe("PanelSesion", () => {
   it("shows session panel after load", async () => {
     vi.mocked(getSessionProgress).mockResolvedValue({
       sessionId: "s1", name: "Sesión Live", status: "Active",
-      elapsedSeconds: 120, participants: []
+      elapsedSeconds: 120, participants: [], teamId: null, teamName: null
     });
     vi.mocked(getSessionById).mockResolvedValue({
       id: "s1", name: "Sesión Live", pin: "111222", status: "Active",
-      stages: [{ missionId: "m1", missionTitle: "M1", missionType: "Treasure", order: 1 }],
-      currentStageOrder: 0, participants: [], startedAt: null, endedAt: null, createdAt: ""
+      stages: [{ missionId: "m1", missionTitle: "M1", stageName: "M1", missionType: "Treasure", order: 1 }],
+      currentStageOrder: 0, teamId: null, teamName: null, participants: [], startedAt: null, finishedAt: null, createdAt: ""
     });
     vi.mocked(fetchWithAuth).mockResolvedValue({ ok: true, json: () => Promise.resolve([]) } as Response);
     renderWithId(<PanelSesion />, "/admin/sesiones/s1", "/admin/sesiones/:id");
