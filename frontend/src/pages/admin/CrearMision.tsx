@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+﻿import { useState, type FormEvent } from "react";
 import { createMission, ApiError } from "../../services/missionsApi";
 import type { Difficulty, MissionType } from "../../types/mission";
 
@@ -59,10 +59,10 @@ export function CrearMision() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409)      setSubmitError("Ya existe una misión con ese título.");
-        else if (err.status === 400) setSubmitError("Datos inválidos. Verificá los campos.");
-        else                         setSubmitError("Error al crear la misión. Intentalo de nuevo.");
+        else if (err.status === 400) setSubmitError("Datos inválidos. Verifica los campos.");
+        else                         setSubmitError("Error al crear la misión. Inténtalo de nuevo.");
       } else {
-        setSubmitError("Error de conexión. Verificá tu conexión a internet.");
+        setSubmitError("Error de conexión. Verifica tu conexión a internet.");
       }
     } finally {
       setSub(false);

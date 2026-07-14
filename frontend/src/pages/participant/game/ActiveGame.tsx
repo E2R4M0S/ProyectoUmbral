@@ -178,14 +178,12 @@ export function ActiveGame() {
 
       {/* ── Gate waiting ── */}
       {state.isWaiting && (
-        <div style={waitingGateBannerStyle}>
+        <div className="waiting-gate-banner">
           <p style={{ fontSize: 32, margin: 0 }}>⏳</p>
-          <p style={{ color: "#fbbf24", fontWeight: 700, marginTop: 8, fontSize: 17 }}>
+          <p style={{ color: "var(--color-warning)", fontWeight: 700, marginTop: 8, fontSize: 17 }}>
             Esperando a los otros jugadores...
           </p>
-          <p style={{ color: "#aaa", fontSize: 13, marginTop: 4 }}>
-            Posición {state.gatePosition} de {state.gateThreshold} — la barrera abre cuando lleguen todos
-          </p>
+          <p>Posición {state.gatePosition} de {state.gateThreshold} — la barrera abre cuando lleguen todos</p>
         </div>
       )}
 
@@ -198,13 +196,13 @@ export function ActiveGame() {
                 <>
                   <p className="scan-hint">Encontrá la ubicación y escaneá el código QR</p>
                   <QrScanner active={true} onScan={handleScan} />
-                  <button onClick={() => setCameraActive(false)} style={closeCamBtnStyle}>
+                  <button onClick={() => setCameraActive(false)} className="btn-scan-close">
                     Cerrar cámara
                   </button>
                 </>
               ) : (
-                <button onClick={() => setCameraActive(true)} style={scanBtnStyle}>
-                  Escanear QR
+                <button onClick={() => setCameraActive(true)} className="btn-scan">
+                  📷 Escanear QR
                 </button>
               )}
             </>
@@ -213,34 +211,32 @@ export function ActiveGame() {
           {scanPhase === "loading" && (
             <div className="scan-feedback">
               <div className="spinner" />
-              <p style={{ color: "#ccc", marginTop: 12 }}>Validando código...</p>
+              <p style={{ color: "var(--text-muted)", marginTop: 12 }}>Validando código...</p>
             </div>
           )}
 
           {scanPhase === "success" && (
             <div className="scan-feedback scan-feedback--success">
-              <p style={{ fontSize: 40, margin: 0 }}>✓</p>
-              <p style={{ color: "#34d399", fontWeight: 700, marginTop: 8, fontSize: 18 }}>¡Etapa superada!</p>
+              <p className="scan-feedback-icon">✓</p>
+              <p style={{ color: "var(--color-success)", fontWeight: 700, fontSize: 18 }}>¡Etapa superada!</p>
             </div>
           )}
 
           {scanPhase === "gate_opened" && (
             <div className="scan-feedback scan-feedback--success">
-              <p style={{ fontSize: 40, margin: 0 }}>🚀</p>
-              <p style={{ color: "#34d399", fontWeight: 700, marginTop: 8, fontSize: 17 }}>
-                ¡Barrera abierta! ¡Seguí adelante!
-              </p>
+              <p className="scan-feedback-icon">🚀</p>
+              <p style={{ color: "var(--color-success)", fontWeight: 700 }}>¡Barrera abierta! ¡Seguí adelante!</p>
             </div>
           )}
 
           {scanPhase === "waiting_gate" && (
             <div className="scan-feedback scan-feedback--warning">
-              <p style={{ fontSize: 40, margin: 0 }}>⏳</p>
-              <p style={{ color: "#fbbf24", fontWeight: 700, marginTop: 8, fontSize: 17 }}>¡Etapa superada!</p>
-              <p style={{ color: "#ccc", marginTop: 8, fontSize: 14 }}>
+              <p className="scan-feedback-icon">⏳</p>
+              <p style={{ color: "var(--color-warning)", fontWeight: 700 }}>¡Etapa superada!</p>
+              <p style={{ color: "var(--text-secondary)", marginTop: 8, fontSize: 14 }}>
                 Fuiste el/la {gateInfo?.position}° en completar.
               </p>
-              <p style={{ color: "#aaa", marginTop: 4, fontSize: 13 }}>
+              <p style={{ color: "var(--text-muted)", marginTop: 4, fontSize: 13 }}>
                 Esperando los primeros {gateInfo?.threshold} jugadores para continuar...
               </p>
             </div>
@@ -248,11 +244,11 @@ export function ActiveGame() {
 
           {scanPhase === "eliminated" && (
             <div className="scan-feedback scan-feedback--error">
-              <p style={{ fontSize: 40, margin: 0 }}>🏁</p>
-              <p style={{ color: "#e94560", fontWeight: 700, marginTop: 8, fontSize: 17 }}>
+              <p className="scan-feedback-icon">🏁</p>
+              <p style={{ color: "var(--accent)", fontWeight: 700 }}>
                 ¡Ya pasaron los primeros {gateInfo?.threshold}!
               </p>
-              <p style={{ color: "#ccc", marginTop: 6, fontSize: 14 }}>
+              <p style={{ color: "var(--text-secondary)", marginTop: 6, fontSize: 14 }}>
                 No pudiste avanzar en esta misión. Esperá el resultado final.
               </p>
             </div>
@@ -260,9 +256,11 @@ export function ActiveGame() {
 
           {scanPhase === "error" && (
             <div className="scan-feedback scan-feedback--error">
-              <p style={{ fontSize: 40, margin: 0 }}>✗</p>
-              <p style={{ color: "#e94560", fontWeight: 600, marginTop: 8 }}>{scanError}</p>
-              <button onClick={retryScanner} style={retryBtnStyle}>Intentar de nuevo</button>
+              <p className="scan-feedback-icon">✗</p>
+              <p style={{ color: "var(--accent)", fontWeight: 600 }}>{scanError}</p>
+              <button onClick={retryScanner} className="btn btn-ghost btn-sm" style={{ marginTop: 16 }}>
+                Intentar de nuevo
+              </button>
             </div>
           )}
         </div>
@@ -298,49 +296,3 @@ export function ActiveGame() {
   );
 }
 
-const waitingGateBannerStyle: React.CSSProperties = {
-  margin: "1rem 0",
-  padding: "1.5rem",
-  backgroundColor: "#2d2010",
-  border: "1px solid #fbbf24",
-  borderRadius: 10,
-  textAlign: "center",
-};
-
-const retryBtnStyle: React.CSSProperties = {
-  marginTop: 16,
-  padding: "10px 24px",
-  backgroundColor: "transparent",
-  color: "#e94560",
-  border: "1px solid #e94560",
-  borderRadius: 6,
-  cursor: "pointer",
-  fontSize: "0.875rem",
-};
-
-const scanBtnStyle: React.CSSProperties = {
-  display: "block",
-  width: "100%",
-  padding: "14px 0",
-  backgroundColor: "#4f46e5",
-  color: "#fff",
-  border: "none",
-  borderRadius: 8,
-  cursor: "pointer",
-  fontSize: "1rem",
-  fontWeight: 700,
-  letterSpacing: "0.02em",
-};
-
-const closeCamBtnStyle: React.CSSProperties = {
-  display: "block",
-  width: "100%",
-  marginTop: 12,
-  padding: "12px 0",
-  backgroundColor: "transparent",
-  color: "#aaa",
-  border: "1px solid #444",
-  borderRadius: 8,
-  cursor: "pointer",
-  fontSize: "0.875rem",
-};

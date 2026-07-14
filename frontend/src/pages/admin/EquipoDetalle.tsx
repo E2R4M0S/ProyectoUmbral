@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "react-oidc-context";
 import { getTeamById, removeMember, ApiError } from "../../services/teamsApi";
@@ -96,7 +96,7 @@ export function EquipoDetalle() {
         if (err instanceof ApiError) {
           setError(`Error ${err.status}: No se pudo cargar el equipo.`);
         } else {
-          setError("Error de conexión. Verificá tu conexión a internet.");
+          setError("Error de conexión. Verifica tu conexión a internet.");
         }
       } finally {
         setLoading(false);
@@ -110,7 +110,7 @@ export function EquipoDetalle() {
     setActionError(null);
     setActionSuccess(null);
 
-    const confirmed = window.confirm("¿Estás seguro de que querés quitar a este miembro del equipo?");
+    const confirmed = window.confirm("¿Estás seguro de que deseas quitar a este miembro del equipo?");
     if (!confirmed) return;
 
     try {
@@ -122,7 +122,7 @@ export function EquipoDetalle() {
       if (err instanceof ApiError) {
         setActionError(`Error ${err.status}: No se pudo remover el miembro.`);
       } else {
-        setActionError("Error de conexión. Verificá tu conexión a internet.");
+        setActionError("Error de conexión. Verifica tu conexión a internet.");
       }
     }
   }

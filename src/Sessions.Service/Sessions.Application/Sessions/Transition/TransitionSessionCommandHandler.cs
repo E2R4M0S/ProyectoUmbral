@@ -24,9 +24,10 @@ public class TransitionSessionCommandHandler
         _eventPublisher = eventPublisher;
 
         // Build the Chain of Responsibility
-        var validStatus = new ValidStatusHandler();
-        var notTerminal = new NotTerminalHandler();
-        validStatus.SetNext(notTerminal);
+        var validStatus    = new ValidStatusHandler();
+        var notTerminal    = new NotTerminalHandler();
+        var hasParticipants = new HasParticipantsHandler();
+        validStatus.SetNext(notTerminal).SetNext(hasParticipants);
         _validationChain = validStatus;
     }
 

@@ -6,8 +6,8 @@ import type { UserListItem, GetUsersParams } from "../../types/usuario";
 
 const ROLE_OPTIONS = [
   { value: "", label: "Todos los roles" },
-  { value: "admin", label: "Administrador" },
-  { value: "operator", label: "Operador" },
+  { value: "admin",       label: "Administrador" },
+  { value: "operator",    label: "Operador" },
   { value: "participant", label: "Participante" },
 ];
 
@@ -18,7 +18,7 @@ function getRoles(token: string): string[] {
 
 function formatDate(d: string) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(d).toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function roleClass(r: string) {
@@ -28,20 +28,27 @@ function roleClass(r: string) {
   return "badge badge-muted";
 }
 
-export function ListadoUsuarios() {
-  const auth      = useAuth();
-  const navigate  = useNavigate();
-  const isAdmin   = auth.user?.access_token ? getRoles(auth.user.access_token).includes("admin") : false;
+function roleLabel(r: string) {
+  if (r === "admin")       return "Admin";
+  if (r === "operator")    return "Operador";
+  if (r === "participant") return "Participante";
+  return r;
+}
 
-  const [items, setItems]         = useState<UserListItem[]>([]);
-  const [totalCount, setTotal]    = useState(0);
-  const [page, setPage]           = useState(1);
-  const [pageSize]                = useState(20);
-  const [search, setSearch]       = useState("");
-  const [role, setRole]           = useState("");
-  const [enabled, setEnabled]     = useState<boolean | undefined>(undefined);
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState<string | null>(null);
+export function ListadoUsuarios() {
+  const auth     = useAuth();
+  const navigate = useNavigate();
+  const isAdmin  = auth.user?.access_token ? getRoles(auth.user.access_token).includes("admin") : false;
+
+  const [items, setItems]      = useState<UserListItem[]>([]);
+  const [totalCount, setTotal] = useState(0);
+  const [page, setPage]        = useState(1);
+  const [pageSize]             = useState(20);
+  const [search, setSearch]    = useState("");
+  const [role, setRole]        = useState("");
+  const [enabled, setEnabled]  = useState<boolean | undefined>(undefined);
+  const [loading, setLoading]  = useState(false);
+  const [error, setError]      = useState<string | null>(null);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -50,8 +57,8 @@ export function ListadoUsuarios() {
     setError(null);
     try {
       const params: GetUsersParams = { page, pageSize };
-      if (search.trim()) params.search  = search.trim();
-      if (role)          params.role    = role;
+      if (search.trim())         params.search  = search.trim();
+      if (role)                  params.role    = role;
       if (enabled !== undefined) params.enabled = enabled;
       const result = await getUsers(params);
       setItems(result.items);
@@ -65,21 +72,23 @@ export function ListadoUsuarios() {
     }
   }
 
-  useEffect(() => { loadUsers(); }, [page, pageSize]); // eslint-disable-line
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadUsers(); }, [page, role, enabled]);
 
   function handleSearchSubmit(e: FormEvent) {
     e.preventDefault();
     setPage(1);
     loadUsers();
   }
-  function handleFilterChange() { setPage(1); loadUsers(); }
 
   return (
     <div className="page">
       <div className="page-header">
         <div>
           <h1 className="page-title">Listado de Usuarios</h1>
-          <p className="page-subtitle">{totalCount} usuario{totalCount !== 1 ? "s" : ""} registrado{totalCount !== 1 ? "s" : ""}</p>
+          <p className="page-subtitle">
+            {totalCount} usuario{totalCount !== 1 ? "s" : ""} registrado{totalCount !== 1 ? "s" : ""}
+          </p>
         </div>
       </div>
 
@@ -88,11 +97,8 @@ export function ListadoUsuarios() {
           <div className="filter-group">
             <label className="form-label" htmlFor="search">Buscar</label>
             <input
-              id="search"
-              type="text"
-              className="form-input"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              id="search" type="text" className="form-input"
+              value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Nombre o email..."
             />
           </div>
@@ -100,7 +106,7 @@ export function ListadoUsuarios() {
             <div className="filter-group">
               <label className="form-label" htmlFor="role">Rol</label>
               <select id="role" className="form-select" value={role}
-                onChange={(e) => { setRole(e.target.value); handleFilterChange(); }}
+                onChange={(e) => { setRole(e.target.value); setPage(1); }}
               >
                 {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -113,7 +119,7 @@ export function ListadoUsuarios() {
               onChange={(e) => {
                 const v = e.target.value;
                 setEnabled(v === "" ? undefined : v === "true");
-                handleFilterChange();
+                setPage(1);
               }}
             >
               <option value="">Todos</option>
@@ -134,58 +140,50 @@ export function ListadoUsuarios() {
         <div style={{ textAlign: "center", padding: "3rem" }}>
           <div className="spinner" style={{ margin: "0 auto" }} />
         </div>
+      ) : items.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
+          <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>👤</div>
+          <p>No se encontraron usuarios</p>
+        </div>
       ) : (
         <>
-          <div className="table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Email</th>
-                  <th>Roles</th>
-                  <th>Estado</th>
-                  <th>Creado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
-                      No se encontraron usuarios
-                    </td>
-                  </tr>
-                ) : (
-                  items.map(item => (
-                    <tr
-                      key={item.id}
-                      style={{ cursor: "pointer" }}
-                      onClick={() => navigate(`/admin/usuarios/${item.id}`)}
-                    >
-                      <td style={{ fontWeight: 500 }}>{item.name}</td>
-                      <td style={{ color: "var(--text-secondary)" }}>{item.email}</td>
-                      <td>
-                        <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
-                          {item.roles.map(r => (
-                            <span key={r} className={roleClass(r)}>{r}</span>
-                          ))}
-                        </div>
-                      </td>
-                      <td>
-                        <span className={item.enabled ? "badge badge-success" : "badge badge-error"}>
-                          {item.enabled ? "Activo" : "Inactivo"}
-                        </span>
-                      </td>
-                      <td style={{ color: "var(--text-muted)" }}>{formatDate(item.createdAt)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="user-cards">
+            {items.map(item => (
+              <div
+                key={item.id}
+                className="user-card"
+                onClick={() => navigate(`/admin/usuarios/${item.id}`)}
+              >
+                <div className="user-card-header">
+                  <div className="user-card-avatar">
+                    {(item.name || "?")[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="user-card-name">{item.name}</div>
+                    <div className="user-card-email">{item.email}</div>
+                  </div>
+                </div>
+
+                <div className="user-card-footer">
+                  <div className="user-card-roles">
+                    {item.roles.map(r => (
+                      <span key={r} className={roleClass(r)}>{roleLabel(r)}</span>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                    <span className={item.enabled ? "badge badge-success" : "badge badge-error"}>
+                      {item.enabled ? "Activo" : "Inactivo"}
+                    </span>
+                    <span className="user-card-date">{formatDate(item.createdAt)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
           {totalCount > 0 && (
             <div className="pagination">
-              <span>Página {page} de {totalPages || 1} — {pageSize} por página</span>
+              <span>Página {page} de {totalPages || 1}</span>
               <div className="pagination-controls">
                 <button className="btn btn-ghost btn-sm" onClick={() => setPage(p => p - 1)} disabled={page <= 1}>
                   ← Anterior

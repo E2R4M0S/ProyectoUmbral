@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from "react";
+﻿import { useState, useEffect, type FormEvent } from "react";
 import { createTeam, ApiError } from "../../services/teamsApi";
 import { fetchWithAuth } from "../../services/api";
 
@@ -150,14 +150,14 @@ export function CrearEquipo() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 400) {
-          setSubmitError("Datos inválidos. Verificá los campos.");
+          setSubmitError("Datos inválidos. Verifica los campos.");
         } else if (err.status === 409) {
           setSubmitError("Ya existe un equipo con ese nombre. Elegí otro.");
         } else {
-          setSubmitError("Error al crear el equipo. Intentalo de nuevo.");
+          setSubmitError("Error al crear el equipo. Inténtalo de nuevo.");
         }
       } else {
-        setSubmitError("Error de conexión. Verificá tu conexión a internet.");
+        setSubmitError("Error de conexión. Verifica tu conexión a internet.");
       }
     } finally {
       setIsSubmitting(false);

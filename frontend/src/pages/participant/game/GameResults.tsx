@@ -18,7 +18,6 @@ export function GameResults() {
 
   const isFinished = state.sessionStatus === "Finished";
 
-  // Restore all result data from sessionStorage
   useEffect(() => {
     if (!sessionId) return;
     const savedScore = sessionStorage.getItem(`score_${sessionId}`);
@@ -32,12 +31,9 @@ export function GameResults() {
 
     const savedClues = sessionStorage.getItem(`clues_${sessionId}`);
     setCluesUsed(savedClues ? (JSON.parse(savedClues) as unknown[]).length : state.clues.length);
-  }, [sessionId]);
+  }, [sessionId]); // eslint-disable-line
 
-  const myPosition = state.myUserId
-    ? state.ranking.findIndex(r => r.userId === state.myUserId) + 1
-    : 0;
-
+  const myPosition  = state.myUserId ? state.ranking.findIndex(r => r.userId === state.myUserId) + 1 : 0;
   const totalPlayers = state.ranking.length;
 
   function handleReturn() {
@@ -45,69 +41,64 @@ export function GameResults() {
     navigate("/", { replace: true });
   }
 
-  const medalColor = (pos: number) =>
-    pos === 1 ? "#fbbf24" : pos === 2 ? "#9ca3af" : pos === 3 ? "#cd7f32" : "#e94560";
+  function medalColor(pos: number) {
+    if (pos === 1) return "var(--color-gold)";
+    if (pos === 2) return "var(--color-silver)";
+    if (pos === 3) return "var(--color-bronze)";
+    return "var(--accent)";
+  }
 
   return (
     <div className="game-results">
       {isFinished ? (
         <>
           <div className="results-icon">🏆</div>
-          <h2 style={{ color: "#e94560", margin: "0 0 0.25rem" }}>¡Juego Terminado!</h2>
-          <p style={{ color: "#888", margin: "0 0 1.5rem" }}>La experiencia ha finalizado.</p>
+          <h2 className="text-accent">¡Juego Terminado!</h2>
+          <p>La experiencia ha finalizado.</p>
 
-          {/* Personal stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1.5rem" }}>
-            <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "0.75rem", textAlign: "center" }}>
-              <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "#e94560" }}>{state.score}</div>
-              <div style={{ fontSize: "0.72rem", color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>Puntos</div>
+          <div className="results-stats-grid">
+            <div className="results-stat-card">
+              <div className="results-stat-value" style={{ color: "var(--accent)" }}>{state.score}</div>
+              <div className="results-stat-label">Puntos</div>
             </div>
-            <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "0.75rem", textAlign: "center" }}>
-              <div style={{ fontSize: "1.75rem", fontWeight: 700, color: myPosition ? medalColor(myPosition) : "#555" }}>
+            <div className="results-stat-card">
+              <div className="results-stat-value" style={{ color: myPosition ? medalColor(myPosition) : "var(--text-muted)" }}>
                 {myPosition ? `#${myPosition}` : "—"}
               </div>
-              <div style={{ fontSize: "0.72rem", color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>
-                {totalPlayers > 0 ? `de ${totalPlayers}` : "Posición"}
-              </div>
+              <div className="results-stat-label">{totalPlayers > 0 ? `de ${totalPlayers}` : "Posición"}</div>
             </div>
-            <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "0.75rem", textAlign: "center" }}>
-              <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "#34d399" }}>{formatTime(elapsed || state.elapsedSeconds)}</div>
-              <div style={{ fontSize: "0.72rem", color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>Tiempo</div>
+            <div className="results-stat-card">
+              <div className="results-stat-value" style={{ color: "var(--color-success)" }}>
+                {formatTime(elapsed || state.elapsedSeconds)}
+              </div>
+              <div className="results-stat-label">Tiempo</div>
             </div>
           </div>
 
           {cluesUsed > 0 && (
-            <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "0.6rem 1rem", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ color: "#ccc", fontSize: "0.875rem" }}>Pistas utilizadas</span>
-              <span style={{ color: "#fbbf24", fontWeight: 700 }}>{cluesUsed}</span>
+            <div className="results-clues-row">
+              <span>Pistas utilizadas</span>
+              <span style={{ color: "var(--color-warning)", fontWeight: 700 }}>{cluesUsed}</span>
             </div>
           )}
 
-          {/* Ranking */}
           {state.ranking.length > 0 && (
             <>
-              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#e94560", textTransform: "uppercase", letterSpacing: 1, marginBottom: "0.5rem" }}>
-                Ranking Final
-              </div>
-              <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, overflow: "hidden", marginBottom: "1.5rem" }}>
+              <div className="results-ranking-title">Ranking Final</div>
+              <div className="results-ranking-list">
                 {state.ranking.map((entry, i) => {
                   const isMe = state.myUserId && entry.userId === state.myUserId;
                   return (
-                    <div key={i} style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "0.6rem 1rem",
-                      borderBottom: i < state.ranking.length - 1 ? "1px solid #0f3460" : "none",
-                      backgroundColor: isMe ? "#1a2d4a" : "transparent",
-                    }}>
+                    <div key={i} className={`results-ranking-row${isMe ? " is-me" : ""}`}>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                         <span style={{ fontWeight: 700, minWidth: 24, color: medalColor(entry.position) }}>
                           #{entry.position}
                         </span>
-                        <span style={{ color: isMe ? "white" : "#ccc", fontSize: "0.9rem", fontWeight: isMe ? 700 : 400 }}>
-                          {entry.teamName}{isMe ? " (tú)" : ""}
+                        <span style={{ fontSize: "0.9rem", fontWeight: isMe ? 700 : 400 }}>
+                          {entry.teamName}{isMe ? " (yo)" : ""}
                         </span>
                       </div>
-                      <span style={{ fontWeight: 700, color: "#e94560" }}>{entry.score} pts</span>
+                      <span style={{ fontWeight: 700, color: "var(--accent)" }}>{entry.score} pts</span>
                     </div>
                   );
                 })}
@@ -118,8 +109,8 @@ export function GameResults() {
       ) : (
         <>
           <div className="results-icon">⚠️</div>
-          <h2 style={{ color: "#ffc107" }}>Sesión Cancelada</h2>
-          <p style={{ color: "#888" }}>La sesión fue cancelada por el host.</p>
+          <h2 className="text-warning">Sesión Cancelada</h2>
+          <p>La sesión fue cancelada por el host.</p>
         </>
       )}
 
