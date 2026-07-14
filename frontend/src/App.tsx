@@ -6,7 +6,6 @@ import { ServerSetup } from "./pages/public/ServerSetup";
 import { needsServerSetup, getServerHost, isProductionApk } from "./config/serverConfig";
 import { MiPerfil } from "./pages/participant/MiPerfil";
 import { RankingGlobal } from "./pages/participant/RankingGlobal";
-import { UnirseEquipo } from "./pages/participant/UnirseEquipo";
 import { QuizBank } from "./pages/admin/QuizBank";
 import { UnirseSesion } from "./pages/participant/UnirseSesion";
 import { GameView } from "./pages/participant/game/GameView";
@@ -19,10 +18,6 @@ import { DetalleUsuario } from "./pages/admin/DetalleUsuario";
 import { CrearMision } from "./pages/admin/CrearMision";
 import { EditarMision } from "./pages/admin/EditarMision";
 import { CatalogoMisiones } from "./pages/admin/CatalogoMisiones";
-import { CrearEquipo } from "./pages/admin/CrearEquipo";
-import { ListadoEquipos } from "./pages/admin/ListadoEquipos";
-import { EquipoDetalle } from "./pages/admin/EquipoDetalle";
-import { EditarEquipo } from "./pages/admin/EditarEquipo";
 import { CrearSesion } from "./pages/admin/CrearSesion";
 import { PanelSesion } from "./pages/admin/PanelSesion";
 import { ListadoSesiones } from "./pages/admin/ListadoSesiones";
@@ -180,9 +175,6 @@ function AdminPanel() {
       <div className="sidebar-section">Sesiones</div>
       <Link to="/admin/sesiones" className="sidebar-link">📋 Listado</Link>
       <Link to="/admin/sesiones/crear" className="sidebar-link">➕ Crear Sesión</Link>
-      <div className="sidebar-section">Equipos</div>
-      <Link to="/admin/equipos" className="sidebar-link">📋 Listado</Link>
-      <Link to="/admin/equipos/crear" className="sidebar-link">➕ Crear Equipo</Link>
       <div className="sidebar-section">Usuarios</div>
       <Link to="/admin/usuarios" className="sidebar-link">📋 Listado</Link>
       <Link to="/admin/operadores/nuevo" className="sidebar-link">➕ Crear Operador</Link>
@@ -201,9 +193,6 @@ function OperatorPanel() {
       <div className="sidebar-section">Sesiones</div>
       <Link to="/operator/sesiones" className="sidebar-link">📋 Listado</Link>
       <Link to="/operator/sesiones/crear" className="sidebar-link">➕ Crear Sesión</Link>
-      <div className="sidebar-section">Equipos</div>
-      <Link to="/operator/equipos" className="sidebar-link">📋 Listado</Link>
-      <Link to="/operator/equipos/crear" className="sidebar-link">➕ Crear Equipo</Link>
       <div className="sidebar-section">Usuarios</div>
       <Link to="/operator/usuarios" className="sidebar-link">📋 Listado</Link>
     </Sidebar>
@@ -215,8 +204,6 @@ function ParticipantPanel() {
     <Sidebar role="Participante">
       <div className="sidebar-section">Mi Cuenta</div>
       <Link to="/participant/perfil" className="sidebar-link">👤 Mi Perfil</Link>
-      <div className="sidebar-section">Equipos</div>
-      <Link to="/participant/equipo/unirse" className="sidebar-link">🔗 Unirse a Equipo</Link>
       <div className="sidebar-section">Juego</div>
       <Link to="/participant/sessions/join" className="sidebar-link">🎮 Unirse a Sesión</Link>
       <Link to="/participant/ranking" className="sidebar-link">🏆 Ranking Global</Link>
@@ -286,10 +273,6 @@ function App() {
             <Route path="usuarios/:id" element={<DetalleUsuario />} />
             <Route path="operadores/nuevo" element={<CrearOperador />} />
             <Route path="operadores/desactivar" element={<DesactivarOperador />} />
-            <Route path="equipos" element={<ListadoEquipos />} />
-            <Route path="equipos/crear" element={<CrearEquipo />} />
-            <Route path="equipos/:id" element={<EquipoDetalle />} />
-            <Route path="equipos/:id/editar" element={<EditarEquipo />} />
             <Route path="sesiones" element={<ListadoSesiones />} />
             <Route path="sesiones/crear" element={<CrearSesion />} />
             <Route path="sesiones/:id/panel" element={<PanelSesion />} />
@@ -308,10 +291,6 @@ function App() {
             <Route path="sesiones" element={<ListadoSesiones />} />
             <Route path="sesiones/crear" element={<CrearSesion />} />
             <Route path="sesiones/:id/panel" element={<PanelSesion />} />
-            <Route path="equipos" element={<ListadoEquipos />} />
-            <Route path="equipos/crear" element={<CrearEquipo />} />
-            <Route path="equipos/:id" element={<EquipoDetalle />} />
-            <Route path="equipos/:id/editar" element={<EditarEquipo />} />
             <Route path="usuarios" element={<ListadoUsuarios />} />
           </Route>
         </Route>
@@ -319,7 +298,6 @@ function App() {
           <Route element={<ParticipantPanel />}>
             <Route index element={<h2>Panel de Participante</h2>} />
             <Route path="perfil" element={<MiPerfil />} />
-            <Route path="equipo/unirse" element={<UnirseEquipo />} />
             <Route path="sessions/join" element={<UnirseSesion />} />
             <Route path="ranking" element={<RankingGlobal />} />
           </Route>

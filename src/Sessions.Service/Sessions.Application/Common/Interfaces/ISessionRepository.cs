@@ -24,4 +24,12 @@ public interface ISessionRepository
     Task AddParticipantScoreAsync(Guid sessionId, Guid userId, int delta, CancellationToken ct = default);
     Task<List<(Guid UserId, string Alias, int TotalScore)>> GetGlobalParticipantRankingAsync(DateTime? since = null, CancellationToken ct = default);
     Task ResetParticipantScoresAsync(Guid sessionId, CancellationToken ct = default);
+
+    // Teams
+    Task AddTeamAsync(SessionTeam team, CancellationToken ct);
+    Task<SessionTeam?> GetTeamByIdAsync(Guid teamId, CancellationToken ct);
+    Task<List<SessionTeam>> GetTeamsBySessionIdAsync(Guid sessionId, CancellationToken ct);
+    Task<bool> IsTeamNameUniqueInSessionAsync(Guid sessionId, string name, CancellationToken ct);
+    Task<SessionTeam?> GetParticipantTeamInSessionAsync(Guid sessionId, Guid userId, CancellationToken ct);
+    Task UpdateTeamAsync(SessionTeam team, CancellationToken ct);
 }

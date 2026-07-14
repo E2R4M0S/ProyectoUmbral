@@ -1,0 +1,49 @@
+namespace Sessions.Domain.Entities;
+
+public class SessionTeam
+{
+    private List<SessionTeamMember> _members = [];
+
+    public Guid Id { get; private set; }
+    public Guid SessionId { get; private set; }
+    public string Name { get; private set; } = null!;
+    public int MaxMembers { get; private set; }
+    public DateTime CreatedAt { get; private set; }
+    public IReadOnlyList<SessionTeamMember> Members => _members.AsReadOnly();
+
+    private SessionTeam() { }
+
+    public static SessionTeam Create(Guid sessionId, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException("El nombre del equipo es obligatorio.");
+        if (name.Length > 100)
+            throw new InvalidOperationException("El nombre del equipo no puede superar los 100 caracteres.");
+
+        return new SessionTeam
+        {
+            Id = Guid.NewGuid(),
+            SessionId = sessionId,
+            Name = name.Trim(),
+            MaxMembers = 5,
+            CreatedAt = DateTime.UtcNow
+        };
+    }
+
+    public void AddMember(Guid userId, string? userAlias)
+    {
+        if (_members.Count >= MaxMembers)
+            throw new InvalidOperationException($"El equipo ya tiene el máximo de {MaxMembers} miembros.");
+        if (_members.Any(m => m.UserId == userId))
+            throw new InvalidOperationException("El participante ya es miembro de este equipo.");
+
+        _members.Add(SessionTeamMember.Create(Id, userId, userAlias));
+    }
+
+    public void RemoveMember(Guid userId)
+    {
+        var member = _members.FirstOrDefault(m => m.UserId == userId)
+            ?? throw new InvalidOperationException("El participante no es miembro de este equipo.");
+        _members.Remove(member);
+    }
+}

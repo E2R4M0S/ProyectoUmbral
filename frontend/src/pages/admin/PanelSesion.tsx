@@ -4,11 +4,13 @@ import QRCode from "qrcode";
 import { getSessionProgress, getSessionById, transitionSession, advanceStage, ApiError } from "../../services/sessionsApi";
 import { getMissionById } from "../../services/missionsApi";
 import { fetchWithAuth } from "../../services/api";
+import { getSessionTeams, createSessionTeam, removeTeamMember } from "../../services/sessionTeamsApi";
 import { useSignalR } from "../../hooks/useSignalR";
 import type { AnswerResult } from "../../hooks/useSignalR";
 import type { SessionProgress, ParticipantProgress, SessionStatus, SessionStage } from "../../types/session";
 import type { MissionDetail, Clue } from "../../types/mission";
 import type { RankingEntry } from "../../types/game";
+import type { SessionTeam } from "../../services/sessionTeamsApi";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -106,6 +108,7 @@ export function PanelSesion() {
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [questionResults, setQuestionResults] = useState<AnswerResult[]>([]);
   const [finalRanking, setFinalRanking] = useState<RankingEntry[]>([]);
+  const [teams, setTeams] = useState<SessionTeam[]>([]);
 
   async function load() {
     if (!id) return;
@@ -148,6 +151,13 @@ export function PanelSesion() {
   }, [id]);
 
   useEffect(() => { load(); const i = setInterval(load, 5000); return () => clearInterval(i); }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    getSessionTeams(id).then(setTeams).catch(() => {});
+    const i = setInterval(() => getSessionTeams(id).then(setTeams).catch(() => {}), 5000);
+    return () => clearInterval(i);
+  }, [id]);
 
   useEffect(() => {
     if (!progress || progress.status !== "Active") return;
@@ -338,6 +348,14 @@ export function PanelSesion() {
           </div>
         </>
       )}
+
+      {/* Teams */}
+      <TeamsManager
+        sessionId={id!}
+        teams={teams}
+        sessionStatus={progress.status}
+        onTeamsChanged={() => id && getSessionTeams(id).then(setTeams).catch(() => {})}
+      />
 
       {/* Participants */}
       <div style={css.sectionTitle}>Participantes ({progress.participants?.length || 0})</div>
@@ -685,6 +703,109 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants, questionResu
       )}
       {msg && <div style={{ marginTop: "0.5rem", color: msg.includes("Error") ? "#e94560" : "#4caf50", fontSize: "0.82rem" }}>{msg}</div>}
     </div>
+  );
+}
+
+// ── Teams Manager ─────────────────────────────────────────────────────────────
+
+function TeamsManager({ sessionId, teams, sessionStatus, onTeamsChanged }: {
+  sessionId: string;
+  teams: SessionTeam[];
+  sessionStatus: string;
+  onTeamsChanged: () => void;
+}) {
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createMsg, setCreateMsg] = useState("");
+  const canCreate = sessionStatus === "Scheduled" || sessionStatus === "Preparing";
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    setCreating(true);
+    setCreateMsg("");
+    try {
+      await createSessionTeam(sessionId, newName.trim());
+      setNewName("");
+      setCreateMsg("✓ Equipo creado.");
+      onTeamsChanged();
+    } catch (err) {
+      setCreateMsg(err instanceof Error ? err.message : "Error al crear equipo.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleRemoveMember = async (teamId: string, userId: string) => {
+    try {
+      await removeTeamMember(sessionId, teamId, userId);
+      onTeamsChanged();
+    } catch { /* ignore */ }
+  };
+
+  return (
+    <>
+      <div style={css.sectionTitle}>Equipos ({teams.length})</div>
+
+      {canCreate && (
+        <form onSubmit={handleCreate} style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+          <input
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            placeholder="Nombre del equipo..."
+            maxLength={100}
+            style={{ ...css.select, marginBottom: 0, flex: 1 }}
+          />
+          <button type="submit" disabled={creating || !newName.trim()} style={creating ? css.btnDisabled : css.btnPrimary}>
+            {creating ? "Creando..." : "+ Equipo"}
+          </button>
+        </form>
+      )}
+      {createMsg && (
+        <div style={createMsg.startsWith("✓") ? css.msgSuccess : css.msgError}>
+          {createMsg}
+        </div>
+      )}
+
+      {teams.length === 0 ? (
+        <p style={{ color: "#555", fontSize: "0.875rem" }}>
+          {canCreate ? "Crea equipos antes de iniciar la sesión." : "No hay equipos en esta sesión."}
+        </p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1rem" }}>
+          {teams.map(team => (
+            <div key={team.id} style={{ ...css.stageCard(""), padding: "0.875rem 1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                <span style={{ fontWeight: 700, color: "white" }}>{team.name}</span>
+                <span style={{ color: "#888", fontSize: "0.8rem" }}>
+                  {team.memberCount}/{team.maxMembers} miembros
+                </span>
+              </div>
+              {team.members.length === 0 ? (
+                <p style={{ color: "#555", fontSize: "0.8rem", margin: 0 }}>Sin miembros todavía</p>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                  {team.members.map(m => (
+                    <span key={m.userId} style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "2px 10px", backgroundColor: "#0d1b35", border: "1px solid #0f3460", borderRadius: 20, fontSize: "0.8rem", color: "#ccc" }}>
+                      {m.userAlias}
+                      {canCreate && (
+                        <button
+                          onClick={() => handleRemoveMember(team.id, m.userId)}
+                          style={{ background: "none", border: "none", color: "#e94560", cursor: "pointer", padding: 0, fontSize: "0.75rem", lineHeight: 1 }}
+                          title="Quitar del equipo"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { GameProvider, useGame } from "../../../contexts/GameContext";
 import { getSessionById } from "../../../services/sessionsApi";
 import { getRankingByQuiz } from "../../../services/triviaApi";
-import { getMyTeams } from "../../../services/teamsApi";
+import { getSessionTeams } from "../../../services/sessionTeamsApi";
 import { useSignalR } from "../../../hooks/useSignalR";
 import { userManager } from "../../../auth/keycloak";
 import { WaitingRoom } from "./WaitingRoom";
@@ -210,12 +210,13 @@ function GameViewInner() {
         try {
           const user = await userManager.getUser();
           const userId = user?.profile?.sub as string | undefined;
-          if (userId) {
-            const teams = await getMyTeams();
+          if (userId && sessionId) {
+            const allTeams = await getSessionTeams(sessionId);
+            const myTeam = allTeams.find(t => t.members.some(m => m.userId === userId));
             dispatch({
               type: "MY_IDENTITY_LOADED",
               userId,
-              team: teams.length > 0 ? teams[0] : null,
+              team: myTeam ? { id: myTeam.id, name: myTeam.name, memberIds: myTeam.members.map(m => m.userId) } : null,
             });
           }
         } catch { /* ignore — team info is optional */ }
