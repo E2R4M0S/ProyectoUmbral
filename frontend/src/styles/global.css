@@ -1883,3 +1883,75 @@ body.scanner-active .scanner-native-overlay * {
 /* GameResults h2 color overrides */
 .game-results h2.text-accent { color: var(--accent); }
 .game-results h2.text-warning { color: var(--color-warning); }
+
+/* GameResults — stats grid and ranking */
+.results-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto var(--space-4);
+}
+.results-stat-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  text-align: center;
+}
+.results-stat-value {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.results-stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+.results-clues-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+.results-ranking-title {
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+.results-ranking-list {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.results-ranking-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  transition: background var(--transition-fast);
+}
+.results-ranking-row.is-me {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+  border-color: var(--accent);
+}
