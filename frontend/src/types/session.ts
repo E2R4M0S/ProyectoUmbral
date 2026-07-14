@@ -5,8 +5,13 @@ export type SessionStatus = "Scheduled" | "Preparing" | "Active" | "Paused" | "F
 export interface SessionStage {
   missionId: string;
   missionTitle: string;
+  stageName: string;
   missionType: MissionType | string;
   order: number;
+  timeMinutes?: number;
+  missionStageId?: string;
+  qrToken?: string;
+  quizId?: string;
 }
 
 export interface SessionResponse {
@@ -59,9 +64,13 @@ export interface SessionParticipant {
 
 export interface StageInput {
   missionId: string;
+  missionStageId: string;
   missionTitle: string;
+  stageName: string;
   missionType: string;
   order: number;
+  qrToken: string;
+  timeMinutes?: number;
 }
 
 export interface CreateSessionRequest {

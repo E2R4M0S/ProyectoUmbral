@@ -32,15 +32,35 @@ describe("GameContext reducer", () => {
     expect(state.connectionState).toBe("Disconnected");
   });
 
-  it("SESSION_LOADED sets name and status", () => {
+  it("SESSION_LOADED sets name, status and total stages", () => {
     const { result } = renderHook(() => useGame(), { wrapper });
 
     act(() => {
-      result.current.dispatch({ type: "SESSION_LOADED", name: "Misión Alpha", status: "Active" });
+      result.current.dispatch({
+        type: "SESSION_LOADED",
+        name: "Misión Alpha",
+        status: "Active",
+        missionType: "Treasure",
+        stageOrder: 0,
+        totalStages: 4,
+        stages: [],
+      });
     });
 
     expect(result.current.state.sessionName).toBe("Misión Alpha");
     expect(result.current.state.sessionStatus).toBe("Active");
+    expect(result.current.state.totalStages).toBe(4);
+  });
+
+  it("STAGE_ADVANCED updates participant progress", () => {
+    const { result } = renderHook(() => useGame(), { wrapper });
+
+    act(() => {
+      result.current.dispatch({ type: "STAGE_ADVANCED", participantStageOrder: 3, totalStages: 5 });
+    });
+
+    expect(result.current.state.participantStageOrder).toBe(3);
+    expect(result.current.state.totalStages).toBe(5);
   });
 
   it("STATUS_CHANGED updates sessionStatus", () => {

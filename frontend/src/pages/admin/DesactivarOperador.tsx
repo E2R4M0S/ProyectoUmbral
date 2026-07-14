@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+﻿import { useState, type FormEvent } from "react";
 import { desactivarOperador, ApiError } from "../../services/operadorApi";
 
 function validateEmail(v: string) {
@@ -35,10 +35,10 @@ export function DesactivarOperador() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 404)      setSubmitErr("No se encontró un operador con ese email.");
-        else if (err.status === 400) setSubmitErr("Datos inválidos. Verificá el email.");
-        else                         setSubmitErr("Error al desactivar el operador. Intentalo de nuevo.");
+        else if (err.status === 400) setSubmitErr("Datos inválidos. Verifica el email.");
+        else                         setSubmitErr("Error al desactivar el operador. Inténtalo de nuevo.");
       } else {
-        setSubmitErr("Error de conexión. Verificá tu conexión a internet.");
+        setSubmitErr("Error de conexión. Verifica tu conexión a internet.");
       }
     } finally {
       setSub(false);
@@ -53,7 +53,7 @@ export function DesactivarOperador() {
 
       <div className="card">
         <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", marginBottom: "1.5rem" }}>
-          Ingresá el email del operador que querés desactivar. Se revocarán todos sus accesos activos.
+          Ingresa el email del operador que deseas desactivar. Se revocarán todos sus accesos activos.
         </p>
 
         {success && (

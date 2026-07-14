@@ -11,14 +11,10 @@ interface RegistroResponse {
   id: string;
 }
 
-/**
- * Registra un nuevo participante a través del endpoint público del Gateway.
- * No requiere autenticación — el proxy de Vite redirige a la API en desarrollo.
- */
 export async function registrarParticipante(
   data: RegistroRequest,
 ): Promise<RegistroResponse> {
-  const response = await fetch("/api/teams/register", {
+  const response = await fetch("/api/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),

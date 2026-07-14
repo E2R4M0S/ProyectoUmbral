@@ -95,4 +95,18 @@ public class GameSessionFacadeTests
             Arg.Any<object>(),
             Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task NotifyStageAdvanced_CallsProgressUpdated_WithStageAdvancedFlag()
+    {
+        var sessionId = Guid.NewGuid();
+        var newStageOrder = 2;
+
+        await _facade.NotifyStageAdvanced(sessionId, newStageOrder);
+
+        await _notifier.Received().NotifyProgressUpdated(
+            sessionId,
+            Arg.Any<object>(),
+            Arg.Any<CancellationToken>());
+    }
 }

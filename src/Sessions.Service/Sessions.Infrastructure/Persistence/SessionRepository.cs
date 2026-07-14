@@ -59,7 +59,7 @@ public class SessionRepository : ISessionRepository
         int pageSize,
         CancellationToken ct)
     {
-        var query = _context.Sessions.AsQueryable();
+        var query = _context.Sessions.Include(s => s.Participants).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -107,5 +107,98 @@ public class SessionRepository : ISessionRepository
     {
         await _context.Set<SessionParticipant>().AddAsync(participant, ct);
         await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<SessionParticipant?> GetParticipantAsync(Guid sessionId, Guid userId, CancellationToken ct)
+    {
+        return await _context.Set<SessionParticipant>()
+            .FirstOrDefaultAsync(p => p.SessionId == sessionId && p.UserId == userId, ct);
+    }
+
+    public async Task UpdateParticipantAsync(SessionParticipant participant, CancellationToken ct)
+    {
+        _context.Set<SessionParticipant>().Update(participant);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task AddParticipantScoreAsync(Guid sessionId, Guid userId, int delta, CancellationToken ct = default)
+    {
+        var participant = await GetParticipantAsync(sessionId, userId, ct);
+        if (participant is null) return;
+        participant.AddScore(delta);
+        _context.Set<SessionParticipant>().Update(participant);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task ResetParticipantScoresAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        var participants = await _context.Set<SessionParticipant>()
+            .Where(p => p.SessionId == sessionId)
+            .ToListAsync(ct);
+        foreach (var p in participants)
+            p.ResetScore();
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task AddTeamAsync(SessionTeam team, CancellationToken ct)
+    {
+        await _context.SessionTeams.AddAsync(team, ct);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<SessionTeam?> GetTeamByIdAsync(Guid teamId, CancellationToken ct)
+    {
+        return await _context.SessionTeams
+            .Include(t => t.Members)
+            .FirstOrDefaultAsync(t => t.Id == teamId, ct);
+    }
+
+    public async Task<List<SessionTeam>> GetTeamsBySessionIdAsync(Guid sessionId, CancellationToken ct)
+    {
+        return await _context.SessionTeams
+            .Include(t => t.Members)
+            .Where(t => t.SessionId == sessionId)
+            .OrderBy(t => t.CreatedAt)
+            .ToListAsync(ct);
+    }
+
+    public async Task<bool> IsTeamNameUniqueInSessionAsync(Guid sessionId, string name, CancellationToken ct)
+    {
+        return !await _context.SessionTeams
+            .AnyAsync(t => t.SessionId == sessionId && t.Name.ToLower() == name.ToLower().Trim(), ct);
+    }
+
+    public async Task<SessionTeam?> GetParticipantTeamInSessionAsync(Guid sessionId, Guid userId, CancellationToken ct)
+    {
+        return await _context.SessionTeams
+            .Include(t => t.Members)
+            .Where(t => t.SessionId == sessionId)
+            .FirstOrDefaultAsync(t => t.Members.Any(m => m.UserId == userId), ct);
+    }
+
+    public async Task UpdateTeamAsync(SessionTeam team, CancellationToken ct)
+    {
+        _context.SessionTeams.Update(team);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<(Guid UserId, string Alias, int TotalScore)>> GetGlobalParticipantRankingAsync(DateTime? since = null, CancellationToken ct = default)
+    {
+        var query = _context.Set<SessionParticipant>().AsQueryable();
+        if (since.HasValue)
+            query = query.Where(p => p.JoinedAt >= since.Value);
+
+        var all = await query.ToListAsync(ct);
+
+        return all
+            .GroupBy(p => p.UserId)
+            .Select(g => (
+                UserId: g.Key,
+                Alias: g.First().UserAlias,
+                TotalScore: g.Sum(p => p.Score)
+            ))
+            .Where(r => r.TotalScore > 0)
+            .OrderByDescending(r => r.TotalScore)
+            .ToList();
     }
 }

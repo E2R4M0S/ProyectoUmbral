@@ -6,7 +6,7 @@ namespace Missions.Application.Missions.Update;
 
 public class UpdateMissionCommandValidator : AbstractValidator<UpdateMissionCommand>
 {
-    private static readonly int[] ValidTimeMinutes = { 15, 30, 60, 90 };
+    private static readonly int[] ValidTimeMinutes = { -1, 0, 15, 30, 60, 90 };
 
     public UpdateMissionCommandValidator()
     {
@@ -26,9 +26,8 @@ public class UpdateMissionCommandValidator : AbstractValidator<UpdateMissionComm
             .Must(BeAValidDifficulty).WithMessage("Difficulty must be Easy, Medium, or Hard");
 
         RuleFor(x => x.TimeMinutes)
-            .NotEmpty().WithMessage("TimeMinutes is required")
             .Must(t => ValidTimeMinutes.Contains(t))
-            .WithMessage("TimeMinutes must be one of: 15, 30, 60, 90");
+            .WithMessage("TimeMinutes must be one of: -1 (10s test), 15, 30, 60, 90");
     }
 
     private static bool BeAValidDifficulty(string difficulty)

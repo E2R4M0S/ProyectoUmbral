@@ -1,32 +1,298 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useGame } from "../../../contexts/GameContext";
 import { Timer } from "../../../components/game/Timer";
 import { ClueCard } from "../../../components/game/ClueCard";
 import { RankingBoard } from "../../../components/game/RankingBoard";
 import { QuestionCard } from "../../../components/game/QuestionCard";
+import { QrScanner } from "../../../components/QrScanner";
+import { validateQr } from "../../../services/sessionsApi";
+
+type ScanPhase = "idle" | "loading" | "success" | "error" | "waiting_gate" | "gate_opened" | "eliminated";
 
 export function ActiveGame() {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const navigate = useNavigate();
+
+  const isTreasure = state.currentMissionType === "Treasure";
+
+  const currentStageInfo = state.stages.find(s => s.order === state.participantStageOrder);
+  const missionStages = currentStageInfo
+    ? state.stages.filter(s => s.missionId === currentStageInfo.missionId).sort((a, b) => a.order - b.order)
+    : [];
+  const missionStageIndex = missionStages.findIndex(s => s.order === state.participantStageOrder) + 1;
+  const missionStageTotal = missionStages.length;
+  const missionTitle = currentStageInfo?.missionTitle ?? state.sessionName;
+
+  // ── QR scan state ────────────────────────────────────────────────────────────
+  const [scanPhase, setScanPhase] = useState<ScanPhase>("idle");
+  const [scanError, setScanError] = useState("");
+  const [cameraActive, setCameraActive] = useState(false);
+  const [gateInfo, setGateInfo] = useState<{ position: number; threshold: number } | null>(null);
+
+  const scanPhaseRef = useRef<ScanPhase>("idle");
+  useEffect(() => { scanPhaseRef.current = scanPhase; }, [scanPhase]);
+
+  // Auto-advance past the current mission when the timer runs out
+  const timeUpHandledRef = useRef(false);
+  useEffect(() => {
+    if (state.timeLimitSeconds <= 0) return;
+    if (state.elapsedSeconds < state.timeLimitSeconds) {
+      timeUpHandledRef.current = false;
+      return;
+    }
+    if (timeUpHandledRef.current) return;
+    timeUpHandledRef.current = true;
+
+    const current = state.stages.find(s => s.order === state.participantStageOrder);
+    if (!current) {
+      navigate(`/juego/${sessionId}/completada`, { replace: true });
+      return;
+    }
+
+    const missionStages = state.stages.filter(s => s.missionId === current.missionId);
+    const lastOrder = Math.max(...missionStages.map(s => s.order));
+    const nextOrder = lastOrder + 1;
+
+    if (state.stages.some(s => s.order === nextOrder)) {
+      dispatch({ type: "STAGE_ADVANCED", participantStageOrder: nextOrder, totalStages: state.totalStages });
+    } else {
+      navigate(`/juego/${sessionId}/completada`, { replace: true });
+    }
+  }, [state.elapsedSeconds, state.timeLimitSeconds, state.stages, state.participantStageOrder, state.totalStages, dispatch, navigate, sessionId]);
+
+  const handleScan = useCallback(async (text: string) => {
+    if (scanPhaseRef.current !== "idle") return;
+
+    let payload: { stageId: string; token: string } | null = null;
+    try {
+      const parsed = JSON.parse(text);
+      if (typeof parsed.stageId === "string" && typeof parsed.token === "string") {
+        payload = parsed;
+      }
+    } catch { /* ignore */ }
+
+    if (!payload) {
+      const preview = text.length > 50 ? text.substring(0, 47) + "..." : text;
+      setScanError(`QR no reconocido: "${preview}"`);
+      setScanPhase("error");
+      return;
+    }
+
+    setScanPhase("loading");
+
+    try {
+      const result = await validateQr(sessionId!, { stageId: payload.stageId, token: payload.token });
+
+      if (!result.isValid) {
+        if (result.isEliminated) {
+          setGateInfo({ position: result.gatePosition, threshold: result.gateThreshold });
+          setScanPhase("eliminated");
+        } else {
+          setScanError(result.errorMessage ?? "Código QR incorrecto para esta etapa.");
+          setScanPhase("error");
+        }
+        return;
+      }
+
+      try {
+        sessionStorage.setItem(`participantStage_${sessionId}`, JSON.stringify({
+          participantStageOrder: result.currentStageOrder + 1,
+        }));
+      } catch { /* ignore */ }
+
+      dispatch({
+        type: "STAGE_ADVANCED",
+        participantStageOrder: result.currentStageOrder + 1,
+        totalStages: result.totalStages,
+      });
+
+      if (result.isAtGate && result.gateOpened) {
+        setScanPhase("gate_opened");
+        setTimeout(() => {
+          setScanPhase("idle");
+          setCameraActive(false);
+          if (result.isLastStage) navigate(`/juego/${sessionId}/completada`, { replace: true });
+        }, 2000);
+        return;
+      }
+
+      if (result.isAtGate && !result.gateOpened) {
+        const info = { position: result.gatePosition, threshold: result.gateThreshold };
+        setGateInfo(info);
+        setScanPhase("waiting_gate");
+        try { sessionStorage.setItem(`gate_waiting_${sessionId}`, JSON.stringify(info)); } catch { /* ignore */ }
+        return;
+      }
+
+      setScanPhase("success");
+      setTimeout(() => {
+        if (result.isLastStage) navigate(`/juego/${sessionId}/completada`, { replace: true });
+        else { setScanPhase("idle"); setCameraActive(false); }
+      }, 1500);
+
+    } catch {
+      setScanError("Error de conexión. Intentá de nuevo.");
+      setScanPhase("error");
+    }
+  }, [sessionId, navigate, dispatch]);
+
+  function retryScanner() {
+    setScanError("");
+    setScanPhase("idle");
+    setCameraActive(false);
+  }
+
+  const showScanner = !state.isWaiting && isTreasure;
+  const stageDisplay = missionStageIndex > 0 ? missionStageIndex : state.participantStageOrder;
+  const stageTotal = missionStageTotal > 0 ? missionStageTotal : state.totalStages;
 
   return (
     <div className="active-game">
-      <Timer />
-      <RankingBoard ranking={state.ranking} />
 
-      {state.currentQuestion && (
-        <QuestionCard key={state.currentQuestion.questionId} question={state.currentQuestion} />
+      {/* ── Header: mission info + score ── */}
+      <div className="game-header">
+        <div className="game-stage-info">
+          <div className="game-mission-type-chip">
+            {isTreasure ? "Búsqueda" : "Trivia"}
+          </div>
+          <div className="game-mission-name">{missionTitle}</div>
+          {currentStageInfo?.stageName && currentStageInfo.stageName !== missionTitle && (
+            <div className="game-stage-name">{currentStageInfo.stageName}</div>
+          )}
+          {stageTotal > 0 && (
+            <div className="game-stage-counter">
+              Etapa <strong>{stageDisplay}</strong> de <strong>{stageTotal}</strong>
+            </div>
+          )}
+        </div>
+        <div className="game-score-badge">
+          <div className="game-score-label">Puntos</div>
+          <div className="game-score-value">{state.score}</div>
+        </div>
+      </div>
+
+      {/* ── Timer ── */}
+      <Timer />
+
+      {/* ── Gate waiting ── */}
+      {state.isWaiting && (
+        <div className="waiting-gate-banner">
+          <p style={{ fontSize: 32, margin: 0 }}>⏳</p>
+          <p style={{ color: "var(--color-warning)", fontWeight: 700, marginTop: 8, fontSize: 17 }}>
+            Esperando a los otros jugadores...
+          </p>
+          <p>Posición {state.gatePosition} de {state.gateThreshold} — la barrera abre cuando lleguen todos</p>
+        </div>
       )}
 
-      {!state.currentQuestion && state.clues.length === 0 ? (
-        <div className="waiting-msg">
-          {state.sessionStatus === "Active" ? "Esperando contenido..." : "Aún no hay pistas disponibles. ¡Prestá atención!"}
+      {/* ── Treasure Hunt: QR scanner ── */}
+      {showScanner && (
+        <div className="scan-section">
+          {scanPhase === "idle" && (
+            <>
+              {cameraActive ? (
+                <>
+                  <p className="scan-hint">Encontrá la ubicación y escaneá el código QR</p>
+                  <QrScanner active={true} onScan={handleScan} />
+                  <button onClick={() => setCameraActive(false)} className="btn-scan-close">
+                    Cerrar cámara
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setCameraActive(true)} className="btn-scan">
+                  📷 Escanear QR
+                </button>
+              )}
+            </>
+          )}
+
+          {scanPhase === "loading" && (
+            <div className="scan-feedback">
+              <div className="spinner" />
+              <p style={{ color: "var(--text-muted)", marginTop: 12 }}>Validando código...</p>
+            </div>
+          )}
+
+          {scanPhase === "success" && (
+            <div className="scan-feedback scan-feedback--success">
+              <p className="scan-feedback-icon">✓</p>
+              <p style={{ color: "var(--color-success)", fontWeight: 700, fontSize: 18 }}>¡Etapa superada!</p>
+            </div>
+          )}
+
+          {scanPhase === "gate_opened" && (
+            <div className="scan-feedback scan-feedback--success">
+              <p className="scan-feedback-icon">🚀</p>
+              <p style={{ color: "var(--color-success)", fontWeight: 700 }}>¡Barrera abierta! ¡Seguí adelante!</p>
+            </div>
+          )}
+
+          {scanPhase === "waiting_gate" && (
+            <div className="scan-feedback scan-feedback--warning">
+              <p className="scan-feedback-icon">⏳</p>
+              <p style={{ color: "var(--color-warning)", fontWeight: 700 }}>¡Etapa superada!</p>
+              <p style={{ color: "var(--text-secondary)", marginTop: 8, fontSize: 14 }}>
+                Fuiste el/la {gateInfo?.position}° en completar.
+              </p>
+              <p style={{ color: "var(--text-muted)", marginTop: 4, fontSize: 13 }}>
+                Esperando los primeros {gateInfo?.threshold} jugadores para continuar...
+              </p>
+            </div>
+          )}
+
+          {scanPhase === "eliminated" && (
+            <div className="scan-feedback scan-feedback--error">
+              <p className="scan-feedback-icon">🏁</p>
+              <p style={{ color: "var(--accent)", fontWeight: 700 }}>
+                ¡Ya pasaron los primeros {gateInfo?.threshold}!
+              </p>
+              <p style={{ color: "var(--text-secondary)", marginTop: 6, fontSize: 14 }}>
+                No pudiste avanzar en esta misión. Esperá el resultado final.
+              </p>
+            </div>
+          )}
+
+          {scanPhase === "error" && (
+            <div className="scan-feedback scan-feedback--error">
+              <p className="scan-feedback-icon">✗</p>
+              <p style={{ color: "var(--accent)", fontWeight: 600 }}>{scanError}</p>
+              <button onClick={retryScanner} className="btn btn-ghost btn-sm" style={{ marginTop: 16 }}>
+                Intentar de nuevo
+              </button>
+            </div>
+          )}
         </div>
-      ) : !state.currentQuestion && state.clues.length > 0 ? (
+      )}
+
+      {/* ── Trivia: question or waiting screen ── */}
+      {!isTreasure && (
+        <>
+          {state.currentQuestion ? (
+            <QuestionCard key={state.currentQuestion.questionId} question={state.currentQuestion} />
+          ) : (
+            <div className="trivia-waiting">
+              <div className="trivia-waiting-pulse" />
+              <p className="trivia-waiting-title">Esperando pregunta</p>
+              <p className="trivia-waiting-sub">El operador enviará la siguiente pregunta en breve</p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Clues (Treasure) ── */}
+      {state.clues.length > 0 && (
         <div style={{ marginTop: "1rem" }}>
           {state.clues.map((clue: unknown, index: number) => (
             <ClueCard key={index} clue={clue} />
           ))}
         </div>
-      ) : null}
+      )}
+
+      {/* ── Ranking board ── */}
+      <RankingBoard ranking={state.ranking} />
     </div>
   );
 }
+

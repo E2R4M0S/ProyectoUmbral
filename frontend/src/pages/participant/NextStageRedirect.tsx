@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useGame } from "../../contexts/GameContext";
 
 // Keys used by trivia that should be removed on transition
 const TRIVIA_LOCAL_KEYS = ["selectedAnswerId", "teamName"];
@@ -8,7 +7,6 @@ const TRIVIA_SESSION_PREFIX = "trivia_";
 
 export function NextStageRedirect() {
   const navigate = useNavigate();
-  const { dispatch } = useGame();
 
   useEffect(() => {
     function clearTriviaState() {
@@ -31,8 +29,8 @@ export function NextStageRedirect() {
 
       clearTriviaState();
 
-      // reset application game state
-      dispatch({ type: "RESET" });
+      // Reset participant stage progress in sessionStorage so GameView restores fresh
+      try { sessionStorage.removeItem(`participantStage_${window.location.pathname.split("/")[2]}`); } catch { }
 
       if (payload?.NextStageUrl) {
         navigate(payload.NextStageUrl, { replace: true });
@@ -41,7 +39,7 @@ export function NextStageRedirect() {
 
     window.addEventListener("NavigateToStage", onNavigate as EventListener);
     return () => window.removeEventListener("NavigateToStage", onNavigate as EventListener);
-  }, [navigate, dispatch]);
+  }, [navigate]);
 
   return null;
 }

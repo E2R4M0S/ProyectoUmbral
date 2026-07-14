@@ -79,7 +79,7 @@ export function ClueCard({ clue }: ClueCardProps) {
         if (!e || !e.detail) return;
         try {
           const d = e.detail as { questionId: string; correctAnswerId: string };
-          if (String(obj.questionId) === String(d.questionId)) {
+          if (obj && String(obj.questionId) === String(d.questionId)) {
             setCorrectId(d.correctAnswerId);
             setClosed(true);
             if (selected === d.correctAnswerId) setResultText("¡Acierto!");

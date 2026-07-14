@@ -45,6 +45,9 @@ try
 
     builder.Services.AddAuthorization(options =>
     {
+        options.AddPolicy("authenticated", policy =>
+            policy.RequireAuthenticatedUser());
+
         options.AddPolicy("admin", policy =>
             policy.RequireRole("admin"));
 
@@ -93,6 +96,11 @@ try
     app.MapGetSessionProgressEndpoint();
     app.MapReleaseClueEndpoint();
     app.MapValidateQrEndpoint();
+    app.MapParticipantScoreEndpoints();
+    app.MapCreateSessionTeamEndpoint();
+    app.MapGetSessionTeamsEndpoint();
+    app.MapJoinSessionTeamEndpoint();
+    app.MapRemoveTeamMemberEndpoint();
 
     app.Run();
 }

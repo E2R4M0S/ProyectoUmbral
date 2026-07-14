@@ -38,7 +38,6 @@ describe("teamsApi", () => {
       name: "Test Team",
       description: "desc",
       leaderId: "l1",
-      memberIds: [],
       joinCode: "ABC123",
       createdAt: "2026-01-01",
     };

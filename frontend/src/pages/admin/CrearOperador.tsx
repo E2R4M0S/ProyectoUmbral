@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+﻿import { useState, type FormEvent } from "react";
 import { crearOperador, ApiError } from "../../services/operadorApi";
 
 interface FieldErrors {
@@ -37,10 +37,10 @@ export function CrearOperador() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409)      setSubmitErr("El email ya está registrado.");
-        else if (err.status === 400) setSubmitErr("Datos inválidos. Verificá los campos.");
-        else                         setSubmitErr("Error al crear el operador. Intentalo de nuevo.");
+        else if (err.status === 400) setSubmitErr("Datos inválidos. Verifica los campos.");
+        else                         setSubmitErr("Error al crear el operador. Inténtalo de nuevo.");
       } else {
-        setSubmitErr("Error de conexión. Verificá tu conexión a internet.");
+        setSubmitErr("Error de conexión. Verifica tu conexión a internet.");
       }
     } finally {
       setSub(false);

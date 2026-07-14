@@ -5,10 +5,6 @@ import { Link } from "react-router-dom";
 export function Registro() {
   const [registered, setRegistered] = useState(false);
 
-  function handleSuccess() {
-    setRegistered(true);
-  }
-
   if (registered) {
     return (
       <div style={{
@@ -30,22 +26,15 @@ export function Registro() {
   }
 
   return (
-    <div style={{
-      minHeight: "100vh", backgroundColor: "#1a1a2e", color: "white",
-      fontFamily: "sans-serif", padding: "3rem 1rem"
-    }}>
-      <div style={{ maxWidth: 420, margin: "0 auto" }}>
-        <h1 style={{ textAlign: "center", marginBottom: "0.5rem", fontSize: "1.8rem" }}>
-          Registro de Participante
-        </h1>
-        <p style={{ textAlign: "center", color: "#999", marginBottom: "2rem", fontSize: 14 }}>
-          Crea tu cuenta para unirte a las experiencias
-        </p>
-        <RegistroForm onSuccess={handleSuccess} />
-        <p style={{ textAlign: "center", marginTop: "1.5rem", fontSize: 14, color: "#999" }}>
-          Ya tenes cuenta?{" "}
-          <Link to="/" style={{ color: "#e94560", fontWeight: 600, textDecoration: "none" }}>
-            Inicia sesion
+    <div className="registro-page">
+      <div className="registro-page-inner">
+        <h1>Registro de Participante</h1>
+        <p className="page-subtitle">Crea tu cuenta para unirte a las experiencias</p>
+        <RegistroForm onSuccess={() => setRegistered(true)} />
+        <p style={{ textAlign: "center", marginTop: "1.5rem", fontSize: "0.875rem", color: "var(--text-muted)" }}>
+          ¿Ya tienes cuenta?{" "}
+          <Link to="/" style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "none" }}>
+            Inicia sesión
           </Link>
         </p>
       </div>

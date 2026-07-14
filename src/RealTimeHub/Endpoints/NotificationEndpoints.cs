@@ -52,6 +52,33 @@ public static class NotificationEndpoints
                 .SendAsync("QuestionAsked", notification, CancellationToken.None);
             return Results.Ok();
         });
+        app.MapPost("/internal/notifications/gate-opened", async (
+            [FromBody] GateOpenedNotification notification,
+            IHubContext<GameHub> hubContext) =>
+        {
+            await hubContext.Clients.Group(notification.SessionId.ToString())
+                .SendAsync("GateOpened", notification, CancellationToken.None);
+            return Results.Ok();
+        });
+
+        app.MapPost("/internal/notifications/question-closed", async (
+            [FromBody] QuestionClosedNotification notification,
+            IHubContext<GameHub> hubContext) =>
+        {
+            await hubContext.Clients.Group(notification.SessionId.ToString())
+                .SendAsync("QuestionClosed", notification, CancellationToken.None);
+            return Results.Ok();
+        });
+
+        app.MapPost("/internal/events/QuestionResultsUpdated", async (
+            [FromBody] QuestionResultsPayload payload,
+            IHubContext<GameHub> hubContext) =>
+        {
+            await hubContext.Clients.Group(payload.QuizId.ToString())
+                .SendAsync("QuestionResultsUpdated", payload, CancellationToken.None);
+            return Results.Ok();
+        });
+
         app.MapPost("/internal/events/LeaderboardUpdated", async (
             [FromBody] List<LeaderboardEntryDto> entries,
             IHubContext<GameHub> hubContext) =>
@@ -62,7 +89,8 @@ public static class NotificationEndpoints
             {
                 position = i + 1,
                 teamName = e.TeamName ?? e.TeamId.ToString()?.Substring(0, 8) ?? $"Jugador {i + 1}",
-                score = e.Score
+                score = e.Score,
+                userId = e.TeamId.ToString()
             }).ToList();
 
             var notification = new { SessionId = sessionId, Ranking = ranking };
@@ -83,3 +111,6 @@ public record QuestionResultsNotification(Guid QuizId, Guid? SessionId, Guid Que
 public record QuestionClosedNotification(Guid SessionId, Guid QuestionId, Guid CorrectAnswerId, string? CorrectAnswerText);
 public record RankingEntryDto(int Position, string TeamName, int Score);
 public record RankingUpdatedNotification(Guid SessionId, List<RankingEntryDto> Ranking);
+public record GateOpenedNotification(Guid SessionId, int NextStageIndex);
+public record QuestionResultsPayload(Guid QuizId, Guid QuestionId, List<AnswerResultItemDto> Results);
+public record AnswerResultItemDto(Guid AnswerId, string Text, int Count, double Percentage);

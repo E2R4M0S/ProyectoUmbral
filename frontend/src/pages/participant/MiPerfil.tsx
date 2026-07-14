@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useAuth } from "../../auth/useAuth";
 import { getProfile, updateProfile, ApiError } from "../../services/perfilApi";
 import type { PerfilData, UpdatePerfilRequest } from "../../types/perfil";
@@ -109,10 +109,10 @@ export function MiPerfil() {
             setErrors({ general: "Error de validación. Revisá los datos." });
           }
         } else {
-          setErrors({ general: "Error del servidor. Intentalo de nuevo más tarde." });
+          setErrors({ general: "Error del servidor. Inténtalo de nuevo más tarde." });
         }
       } else {
-        setErrors({ general: "Ocurrió un error inesperado. Intentalo de nuevo." });
+        setErrors({ general: "Ocurrió un error inesperado. Inténtalo de nuevo." });
       }
     } finally {
       setFormState("idle");
@@ -181,7 +181,7 @@ export function MiPerfil() {
             {errors.lastName && <span className="form-hint" style={{ color: "var(--color-error)" }}>{errors.lastName}</span>}
           </div>
 
-          <div className="form-group" style={{ marginBottom: "1.5rem" }}>
+          <div className="form-group">
             <label className="form-label" htmlFor="alias">Alias</label>
             <input
               id="alias" type="text" className="form-input"
@@ -191,12 +191,12 @@ export function MiPerfil() {
               disabled={isBusy}
             />
             {errors.alias
-              ? <span className="form-hint" style={{ color: "var(--color-error)" }}>{errors.alias}</span>
+              ? <span className="form-hint form-hint-error">{errors.alias}</span>
               : <span className="form-hint">Solo letras, números y guiones bajos.</span>
             }
           </div>
 
-          <div style={{ display: "flex", gap: "0.75rem" }}>
+          <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={isBusy} style={{ flex: 1 }}>
               {formState === "saving" ? "Guardando..." : "Guardar cambios"}
             </button>

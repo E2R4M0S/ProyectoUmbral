@@ -75,7 +75,7 @@ export async function updateStage(
   const response = await fetchWithAuth(`/api/admin/missions/${missionId}/stages/${stageId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...data, missionId }),
+    body: JSON.stringify({ ...data, missionId, stageId }),
   });
   if (!response.ok) throw new ApiError(response.status, await response.text());
 }

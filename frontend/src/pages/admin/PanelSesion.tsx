@@ -1,34 +1,97 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
+import QRCode from "qrcode";
 import { getSessionProgress, getSessionById, transitionSession, advanceStage, ApiError } from "../../services/sessionsApi";
 import { getMissionById } from "../../services/missionsApi";
 import { fetchWithAuth } from "../../services/api";
+import { getSessionTeams, createSessionTeam, removeTeamMember } from "../../services/sessionTeamsApi";
+import { useSignalR } from "../../hooks/useSignalR";
+import type { AnswerResult } from "../../hooks/useSignalR";
 import type { SessionProgress, ParticipantProgress, SessionStatus, SessionStage } from "../../types/session";
 import type { MissionDetail, Clue } from "../../types/mission";
+import type { RankingEntry } from "../../types/game";
+import type { SessionTeam } from "../../services/sessionTeamsApi";
 
-const s: Record<string, React.CSSProperties> = {
-  container: { maxWidth: 700, margin: "0 auto", color: "white", fontFamily: "sans-serif", padding: "1rem" },
-  title: { fontSize: "1.5rem", margin: 0, color: "#e94560" },
-  meta: { color: "#999", fontSize: "0.9rem", marginTop: "0.25rem" },
-  section: { fontSize: "1.1rem", color: "#e94560", margin: "1.5rem 0 0.5rem" },
-  card: { padding: "1rem", backgroundColor: "#16213e", borderRadius: 8, border: "1px solid #0f3460", marginBottom: "0.75rem" },
-  badge: (bg: string) => ({ display: "inline-block", padding: "2px 8px", borderRadius: 12, fontSize: 12, fontWeight: 600, color: "white", backgroundColor: bg }),
-  btn: (bg: string) => ({ padding: "6px 14px", backgroundColor: bg, color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }),
-  backLink: { color: "#e94560", textDecoration: "none", fontSize: "0.9rem" },
-  timerBox: { textAlign: "center" as const, padding: "1rem", backgroundColor: "#16213e", borderRadius: 8, marginBottom: "1rem" },
-  timer: { fontSize: "3rem", fontWeight: 700, color: "#e94560", fontFamily: "monospace" },
-  stageBox: { padding: "1rem", backgroundColor: "#1a2f5c", border: "2px solid #e94560", borderRadius: 8, marginBottom: "1rem" },
-  stageOrder: { color: "#0f3460", backgroundColor: "white", display: "inline-block", padding: "2px 8px", borderRadius: 12, fontSize: 12, fontWeight: 700, marginRight: 8 },
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const css = {
+  container: { maxWidth: 800, margin: "0 auto", color: "white", padding: "0 0 3rem" } as React.CSSProperties,
+  backLink: { color: "#e94560", textDecoration: "none", fontSize: "0.875rem", display: "inline-flex", alignItems: "center", gap: 4, marginBottom: "1.25rem" } as React.CSSProperties,
+
+  // Header
+  headerCard: { backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 10, padding: "1.25rem 1.5rem", marginBottom: "1.25rem" } as React.CSSProperties,
+  sessionName: { fontSize: "1.4rem", fontWeight: 700, color: "#e94560", margin: "0 0 0.5rem" } as React.CSSProperties,
+  headerMeta: { display: "flex", flexWrap: "wrap" as const, gap: "0.75rem", alignItems: "center" } as React.CSSProperties,
+  chip: (bg: string): React.CSSProperties => ({ padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, backgroundColor: bg, color: "white" }),
+
+  // PIN
+  pinBox: { backgroundColor: "#0d1b35", border: "1px solid #0f3460", borderRadius: 8, padding: "0.75rem 1.25rem", display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" } as React.CSSProperties,
+  pinLabel: { color: "#888", fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1 } as React.CSSProperties,
+  pinCode: { fontFamily: "monospace", fontSize: "1.75rem", fontWeight: 700, letterSpacing: "0.25em", color: "white" } as React.CSSProperties,
+
+  // Timer
+  timerBox: { display: "flex", flexDirection: "column" as const, alignItems: "center", backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 10, padding: "1rem 2rem", marginBottom: "1.25rem" } as React.CSSProperties,
+  timerValue: { fontSize: "3rem", fontWeight: 700, color: "#e94560", fontFamily: "monospace", lineHeight: 1 } as React.CSSProperties,
+  timerLabel: { color: "#666", fontSize: "0.75rem", textTransform: "uppercase" as const, letterSpacing: 1, marginTop: 4 } as React.CSSProperties,
+
+  // Sections
+  sectionTitle: { fontSize: "0.8rem", fontWeight: 700, color: "#e94560", textTransform: "uppercase" as const, letterSpacing: 1, margin: "1.5rem 0 0.75rem" } as React.CSSProperties,
+
+  // Stage box
+  stageCard: (type: string): React.CSSProperties => ({
+    backgroundColor: "#16213e",
+    border: `1px solid ${type === "Treasure" ? "#e94560" : "#0f3460"}`,
+    borderLeft: `4px solid ${type === "Treasure" ? "#e94560" : "#3b82f6"}`,
+    borderRadius: 8,
+    padding: "1rem 1.25rem",
+    marginBottom: "1rem",
+  }),
+  stageTypeChip: (type: string): React.CSSProperties => ({
+    display: "inline-flex", alignItems: "center", gap: 4,
+    padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700,
+    backgroundColor: type === "Treasure" ? "#3d1a1a" : "#1a2d4a",
+    color: type === "Treasure" ? "#e94560" : "#3b82f6",
+    border: `1px solid ${type === "Treasure" ? "#e94560" : "#3b82f6"}`,
+  }),
+
+  // Buttons
+  btnPrimary: { padding: "9px 20px", backgroundColor: "#e94560", color: "white", border: "none", borderRadius: 7, cursor: "pointer", fontSize: "0.875rem", fontWeight: 700 } as React.CSSProperties,
+  btnGreen: { padding: "9px 20px", backgroundColor: "#1a4d2e", color: "#4caf50", border: "1px solid #4caf50", borderRadius: 7, cursor: "pointer", fontSize: "0.875rem", fontWeight: 700 } as React.CSSProperties,
+  btnBlue: { padding: "9px 20px", backgroundColor: "#0f3460", color: "white", border: "none", borderRadius: 7, cursor: "pointer", fontSize: "0.875rem", fontWeight: 700 } as React.CSSProperties,
+  btnGhost: { padding: "9px 20px", backgroundColor: "transparent", color: "#888", border: "1px solid #444", borderRadius: 7, cursor: "pointer", fontSize: "0.875rem", fontWeight: 700 } as React.CSSProperties,
+  btnDisabled: { padding: "9px 20px", backgroundColor: "#2a2a2a", color: "#555", border: "1px solid #333", borderRadius: 7, cursor: "not-allowed", fontSize: "0.875rem", fontWeight: 700 } as React.CSSProperties,
+
+  // Participant card
+  participantCard: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.6rem 1rem", backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 7, marginBottom: "0.4rem" } as React.CSSProperties,
+
+  // Notification messages
+  msgSuccess: { padding: "8px 14px", backgroundColor: "#1a3d1a", border: "1px solid #4caf50", borderRadius: 6, color: "#4caf50", fontSize: "0.82rem", marginTop: "0.5rem" } as React.CSSProperties,
+  msgError: { padding: "8px 14px", backgroundColor: "#2d1a1a", border: "1px solid #e94560", borderRadius: 6, color: "#e94560", fontSize: "0.82rem", marginTop: "0.5rem" } as React.CSSProperties,
+
+  // Select
+  select: { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #0f3460", backgroundColor: "#16213e", color: "white", fontSize: "0.875rem", marginBottom: "0.75rem" } as React.CSSProperties,
 };
 
-const statusColors: Record<string, string> = { Scheduled: "#6c757d", Preparing: "#ffc107", Active: "#28a745", Paused: "#ffc107", Finished: "#007bff", Cancelled: "#dc3545" };
-const statusLabels: Record<string, string> = { Scheduled: "Programada", Preparing: "En Preparacion", Active: "Activa", Paused: "Pausada", Finished: "Finalizada", Cancelled: "Cancelada" };
+const statusColors: Record<string, string> = {
+  Scheduled: "#6c757d", Preparing: "#fd7e14",
+  Active: "#28a745", Paused: "#ffc107",
+  Finished: "#3b82f6", Cancelled: "#dc3545",
+};
+const statusLabels: Record<string, string> = {
+  Scheduled: "Programada", Preparing: "En Preparación",
+  Active: "Activa", Paused: "Pausada",
+  Finished: "Finalizada", Cancelled: "Cancelada",
+};
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function PanelSesion() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const basePath = location.pathname.includes("/admin/") ? "/admin" : "/operator";
+
   const [progress, setProgress] = useState<SessionProgress | null>(null);
+  const [pin, setPin] = useState<string>("");
   const [stages, setStages] = useState<SessionStage[]>([]);
   const [currentStageOrder, setCurrentStageOrder] = useState(0);
   const [mission, setMission] = useState<MissionDetail | null>(null);
@@ -42,6 +105,10 @@ export function PanelSesion() {
   const [selectedQuizId, setSelectedQuizId] = useState<string>("");
   const [advancing, setAdvancing] = useState(false);
   const [advanceMsg, setAdvanceMsg] = useState("");
+  const [ranking, setRanking] = useState<RankingEntry[]>([]);
+  const [questionResults, setQuestionResults] = useState<AnswerResult[]>([]);
+  const [finalRanking, setFinalRanking] = useState<RankingEntry[]>([]);
+  const [teams, setTeams] = useState<SessionTeam[]>([]);
 
   async function load() {
     if (!id) return;
@@ -52,54 +119,93 @@ export function PanelSesion() {
       setLocalSeconds(p.elapsedSeconds);
       setError("");
     } catch {
-      setError("No se pudo cargar.");
+      setError("No se pudo cargar la sesión.");
     } finally {
       setLoading(false);
     }
   }
 
-  // Fetch session detail + stages
+  async function loadMissionForStage(stageList: SessionStage[], stageOrder: number) {
+    const current = stageList.find(st => st.order === stageOrder + 1);
+    if (!current) return;
+    try {
+      const m = await getMissionById(current.missionId);
+      setMission(m);
+      const firstClue = m.stages?.flatMap(st => st.clues ?? [])?.[0];
+      if (firstClue) setSelectedClueId(firstClue.id);
+    } catch { /* best-effort */ }
+  }
+
   useEffect(() => {
     if (!id) return;
     getSessionById(id)
       .then((detail) => {
-        setStages(detail.stages ?? []);
-        setCurrentStageOrder(detail.currentStageOrder ?? 0);
-        const current = (detail.stages ?? []).find(st => st.order === (detail.currentStageOrder ?? 0) + 1);
-        if (current) return getMissionById(current.missionId);
-        return null;
+        const stageList = detail.stages ?? [];
+        const currentOrder = detail.currentStageOrder ?? 0;
+        setStages(stageList);
+        setCurrentStageOrder(currentOrder);
+        setPin(detail.pin ?? "");
+        return loadMissionForStage(stageList, currentOrder);
       })
-      .then((missionDetail) => {
-        if (!missionDetail) return;
-        setMission(missionDetail);
-        // Auto-select first clue
-        const firstClue = missionDetail.stages?.flatMap(st => st.clues ?? [])?.[0];
-        if (firstClue) setSelectedClueId(firstClue.id);
-      })
-      .catch(() => { /* mission fetch is best-effort */ });
+      .catch(() => {});
   }, [id]);
 
   useEffect(() => { load(); const i = setInterval(load, 5000); return () => clearInterval(i); }, [id]);
 
-  // Local 1-second tick for smooth timer display
+  useEffect(() => {
+    if (!id) return;
+    getSessionTeams(id).then(setTeams).catch(() => {});
+    const i = setInterval(() => getSessionTeams(id).then(setTeams).catch(() => {}), 5000);
+    return () => clearInterval(i);
+  }, [id]);
+
   useEffect(() => {
     if (!progress || progress.status !== "Active") return;
-    const tick = setInterval(() => {
-      setLocalSeconds(prev => prev + 1);
-    }, 1000);
+    const tick = setInterval(() => setLocalSeconds(prev => prev + 1), 1000);
     return () => clearInterval(tick);
   }, [progress?.status]);
 
-  // Sync local timer to server value when it updates
   useEffect(() => {
-    if (progress) {
-      setLocalSeconds(progress.elapsedSeconds);
-    }
+    if (progress) setLocalSeconds(progress.elapsedSeconds);
   }, [progress?.elapsedSeconds]);
 
-  // Flatten all clues from all stages
+  useEffect(() => {
+    if (progress?.status !== "Finished" || !id) return;
+    // Use real-time ranking if already populated, else load from session detail
+    if (ranking.length > 0) {
+      setFinalRanking(ranking);
+      return;
+    }
+    getSessionById(id)
+      .then(detail => {
+        const sorted = [...(detail.participants ?? [])].sort((a, b) => b.score - a.score);
+        setFinalRanking(sorted.map((p, i) => ({
+          position: i + 1,
+          teamName: p.name || p.userId,
+          score: p.score,
+          userId: p.userId,
+        })));
+      })
+      .catch(() => {});
+  }, [progress?.status, id]);
+
+  useSignalR({
+    sessionId: id ?? "",
+    onStatusChanged: () => { load(); },
+    onProgressUpdated: () => {},
+    onClueReleased: () => {},
+    onConnectionStateChange: () => {},
+    onRankingUpdated: (incoming) => { setRanking(incoming); setFinalRanking(incoming); },
+    onQuestionResultsUpdated: (_, results) => { setQuestionResults(results); },
+  });
+
   const allClues: Clue[] = mission?.stages?.flatMap(st => st.clues ?? []) ?? [];
   const selectedClue = allClues.find(c => c.id === selectedClueId);
+  const currentStage = stages.find(st => st.order === currentStageOrder + 1);
+  const isLastStage = stages.length === 0 || currentStageOrder >= stages.length - 1;
+  const canAdvance = progress?.status === "Active" && !isLastStage;
+  const isTreasure = currentStage?.missionType === "Treasure";
+  const isTerminal = progress?.status === "Finished" || progress?.status === "Cancelled";
 
   const handleReleaseClue = async () => {
     if (!selectedClueId) return;
@@ -111,11 +217,11 @@ export function PanelSesion() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clueId: selectedClueId, teamId: null }),
       });
-      if (!resp.ok) throw new Error("Error");
+      if (!resp.ok) throw new Error();
       const result = await resp.json();
-      setClueMsg(result.hasContent ? "Pista liberada con contenido real" : "Pista liberada (sin contenido en la mision)");
+      setClueMsg(result.hasContent ? "Pista enviada correctamente." : "Pista enviada (sin contenido definido).");
     } catch {
-      setClueMsg("Error al liberar pista");
+      setClueMsg("Error al liberar la pista.");
     } finally {
       setReleasing(false);
     }
@@ -128,254 +234,373 @@ export function PanelSesion() {
     try {
       const result = await advanceStage(id);
       setCurrentStageOrder(result.currentStageOrder);
-      setAdvanceMsg(result.isLastStage ? "Última etapa alcanzada." : `Avanzaste a la etapa ${result.currentStageOrder + 1} de ${result.totalStages}.`);
-      // Re-fetch mission for the new current stage
+      setAdvanceMsg(result.isLastStage ? "✓ Última etapa alcanzada." : `✓ Avanzaste a la etapa ${result.currentStageOrder + 1} de ${result.totalStages}.`);
       const detail = await getSessionById(id);
       setStages(detail.stages ?? []);
-      const current = (detail.stages ?? []).find(st => st.order === result.currentStageOrder + 1);
-      if (current) {
-        const m = await getMissionById(current.missionId).catch(() => null);
-        if (m) {
-          setMission(m);
-          setSelectedClueId("");
-        }
-      }
+      await loadMissionForStage(detail.stages ?? [], result.currentStageOrder);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setAdvanceMsg(err.body || "No se pudo avanzar de etapa.");
-      } else {
-        setAdvanceMsg("Error al avanzar de etapa.");
-      }
+      setAdvanceMsg(err instanceof ApiError ? (err.body || "No se pudo avanzar.") : "Error al avanzar.");
     } finally {
       setAdvancing(false);
     }
   };
 
-  if (loading) return <div style={s.container}>Cargando...</div>;
-  if (error || !progress) return <div style={s.container}><p style={{ color: "#e94560" }}>{error || "No encontrada"}</p><Link to={`${basePath}/sesiones`} style={s.backLink}>Volver</Link></div>;
+  const handleTransition = async (newStatus: string) => {
+    if (!id) return;
+    try { await transitionSession(id, newStatus); load(); } catch {}
+  };
 
-  const currentStage = stages.find(st => st.order === currentStageOrder + 1);
-  const isLastStage = stages.length === 0 || currentStageOrder >= stages.length - 1;
-  const canAdvance = progress.status === "Active" && !isLastStage;
+  if (loading) return <div style={css.container}><p style={{ color: "#aaa" }}>Cargando sesión...</p></div>;
+  if (error || !progress) return (
+    <div style={css.container}>
+      <p style={{ color: "#e94560" }}>{error || "Sesión no encontrada"}</p>
+      <Link to={`${basePath}/sesiones`} style={css.backLink}>← Volver</Link>
+    </div>
+  );
 
   return (
-    <div style={s.container}>
-      <Link to={`${basePath}/sesiones`} style={s.backLink}>Volver al listado</Link>
-      <div style={{ marginTop: "1rem" }}>
-        <h2 style={s.title}>{progress.name}</h2>
-        <p style={s.meta}>Estado: <span style={s.badge(statusColors[progress.status] || "#6c757d")}>{statusLabels[progress.status] || progress.status}</span></p>
-      </div>
+    <div style={css.container}>
+      <Link to={`${basePath}/sesiones`} style={css.backLink}>← Volver al listado</Link>
 
-      <div style={s.timerBox}>
-        <div style={s.timer}>{formatTime(localSeconds)}</div>
-        <div style={{ color: "#999", fontSize: "0.8rem", marginTop: 4 }}>transcurrido</div>
-      </div>
-
-      {/* Current Stage Indicator (multi-mission) */}
-      {stages.length > 0 && (
-        <div style={s.stageBox} data-testid="current-stage-box">
-          <div style={{ fontSize: "0.8rem", color: "#999" }}>Etapa actual</div>
-          <div style={{ marginTop: 4, fontSize: "1.1rem", fontWeight: 600 }}>
-            <span style={s.stageOrder}>{currentStageOrder + 1}/{stages.length}</span>
-            {currentStage?.missionTitle ?? "—"}
-            <span style={{ color: "#999", marginLeft: 8, fontSize: "0.85rem" }}>
-              ({currentStage?.missionType})
+      {/* Header */}
+      <div style={css.headerCard}>
+        <h2 style={css.sessionName}>{progress.name}</h2>
+        <div style={css.headerMeta}>
+          <span style={css.chip(statusColors[progress.status] || "#6c757d")}>
+            {statusLabels[progress.status] || progress.status}
+          </span>
+          {stages.length > 0 && (
+            <span style={css.chip("#1a2a3a")}>
+              {stages.length} {stages.length === 1 ? "etapa" : "etapas"}
             </span>
-          </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button
-              type="button"
-              data-testid="advance-stage-btn"
-              onClick={handleAdvanceStage}
-              disabled={!canAdvance || advancing}
-              style={s.btn(canAdvance && !advancing ? "#28a745" : "#555")}
-            >
-              {advancing ? "Avanzando..." : "Siguiente Etapa →"}
-            </button>
-            {isLastStage && (
-              <span style={{ color: "#ffc107", fontSize: "0.85rem", alignSelf: "center" }}>
-                Última etapa
-              </span>
-            )}
-          </div>
-          {advanceMsg && (
-            <p style={{ marginTop: 6, color: advanceMsg.includes("Error") || advanceMsg.includes("No se pudo") ? "#e94560" : "#28a745", fontSize: "0.85rem" }}>
-              {advanceMsg}
-            </p>
           )}
+          <span style={css.chip("#1a2a3a")}>
+            {progress.participants?.length || 0} participantes
+          </span>
         </div>
-      )}
+      </div>
 
-      {getTransitions(progress.status as SessionStatus).length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: "1rem" }}>
+      {/* PIN */}
+      <div style={css.pinBox}>
+        <div>
+          <div style={css.pinLabel}>PIN de la sesión</div>
+          <div style={css.pinCode}>{pin || "------"}</div>
+        </div>
+        <div style={{ marginLeft: "auto", color: "#555", fontSize: "0.78rem" }}>
+          Compartí este código<br/>con los participantes
+        </div>
+      </div>
+
+      {/* Timer */}
+      <div style={css.timerBox}>
+        <div style={css.timerValue}>{formatTime(localSeconds)}</div>
+        <div style={css.timerLabel}>tiempo transcurrido</div>
+      </div>
+
+      {/* Transition buttons */}
+      {!isTerminal && getTransitions(progress.status as SessionStatus).length > 0 && (
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1.25rem" }}>
           {getTransitions(progress.status as SessionStatus).map(t => (
-            <button key={t} onClick={async () => {
-              try { await transitionSession(id!, t); load(); } catch {}
-            }} style={{
-              padding: "8px 16px", border: "none", borderRadius: 6, cursor: "pointer",
-              fontSize: 14, fontWeight: 600, color: "white",
-              backgroundColor: t === "Cancelled" || t === "Finished" ? "#dc3545" : t === "Active" ? "#28a745" : "#0f3460",
-            }}>
-              {t === "Preparing" ? "Preparar" : t === "Active" ? "Iniciar" : t === "Paused" ? "Pausar" : t === "Finished" ? "Finalizar" : t}
+            <button key={t} onClick={() => handleTransition(t)} style={
+              t === "Cancelled" ? css.btnPrimary
+              : t === "Finished" ? { ...css.btnPrimary, backgroundColor: "#dc3545" }
+              : t === "Active" ? css.btnGreen
+              : css.btnBlue
+            }>
+              {transitionLabel(t)}
             </button>
           ))}
         </div>
       )}
 
-      <h3 style={s.section}>Participantes ({progress.participants?.length || 0})</h3>
+      {/* Current stage */}
+      {stages.length > 0 && (
+        <>
+          <div style={css.sectionTitle}>Etapa actual</div>
+          <div style={css.stageCard(currentStage?.missionType ?? "")}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                  <span style={{ fontWeight: 700, fontSize: "1rem" }}>
+                    {currentStageOrder + 1} / {stages.length}
+                  </span>
+                  <span style={{ color: "#ccc" }}>{currentStage?.missionTitle ?? "—"}</span>
+                </div>
+                <span style={css.stageTypeChip(currentStage?.missionType ?? "")}>
+                  {currentStage?.missionType === "Treasure" ? "🗺 Búsqueda del Tesoro" : "❓ Trivia"}
+                </span>
+              </div>
+              {!isTerminal && (
+                <button
+                  onClick={handleAdvanceStage}
+                  disabled={!canAdvance || advancing}
+                  style={canAdvance && !advancing ? css.btnGreen : css.btnDisabled}
+                >
+                  {advancing ? "Avanzando..." : isLastStage ? "Última etapa" : "Siguiente →"}
+                </button>
+              )}
+            </div>
+            {advanceMsg && (
+              <div style={advanceMsg.includes("Error") || advanceMsg.includes("No se pudo") ? css.msgError : css.msgSuccess}>
+                {advanceMsg}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Teams */}
+      <TeamsManager
+        sessionId={id!}
+        teams={teams}
+        sessionStatus={progress.status}
+        onTeamsChanged={() => id && getSessionTeams(id).then(setTeams).catch(() => {})}
+      />
+
+      {/* Participants */}
+      <div style={css.sectionTitle}>Participantes ({progress.participants?.length || 0})</div>
       {progress.participants?.length ? (
         progress.participants.map((p: ParticipantProgress, i: number) => (
-          <div key={i} style={s.card}>
-            <span style={{ fontWeight: 600 }}>{p.userAlias}</span>
-            <span style={{ color: "#999", marginLeft: 8, fontSize: "0.85rem" }}>
+          <div key={i} style={css.participantCard}>
+            <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{p.userAlias}</span>
+            <span style={{ color: "#666", fontSize: "0.78rem" }}>
               Unido: {new Date(p.joinedAt).toLocaleTimeString("es-AR")}
             </span>
           </div>
         ))
-      ) : <p style={{ color: "#999" }}>Sin participantes</p>}
-
-      {/* Clue selector + release button (solo para misiones Treasure) */}
-      {currentStage?.missionType !== "Trivia" && (
-      <div style={{ marginTop: "1.5rem" }}>
-        <h3 style={s.section}>Pistas de la mision</h3>
-        {allClues.length === 0 ? (
-          <p style={{ color: "#999" }}>Esta mision no tiene pistas definidas.</p>
-        ) : (
-          <>
-            <select
-              value={selectedClueId}
-              onChange={e => setSelectedClueId(e.target.value)}
-              style={{
-                width: "100%", padding: "8px", borderRadius: 4, border: "1px solid #0f3460",
-                backgroundColor: "#16213e", color: "white", fontSize: "0.9rem", marginBottom: "0.75rem",
-              }}
-            >
-              {allClues.map(clue => (
-                <option key={clue.id} value={clue.id}>
-                  {clue.content?.substring(0, 80)}{clue.content?.length > 80 ? "..." : ""}
-                  {clue.penalty != null ? ` (penalizacion: ${clue.penalty}pts)` : ""}
-                </option>
-              ))}
-            </select>
-            <button
-              style={s.btn("#e94560")}
-              onClick={handleReleaseClue}
-              disabled={releasing || !selectedClueId}
-            >
-              {releasing ? "Liberando..." : "Liberar Pista"}
-            </button>
-            {clueMsg && (
-              <p style={{ marginTop: "0.5rem", color: clueMsg.includes("Error") ? "#e94560" : "#28a745", fontSize: "0.85rem" }}>
-                {clueMsg}
-              </p>
-            )}
-            {selectedClue && (
-              <div style={{ ...s.card, marginTop: "0.75rem" }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>Vista previa:</div>
-                <div style={{ color: "#ccc", fontSize: "0.9rem" }}>{selectedClue.content}</div>
-                {selectedClue.penalty != null && (
-                  <div style={{ color: "#e94560", fontSize: "0.8rem", marginTop: 4 }}>
-                    Penalizacion: {selectedClue.penalty} puntos
-                  </div>
-              )}
-              </div>
-            )}
-            </>
-          )}
-        </div>
+      ) : (
+        <p style={{ color: "#555", fontSize: "0.875rem" }}>Aún no hay participantes.</p>
       )}
 
-        {/* Seleccionar Quiz (Preparing) */}
-        {progress.status === "Preparing" && (
-          <div style={{ marginTop: "1.5rem" }}>
-            <h3 style={s.section}>Seleccionar Quiz</h3>
-            <QuizSelector sessionId={id!} selectedQuizId={selectedQuizId} onSelect={setSelectedQuizId} />
+      {/* QR Codes — download section for Treasure stages */}
+      {stages.some(st => st.missionType === "Treasure" && st.missionStageId && st.qrToken) && (
+        <>
+          <div style={css.sectionTitle}>Códigos QR</div>
+          <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "1rem" }}>
+            <p style={{ color: "#888", fontSize: "0.82rem", margin: "0 0 1rem" }}>
+              Descargá los QR para imprimirlos y colocarlos en las ubicaciones físicas.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              {stages.filter(st => st.missionType === "Treasure" && st.missionStageId && st.qrToken).map(st => (
+                <QrDownloadRow key={st.order} stage={st} />
+              ))}
+            </div>
           </div>
-        )}
-        {progress.status === "Active" && selectedQuizId && (
-          <div style={{ marginTop: "1.5rem" }}>
-            <h3 style={s.section}>Enviar Pregunta de Trivia</h3>
-            <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} totalParticipants={progress.participants?.length || 0} />
-          </div>
-        )}
-      </div>
-    );
-  }
+        </>
+      )}
 
-function QuizSelector({ sessionId, selectedQuizId, onSelect }: { sessionId: string; selectedQuizId: string; onSelect: (id: string) => void }) {
+      {/* Clues — only for Treasure */}
+      {isTreasure && !isTerminal && (
+        <>
+          <div style={css.sectionTitle}>Pistas disponibles</div>
+          {allClues.length === 0 ? (
+            <p style={{ color: "#555", fontSize: "0.875rem" }}>Esta misión no tiene pistas definidas.</p>
+          ) : (
+            <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "1rem" }}>
+              <select value={selectedClueId} onChange={e => setSelectedClueId(e.target.value)} style={css.select}>
+                {allClues.map(clue => (
+                  <option key={clue.id} value={clue.id}>
+                    {clue.content?.substring(0, 80)}{(clue.content?.length ?? 0) > 80 ? "..." : ""}
+                    {clue.penalty != null ? ` (−${clue.penalty} pts)` : ""}
+                  </option>
+                ))}
+              </select>
+              {selectedClue && (
+                <div style={{ padding: "0.75rem", backgroundColor: "#0d1b35", borderRadius: 6, marginBottom: "0.75rem", fontSize: "0.875rem", color: "#ccc", lineHeight: 1.5 }}>
+                  {selectedClue.content}
+                  {selectedClue.penalty != null && (
+                    <span style={{ color: "#e94560", marginLeft: 8, fontSize: "0.78rem" }}>−{selectedClue.penalty} pts</span>
+                  )}
+                </div>
+              )}
+              <button onClick={handleReleaseClue} disabled={releasing || !selectedClueId} style={releasing ? css.btnDisabled : css.btnPrimary}>
+                {releasing ? "Enviando..." : "Liberar Pista"}
+              </button>
+              {clueMsg && <div style={clueMsg.includes("Error") ? css.msgError : css.msgSuccess}>{clueMsg}</div>}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Final results podio — HU-45 */}
+      {progress.status === "Finished" && (
+        <>
+          <div style={css.sectionTitle}>Resultados Finales</div>
+          {finalRanking.length === 0 ? (
+            <p style={{ color: "#555", fontSize: "0.875rem" }}>Cargando resultados...</p>
+          ) : (
+            <>
+              {/* Podio top 3 */}
+              <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", alignItems: "flex-end", justifyContent: "center" }}>
+                {[1, 0, 2].map(idx => {
+                  const entry = finalRanking[idx];
+                  if (!entry) return null;
+                  const isFirst = entry.position === 1;
+                  const medalColor = entry.position === 1 ? "#fbbf24" : entry.position === 2 ? "#9ca3af" : "#cd7f32";
+                  const height = entry.position === 1 ? 100 : entry.position === 2 ? 80 : 65;
+                  return (
+                    <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.4rem" }}>
+                      <span style={{ fontSize: isFirst ? "1.75rem" : "1.25rem" }}>
+                        {entry.position === 1 ? "🥇" : entry.position === 2 ? "🥈" : "🥉"}
+                      </span>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontWeight: 700, color: "white", fontSize: "0.85rem", wordBreak: "break-word" }}>{entry.teamName}</div>
+                        <div style={{ fontWeight: 700, color: medalColor, fontSize: "0.9rem" }}>{entry.score} pts</div>
+                      </div>
+                      <div style={{ width: "100%", backgroundColor: medalColor, borderRadius: "6px 6px 0 0", height }} />
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Full list */}
+              {finalRanking.length > 3 && (
+                <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, overflow: "hidden", marginBottom: "1rem" }}>
+                  {finalRanking.slice(3).map((entry, i) => (
+                    <div key={i} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "0.55rem 1rem",
+                      borderBottom: i < finalRanking.length - 4 ? "1px solid #0f3460" : "none",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                        <span style={{ fontWeight: 700, minWidth: 24, color: "#555" }}>#{entry.position}</span>
+                        <span style={{ color: "#ccc", fontSize: "0.875rem" }}>{entry.teamName}</span>
+                      </div>
+                      <span style={{ fontWeight: 700, color: "#e94560" }}>{entry.score} pts</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {/* Trivia controls */}
+      {!isTreasure && !isTerminal && progress.status === "Active" && (
+        <>
+          <div style={css.sectionTitle}>Quiz de Trivia</div>
+          <QuizSelector selectedQuizId={selectedQuizId} onSelect={setSelectedQuizId} />
+          {selectedQuizId && (
+            <>
+              <div style={{ ...css.sectionTitle, marginTop: "1.25rem" }}>Enviar Preguntas</div>
+              <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} totalParticipants={progress.participants?.length || 0} questionResults={questionResults} onClearResults={() => setQuestionResults([])} />
+            </>
+          )}
+          {ranking.length > 0 && (
+            <>
+              <div style={css.sectionTitle}>Ranking en vivo</div>
+              <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, overflow: "hidden" }}>
+                {ranking.map((entry, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "0.6rem 1rem",
+                    borderBottom: i < ranking.length - 1 ? "1px solid #0f3460" : "none",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <span style={{ fontWeight: 700, minWidth: 24, color: i === 0 ? "#fbbf24" : i === 1 ? "#9ca3af" : i === 2 ? "#cd7f32" : "#555" }}>
+                        #{entry.position}
+                      </span>
+                      <span style={{ color: "white", fontSize: "0.9rem" }}>{entry.teamName}</span>
+                    </div>
+                    <span style={{ fontWeight: 700, color: "#e94560" }}>{entry.score} pts</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+function QuizSelector({ selectedQuizId, onSelect }: { selectedQuizId: string; onSelect: (id: string) => void }) {
   const [quizzes, setQuizzes] = useState<{ id: string; title: string; questionCount: number }[]>([]);
 
   useEffect(() => {
     fetchWithAuth("/api/quizzes").then(r => r.json()).then(setQuizzes).catch(() => {});
   }, []);
 
-  const selectStyle: React.CSSProperties = {
-    width: "100%", padding: "8px", borderRadius: 4, border: "1px solid #0f3460",
-    backgroundColor: "#16213e", color: "white", fontSize: "0.9rem", marginBottom: "0.75rem",
-  };
-
   return (
-    <div>
-      <select value={selectedQuizId} onChange={e => onSelect(e.target.value)} style={selectStyle}>
+    <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "1rem" }}>
+      <select value={selectedQuizId} onChange={e => onSelect(e.target.value)} style={{
+        width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #0f3460",
+        backgroundColor: "#16213e", color: "white", fontSize: "0.875rem",
+      }}>
         <option value="">Seleccionar quiz para esta sesión...</option>
         {quizzes.map(q => (
           <option key={q.id} value={q.id}>{q.title} ({q.questionCount} preg.)</option>
         ))}
       </select>
-      {selectedQuizId && <p style={{ color: "#28a745", fontSize: "0.85rem" }}>✓ Quiz seleccionado</p>}
+      {selectedQuizId && <p style={{ color: "#4caf50", fontSize: "0.82rem", margin: "0.5rem 0 0" }}>✓ Quiz seleccionado</p>}
     </div>
   );
 }
 
-function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionId: string; quizId: string; totalParticipants: number }) {
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+function QuizQuestionSender({ sessionId, quizId, totalParticipants, questionResults, onClearResults }: { sessionId: string; quizId: string; totalParticipants: number; questionResults: AnswerResult[]; onClearResults: () => void }) {
+  const [currentIdx, setCurrentIdx] = useState(0);
   const [questions, setQuestions] = useState<{ id: string; text: string; answers: { id: string; text: string; isCorrect: boolean }[] }[]>([]);
   const [sending, setSending] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [questionClosed, setQuestionClosed] = useState(false);
   const [msg, setMsg] = useState("");
   const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
   const [answerCount, setAnswerCount] = useState(0);
+  const [cooldown, setCooldown] = useState(0);
+  const prevAllAnswered = useRef(false);
 
   useEffect(() => {
     if (!quizId) return;
-    setCurrentQuestionIndex(0);
-    setCurrentQuestionId(null);
-    setAnswerCount(0);
-    setMsg("");
-    fetchWithAuth(`/api/quizzes/${quizId}`)
-      .then(r => r.json())
+    setCurrentIdx(0); setCurrentQuestionId(null); setAnswerCount(0); setMsg(""); setCooldown(0);
+    prevAllAnswered.current = false;
+    fetchWithAuth(`/api/quizzes/${quizId}`).then(r => r.json())
       .then(data => setQuestions(data.questions || []))
       .catch(() => setMsg("Error al cargar preguntas"));
   }, [quizId]);
 
-  // Poll answer count when a question is active
   useEffect(() => {
     if (!currentQuestionId) return;
     const interval = setInterval(async () => {
       try {
         const resp = await fetchWithAuth(`/api/trivia/questions/${currentQuestionId}/answer-count`);
-        if (resp.ok) {
-          const data = await resp.json();
-          setAnswerCount(data.answerCount);
-        }
+        if (resp.ok) { const data = await resp.json(); setAnswerCount(data.answerCount); }
       } catch { }
     }, 2000);
     return () => clearInterval(interval);
   }, [currentQuestionId]);
 
-  const sendCurrentQuestion = async () => {
-    if (questions.length === 0) return;
-    const q = questions[currentQuestionIndex];
-    setSending(true);
-    setCurrentQuestionId(null);
-    setAnswerCount(0);
-    setMsg("");
+  const allAnswered = totalParticipants > 0 && answerCount >= totalParticipants;
+
+  // Start 5-second review cooldown when all participants finish answering
+  useEffect(() => {
+    if (allAnswered && !prevAllAnswered.current) {
+      setCooldown(5);
+    }
+    prevAllAnswered.current = allAnswered;
+  }, [allAnswered]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  const canGoNext = allAnswered && cooldown === 0;
+
+  const sendQuestion = async () => {
+    if (!questions.length) return;
+    const q = questions[currentIdx];
+    setSending(true); setCurrentQuestionId(null); setAnswerCount(0); setMsg(""); setCooldown(0);
+    setQuestionClosed(false); onClearResults();
+    prevAllAnswered.current = false;
     try {
       const resp = await fetchWithAuth("/api/trivia/questions/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId,
-          questionText: q.text,
+          sessionId, questionText: q.text,
           options: q.answers.map(a => a.text),
           timeLimitSeconds: 30,
           correctAnswerIndex: q.answers.findIndex(a => a.isCorrect),
@@ -384,74 +609,297 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants }: { sessionI
       if (!resp.ok) throw new Error(await resp.text());
       const data = await resp.json();
       setCurrentQuestionId(data.questionId);
-      setMsg(`Pregunta ${currentQuestionIndex + 1}/${questions.length} enviada`);
-    } catch (ex: any) {
-      setMsg("Error: " + (ex?.message || "desconocido"));
+      setMsg(`Pregunta ${currentIdx + 1}/${questions.length} enviada`);
+    } catch (ex: unknown) {
+      setMsg("Error: " + ((ex as Error)?.message || "desconocido"));
     } finally {
       setSending(false);
     }
   };
 
-  const advanceToNext = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(i => i + 1);
-      setCurrentQuestionId(null);
-      setAnswerCount(0);
-      setMsg("");
+  const closeQuestion = async () => {
+    if (!currentQuestionId) return;
+    setClosing(true);
+    try {
+      await fetchWithAuth(`/api/trivia/questions/${currentQuestionId}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+      setQuestionClosed(true);
+    } catch {
+      setMsg("Error al cerrar la pregunta");
+    } finally {
+      setClosing(false);
+    }
+  };
+
+  const goNext = () => {
+    if (currentIdx < questions.length - 1) {
+      setCurrentIdx(i => i + 1); setCurrentQuestionId(null); setAnswerCount(0); setMsg(""); setCooldown(0);
+      setQuestionClosed(false); onClearResults();
+      prevAllAnswered.current = false;
     } else {
       setMsg("¡Todas las preguntas enviadas!");
     }
   };
 
-  const btnStyle = (disabled: boolean): React.CSSProperties => ({
-    padding: "8px 16px", backgroundColor: disabled ? "#999" : "#e94560", color: "white",
-    border: "none", borderRadius: 6, cursor: disabled ? "not-allowed" : "pointer",
-    fontSize: 14, fontWeight: 600,
-  });
+  if (!questions.length) return <p style={{ color: "#555", fontSize: "0.875rem" }}>Cargando preguntas...</p>;
+
+  const q = questions[currentIdx];
 
   return (
-    <div>
-      {questions.length > 0 && (
-        <div style={{ backgroundColor: "#16213e", borderRadius: 8, padding: "1rem", marginTop: "0.5rem", border: "1px solid #0f3460" }}>
-          <div style={{ color: "#e94560", fontWeight: 600, marginBottom: "0.5rem" }}>
-            Pregunta {currentQuestionIndex + 1} de {questions.length}
-          </div>
-          <div style={{ color: "white", marginBottom: "0.75rem" }}>{questions[currentQuestionIndex]?.text}</div>
-          <div style={{ color: "#999", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
-            Opciones: {questions[currentQuestionIndex]?.answers.map(a => a.text).join(", ")}
-          </div>
-
-          {currentQuestionId && totalParticipants > 0 && (
-            <div style={{ color: "#ccc", fontSize: "0.85rem", marginBottom: "0.5rem" }}>
-              Respondieron: {answerCount} / {totalParticipants}
-              {answerCount >= totalParticipants && " ✅"}
+    <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "1rem" }}>
+      <div style={{ fontSize: "0.78rem", color: "#888", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: 1 }}>
+        Pregunta {currentIdx + 1} de {questions.length}
+      </div>
+      <div style={{ fontWeight: 600, color: "white", marginBottom: "0.5rem", lineHeight: 1.4 }}>{q.text}</div>
+      <div style={{ color: "#888", fontSize: "0.82rem", marginBottom: "0.75rem" }}>
+        {q.answers.map((a, i) => (
+          <span key={a.id} style={{ marginRight: 12 }}>
+            {String.fromCharCode(65 + i)}. {a.text}{a.isCorrect ? " ✓" : ""}
+          </span>
+        ))}
+      </div>
+      {currentQuestionId && totalParticipants > 0 && (
+        <div style={{ color: "#ccc", fontSize: "0.82rem", marginBottom: "0.75rem" }}>
+          Respondieron: {answerCount} / {totalParticipants}
+          {allAnswered && cooldown > 0 && <span style={{ color: "#fbbf24", marginLeft: 8 }}>— revisando ({cooldown}s)</span>}
+          {allAnswered && cooldown === 0 && <span style={{ color: "#4caf50", marginLeft: 8 }}>✅ Todos respondieron</span>}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        {!currentQuestionId ? (
+          <button onClick={sendQuestion} disabled={sending} style={{ padding: "8px 18px", backgroundColor: sending ? "#555" : "#e94560", color: "white", border: "none", borderRadius: 6, cursor: sending ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+            {sending ? "Enviando..." : "Enviar Pregunta"}
+          </button>
+        ) : !questionClosed ? (
+          <button onClick={closeQuestion} disabled={closing || !canGoNext} style={{ padding: "8px 18px", backgroundColor: closing ? "#555" : canGoNext ? "#1a2d4a" : "#2a2a2a", color: closing ? "#888" : canGoNext ? "#3b82f6" : "#555", border: `1px solid ${canGoNext ? "#3b82f6" : "#333"}`, borderRadius: 6, cursor: (closing || !canGoNext) ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+            {closing ? "Cerrando..." : !allAnswered ? "Esperando respuestas..." : cooldown > 0 ? `Cerrar en ${cooldown}s` : "Cerrar Pregunta"}
+          </button>
+        ) : currentIdx < questions.length - 1 ? (
+          <button onClick={goNext} style={{ padding: "8px 18px", backgroundColor: "#1a4d2e", color: "#4caf50", border: "1px solid #4caf50", borderRadius: 6, cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+            Siguiente →
+          </button>
+        ) : (
+          <div style={{ color: "#4caf50", fontSize: "0.82rem", padding: "8px 0" }}>✅ Quiz completado</div>
+        )}
+      </div>
+      {questionClosed && questionResults.length > 0 && (
+        <div style={{ marginTop: "0.75rem", backgroundColor: "#0d1b35", borderRadius: 6, padding: "0.75rem" }}>
+          <div style={{ fontSize: "0.72rem", color: "#888", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: "0.5rem" }}>Distribución de respuestas</div>
+          {questionResults.map((r, i) => (
+            <div key={r.answerId} style={{ marginBottom: "0.45rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "#ccc", marginBottom: 3 }}>
+                <span>{String.fromCharCode(65 + i)}. {r.text}</span>
+                <span style={{ color: "#fbbf24", fontWeight: 700 }}>{r.count} ({r.percentage.toFixed(0)}%)</span>
+              </div>
+              <div style={{ height: 6, backgroundColor: "#1a2a4a", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${r.percentage}%`, backgroundColor: "#3b82f6", borderRadius: 3, transition: "width 0.5s ease" }} />
+              </div>
             </div>
-          )}
+          ))}
+        </div>
+      )}
+      {msg && <div style={{ marginTop: "0.5rem", color: msg.includes("Error") ? "#e94560" : "#4caf50", fontSize: "0.82rem" }}>{msg}</div>}
+    </div>
+  );
+}
 
-          {!currentQuestionId ? (
-            <button onClick={sendCurrentQuestion} disabled={sending} style={btnStyle(sending)}>
-              {sending ? "Enviando..." : "Enviar Pregunta"}
-            </button>
-          ) : currentQuestionIndex < questions.length - 1 ? (
-            <button onClick={advanceToNext} disabled={answerCount < totalParticipants}
-              style={btnStyle(answerCount < totalParticipants)}>
-              {answerCount >= totalParticipants ? "Siguiente →" : "Esperando respuestas..."}
-            </button>
-          ) : null}
-          {msg && (
-            <p style={{ marginTop: "0.5rem", color: msg.includes("Error") ? "#e94560" : "#28a745", fontSize: "0.85rem" }}>{msg}</p>
-          )}
+// ── Teams Manager ─────────────────────────────────────────────────────────────
+
+function TeamsManager({ sessionId, teams, sessionStatus, onTeamsChanged }: {
+  sessionId: string;
+  teams: SessionTeam[];
+  sessionStatus: string;
+  onTeamsChanged: () => void;
+}) {
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createMsg, setCreateMsg] = useState("");
+  const canCreate = sessionStatus === "Scheduled" || sessionStatus === "Preparing";
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    setCreating(true);
+    setCreateMsg("");
+    try {
+      await createSessionTeam(sessionId, newName.trim());
+      setNewName("");
+      setCreateMsg("✓ Equipo creado.");
+      onTeamsChanged();
+    } catch (err) {
+      setCreateMsg(err instanceof Error ? err.message : "Error al crear equipo.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleRemoveMember = async (teamId: string, userId: string) => {
+    try {
+      await removeTeamMember(sessionId, teamId, userId);
+      onTeamsChanged();
+    } catch { /* ignore */ }
+  };
+
+  return (
+    <>
+      <div style={css.sectionTitle}>Equipos ({teams.length})</div>
+
+      {canCreate && (
+        <form onSubmit={handleCreate} style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+          <input
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            placeholder="Nombre del equipo..."
+            maxLength={100}
+            style={{ ...css.select, marginBottom: 0, flex: 1 }}
+          />
+          <button type="submit" disabled={creating || !newName.trim()} style={creating ? css.btnDisabled : css.btnPrimary}>
+            {creating ? "Creando..." : "+ Equipo"}
+          </button>
+        </form>
+      )}
+      {createMsg && (
+        <div style={createMsg.startsWith("✓") ? css.msgSuccess : css.msgError}>
+          {createMsg}
+        </div>
+      )}
+
+      {teams.length === 0 ? (
+        <p style={{ color: "#555", fontSize: "0.875rem" }}>
+          {canCreate ? "Crea equipos antes de iniciar la sesión." : "No hay equipos en esta sesión."}
+        </p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1rem" }}>
+          {teams.map(team => (
+            <div key={team.id} style={{ ...css.stageCard(""), padding: "0.875rem 1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                <span style={{ fontWeight: 700, color: "white" }}>{team.name}</span>
+                <span style={{ color: "#888", fontSize: "0.8rem" }}>
+                  {team.memberCount}/{team.maxMembers} miembros
+                </span>
+              </div>
+              {team.members.length === 0 ? (
+                <p style={{ color: "#555", fontSize: "0.8rem", margin: 0 }}>Sin miembros todavía</p>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                  {team.members.map(m => (
+                    <span key={m.userId} style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "2px 10px", backgroundColor: "#0d1b35", border: "1px solid #0f3460", borderRadius: 20, fontSize: "0.8rem", color: "#ccc" }}>
+                      {m.userAlias}
+                      {canCreate && (
+                        <button
+                          onClick={() => handleRemoveMember(team.id, m.userId)}
+                          style={{ background: "none", border: "none", color: "#e94560", cursor: "pointer", padding: 0, fontSize: "0.75rem", lineHeight: 1 }}
+                          title="Quitar del equipo"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── QR Download ───────────────────────────────────────────────────────────────
+
+function QrDownloadRow({ stage }: { stage: SessionStage }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  const qrContent = JSON.stringify({ stageId: stage.missionStageId, token: stage.qrToken });
+
+  const handleDownload = useCallback(async () => {
+    setGenerating(true);
+    try {
+      const dataUrl = await QRCode.toDataURL(qrContent, {
+        width: 512,
+        margin: 2,
+        color: { dark: "#000000", light: "#ffffff" },
+      });
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `QR_Etapa_${stage.order}_${stage.missionTitle?.replace(/\s+/g, "_") ?? "etapa"}.png`;
+      link.click();
+    } catch { /* ignore */ } finally {
+      setGenerating(false);
+    }
+  }, [qrContent, stage.order, stage.missionTitle]);
+
+  const handlePreview = useCallback(async () => {
+    if (previewUrl) { setPreviewUrl(null); return; }
+    try {
+      const dataUrl = await QRCode.toDataURL(qrContent, { width: 200, margin: 2 });
+      setPreviewUrl(dataUrl);
+    } catch { /* ignore */ }
+  }, [qrContent, previewUrl]);
+
+  return (
+    <div style={{ border: "1px solid #0f3460", borderRadius: 7, padding: "0.75rem 1rem", backgroundColor: "#0d1b35" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" as const }}>
+        <div>
+          <span style={{ fontWeight: 700, color: "white", fontSize: "0.9rem" }}>Etapa {stage.order}</span>
+          <span style={{ color: "#888", fontSize: "0.82rem", marginLeft: 8 }}>{stage.missionTitle}</span>
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button onClick={handlePreview} style={{
+            padding: "6px 14px", backgroundColor: "#16213e", color: "#ccc",
+            border: "1px solid #0f3460", borderRadius: 6, cursor: "pointer", fontSize: "0.8rem",
+          }}>
+            {previewUrl ? "Ocultar" : "Vista previa"}
+          </button>
+          <button onClick={handleDownload} disabled={generating} style={{
+            padding: "6px 14px", backgroundColor: generating ? "#2a2a2a" : "#1a4d2e",
+            color: generating ? "#555" : "#4caf50", border: `1px solid ${generating ? "#333" : "#4caf50"}`,
+            borderRadius: 6, cursor: generating ? "not-allowed" : "pointer", fontSize: "0.8rem", fontWeight: 700,
+          }}>
+            {generating ? "Generando..." : "Descargar QR"}
+          </button>
+        </div>
+      </div>
+      {previewUrl && (
+        <div style={{ marginTop: "0.75rem", textAlign: "center" }}>
+          <img src={previewUrl} alt={`QR Etapa ${stage.order}`} style={{ width: 160, height: 160, imageRendering: "pixelated", borderRadius: 4, border: "3px solid white" }} />
+          <p style={{ color: "#666", fontSize: "0.75rem", marginTop: 4 }}>Etapa {stage.order} — {stage.missionTitle}</p>
         </div>
       )}
     </div>
   );
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
 function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60); const sec = seconds % 60;
+  const m = Math.floor(seconds / 60);
+  const sec = seconds % 60;
   return `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
 }
 
 function getTransitions(status: SessionStatus): string[] {
-  switch (status) { case "Scheduled": return ["Preparing", "Cancelled"]; case "Preparing": return ["Active", "Cancelled"]; case "Active": return ["Paused", "Finished", "Cancelled"]; case "Paused": return ["Active", "Finished", "Cancelled"]; default: return []; }
+  switch (status) {
+    case "Scheduled": return ["Preparing", "Cancelled"];
+    case "Preparing": return ["Active", "Cancelled"];
+    case "Active": return ["Paused", "Finished", "Cancelled"];
+    case "Paused": return ["Active", "Finished", "Cancelled"];
+    default: return [];
+  }
+}
+
+function transitionLabel(t: string): string {
+  switch (t) {
+    case "Preparing": return "Preparar";
+    case "Active": return "▶ Iniciar";
+    case "Paused": return "⏸ Pausar";
+    case "Finished": return "Finalizar";
+    case "Cancelled": return "Cancelar";
+    default: return t;
+  }
 }

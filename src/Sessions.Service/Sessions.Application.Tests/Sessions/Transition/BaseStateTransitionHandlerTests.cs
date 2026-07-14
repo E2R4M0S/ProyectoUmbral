@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Sessions.Application.Sessions.Transition.Chain;
 using Sessions.Domain.Entities;
 using Sessions.Domain.Enums;
@@ -13,7 +13,7 @@ public class BaseStateTransitionHandlerTests
     {
         // Arrange
         var handler = new ConcreteStateHandler(() => { }); // Does nothing
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Stage", "Trivia", 1, "test-token") });
 
         // Act
         var act = () => handler.Handle(session, "Active");
@@ -30,7 +30,7 @@ public class BaseStateTransitionHandlerTests
         var handler = new ConcreteStateHandler(() => callSequence.Add("first"));
         var nextHandler = new ConcreteStateHandler(() => callSequence.Add("second"));
         handler.SetNext(nextHandler);
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Stage", "Trivia", 1, "test-token") });
 
         // Act
         handler.Handle(session, "Active");
@@ -47,7 +47,7 @@ public class BaseStateTransitionHandlerTests
         var handler = new ConcreteStateHandler(() => throw new InvalidOperationException("validation failed"));
         var nextHandler = new ConcreteStateHandler(() => callSequence.Add("should not be called"));
         handler.SetNext(nextHandler);
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Stage", "Trivia", 1, "test-token") });
 
         // Act
         var act = () => handler.Handle(session, "Active");
@@ -81,7 +81,7 @@ public class BaseStateTransitionHandlerTests
         var third = new NumberedHandler(3, () => { }, callSequence);
 
         first.SetNext(second).SetNext(third);
-        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test Session", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Stage", "Trivia", 1, "test-token") });
 
         // Act
         first.Handle(session, "Active");

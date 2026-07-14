@@ -81,4 +81,45 @@ public class GameNotifier : IGameNotifier
             _logger.LogWarning(ex, "Failed to send question closed notification for {SessionId}", sessionId);
         }
     }
+
+    public async Task NotifyGateOpenedAsync(Guid sessionId, int nextStageIndex, CancellationToken ct = default)
+    {
+        try
+        {
+            await _httpClient.PostAsJsonAsync("/internal/notifications/gate-opened", new
+            {
+                SessionId = sessionId,
+                NextStageIndex = nextStageIndex
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send gate-opened notification for {SessionId}", sessionId);
+        }
+    }
+
+    public async Task NotifyRankingUpdatedAsync(Guid sessionId, IEnumerable<(Guid UserId, string Alias, int Score)> participants, CancellationToken ct = default)
+    {
+        try
+        {
+            var entries = participants
+                .OrderByDescending(p => p.Score)
+                .Select(p => new
+                {
+                    Id = Guid.NewGuid(),
+                    QuizId = sessionId,
+                    TeamId = p.UserId,
+                    TeamName = p.Alias,
+                    p.Score,
+                    UpdatedAt = DateTime.UtcNow
+                })
+                .ToList();
+
+            await _httpClient.PostAsJsonAsync("/internal/events/LeaderboardUpdated", entries, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send ranking update for {SessionId}", sessionId);
+        }
+    }
 }

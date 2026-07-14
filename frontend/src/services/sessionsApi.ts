@@ -148,3 +148,50 @@ export async function getSessionProgress(id: string): Promise<SessionProgress> {
 
   return response.json();
 }
+
+export interface ValidateQrRequest {
+  stageId: string;
+  token: string;
+}
+
+export interface ValidateQrResponse {
+  isValid: boolean;
+  advanced: boolean;
+  currentStageOrder: number;
+  totalStages: number;
+  isLastStage: boolean;
+  isAtGate: boolean;
+  gateOpened: boolean;
+  gatePosition: number;
+  gateThreshold: number;
+  isEliminated: boolean;
+  errorMessage: string | null;
+}
+
+export interface UnifiedRankingEntry {
+  position: number;
+  userId: string;
+  displayName: string;
+  totalScore: number;
+}
+
+export async function getUnifiedRanking(period: "all" | "monthly"): Promise<UnifiedRankingEntry[]> {
+  const response = await fetchWithAuth(`/api/sessions/participants/ranking?period=${period}`);
+  if (!response.ok) return [];
+  return response.json();
+}
+
+export async function validateQr(sessionId: string, body: ValidateQrRequest): Promise<ValidateQrResponse> {
+  const response = await fetchWithAuth(`/api/sessions/${sessionId}/validate-qr`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new ApiError(response.status, errorBody);
+  }
+
+  return response.json();
+}

@@ -24,9 +24,10 @@ public class TransitionSessionCommandHandler
         _eventPublisher = eventPublisher;
 
         // Build the Chain of Responsibility
-        var validStatus = new ValidStatusHandler();
-        var notTerminal = new NotTerminalHandler();
-        validStatus.SetNext(notTerminal);
+        var validStatus    = new ValidStatusHandler();
+        var notTerminal    = new NotTerminalHandler();
+        var hasParticipants = new HasParticipantsHandler();
+        validStatus.SetNext(notTerminal).SetNext(hasParticipants);
         _validationChain = validStatus;
     }
 
@@ -45,6 +46,11 @@ public class TransitionSessionCommandHandler
         session.TransitionTo(newStatus);
 
         await _repository.UpdateAsync(session, ct);
+
+        if (session.Status == SessionStatus.Cancelled)
+        {
+            await _repository.ResetParticipantScoresAsync(session.Id, ct);
+        }
 
         _logger.LogInformation(
             "Session status transitioned: Id={SessionId}, Status={Status}",

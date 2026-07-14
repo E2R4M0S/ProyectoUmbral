@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+﻿import { useState, type FormEvent } from "react";
 import { startSession, ApiError } from "../../services/sessionsApi";
 
 interface IniciarJuegoProps {
@@ -26,9 +26,9 @@ export function IniciarJuego({ sessionId, sessionName, onGameStarted }: IniciarJ
       if (err instanceof ApiError) {
         if (err.status === 404)      setSubmitError("Sesión no encontrada.");
         else if (err.status === 400) setSubmitError("No se puede iniciar la sesión en su estado actual.");
-        else                         setSubmitError("Error al iniciar la partida. Intentalo de nuevo.");
+        else                         setSubmitError("Error al iniciar la partida. Inténtalo de nuevo.");
       } else {
-        setSubmitError("Error de conexión. Verificá tu conexión a internet.");
+        setSubmitError("Error de conexión. Verifica tu conexión a internet.");
       }
     } finally {
       setIsStarting(false);

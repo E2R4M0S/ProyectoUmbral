@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -17,7 +17,7 @@ public class ReleaseClueEndpointTests
 
     private static Session CreateActiveSession()
     {
-        var stage = SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, "test-token");
+        var stage = SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Stage", "Trivia", 1, "test-token");
         var session = Session.Create("Test", "123456", new List<SessionStage> { stage });
         session.TransitionTo(SessionStatus.Preparing);
         session.TransitionTo(SessionStatus.Active);
@@ -55,7 +55,7 @@ public class ReleaseClueEndpointTests
     public async Task ReleaseClue_NoActiveStage_ReturnsBadRequest()
     {
         // Advance CurrentStageOrder past the only stage so GetCurrentStage() returns null
-        var stage = SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, "test-token");
+        var stage = SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Stage", "Trivia", 1, "test-token");
         var session = Session.Create("Test", "111111", new List<SessionStage> { stage });
         session.TransitionTo(SessionStatus.Preparing);
         session.TransitionTo(SessionStatus.Active);

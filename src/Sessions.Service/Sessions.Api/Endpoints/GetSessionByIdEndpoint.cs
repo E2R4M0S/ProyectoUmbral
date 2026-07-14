@@ -27,8 +27,13 @@ public static class GetSessionByIdEndpoint
                 {
                     s.MissionId,
                     s.MissionTitle,
+                    s.StageName,
                     s.MissionType,
-                    s.Order
+                    s.Order,
+                    s.MissionStageId,
+                    s.QrToken,
+                    s.TimeMinutes,
+                    QuizId = s.MissionType == "Trivia" ? s.MissionStageId : (Guid?)null,
                 }),
                 Status = session.Status.ToString(),
                 session.StartedAt,
@@ -42,6 +47,6 @@ public static class GetSessionByIdEndpoint
             });
         })
         .WithName("GetSessionById")
-        .RequireAuthorization("operator_or_admin");
+        .RequireAuthorization();
     }
 }

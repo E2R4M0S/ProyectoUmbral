@@ -14,10 +14,12 @@ public class MissionsDbContext : DbContext
     public DbSet<Mission> Missions => Set<Mission>();
     public DbSet<MissionStage> MissionStages => Set<MissionStage>();
     public DbSet<MissionClue> MissionClues => Set<MissionClue>();
+    public DbSet<Participant> Participants => Set<Participant>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new MissionConfiguration());
         modelBuilder.ApplyConfiguration(new MissionStageConfiguration());
+        modelBuilder.ApplyConfiguration(new ParticipantConfiguration());
     }
 }

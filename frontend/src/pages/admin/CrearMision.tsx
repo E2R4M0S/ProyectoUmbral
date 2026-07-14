@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+﻿import { useState, type FormEvent } from "react";
 import { createMission, ApiError } from "../../services/missionsApi";
 import type { Difficulty, MissionType } from "../../types/mission";
 
@@ -18,7 +18,8 @@ function validate(title: string, description: string, difficulty: string, timeMi
   else if (description.trim().length > 2000) e.description = "La descripción no puede exceder los 2000 caracteres.";
   if (!difficulty)                           e.difficulty  = "La dificultad es obligatoria.";
   else if (!["Easy","Medium","Hard"].includes(difficulty)) e.difficulty = "Dificultad inválida.";
-  if (![15,30,60,90].includes(Number(timeMinutes))) e.timeMinutes = "El tiempo debe ser 15, 30, 60 o 90 minutos.";
+  if (type === "Treasure" && ![-1,15,30,60,90].includes(Number(timeMinutes)))
+    e.timeMinutes = "El tiempo debe ser 15, 30, 60 o 90 minutos.";
   if (!type)                                 e.type        = "El tipo es obligatorio.";
   else if (!["Treasure","Trivia"].includes(type)) e.type = "Tipo inválido.";
   return e;
@@ -50,7 +51,7 @@ export function CrearMision() {
         title: title.trim(),
         description: description.trim(),
         difficulty: difficulty as Difficulty,
-        timeMinutes: Number(timeMinutes),
+        timeMinutes: type === "Trivia" ? 0 : Number(timeMinutes),
         type: type as MissionType,
       });
       setSuccess(true);
@@ -58,10 +59,10 @@ export function CrearMision() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409)      setSubmitError("Ya existe una misión con ese título.");
-        else if (err.status === 400) setSubmitError("Datos inválidos. Verificá los campos.");
-        else                         setSubmitError("Error al crear la misión. Intentalo de nuevo.");
+        else if (err.status === 400) setSubmitError("Datos inválidos. Verifica los campos.");
+        else                         setSubmitError("Error al crear la misión. Inténtalo de nuevo.");
       } else {
-        setSubmitError("Error de conexión. Verificá tu conexión a internet.");
+        setSubmitError("Error de conexión. Verifica tu conexión a internet.");
       }
     } finally {
       setSub(false);
@@ -105,7 +106,7 @@ export function CrearMision() {
             {fieldErrors.description && <span className="form-hint" style={{ color: "var(--color-error)" }}>{fieldErrors.description}</span>}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: type === "Treasure" ? "1fr 1fr" : "1fr", gap: "1rem" }}>
             <div className="form-group">
               <label className="form-label" htmlFor="mission-difficulty">Dificultad</label>
               <select
@@ -123,23 +124,26 @@ export function CrearMision() {
               {fieldErrors.difficulty && <span className="form-hint" style={{ color: "var(--color-error)" }}>{fieldErrors.difficulty}</span>}
             </div>
 
-            <div className="form-group">
-              <label className="form-label" htmlFor="mission-time">Tiempo</label>
-              <select
-                id="mission-time"
-                className="form-select"
-                style={fieldErrors.timeMinutes ? { borderColor: "var(--color-error)" } : {}}
-                value={timeMinutes}
-                onChange={(e) => setTime(e.target.value)}
-              >
-                <option value="">Seleccionar...</option>
-                <option value="15">15 min</option>
-                <option value="30">30 min</option>
-                <option value="60">60 min</option>
-                <option value="90">90 min</option>
-              </select>
-              {fieldErrors.timeMinutes && <span className="form-hint" style={{ color: "var(--color-error)" }}>{fieldErrors.timeMinutes}</span>}
-            </div>
+            {type === "Treasure" && (
+              <div className="form-group">
+                <label className="form-label" htmlFor="mission-time">Tiempo</label>
+                <select
+                  id="mission-time"
+                  className="form-select"
+                  style={fieldErrors.timeMinutes ? { borderColor: "var(--color-error)" } : {}}
+                  value={timeMinutes}
+                  onChange={(e) => setTime(e.target.value)}
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="-1">10 seg (prueba)</option>
+                  <option value="15">15 min</option>
+                  <option value="30">30 min</option>
+                  <option value="60">60 min</option>
+                  <option value="90">90 min</option>
+                </select>
+                {fieldErrors.timeMinutes && <span className="form-hint" style={{ color: "var(--color-error)" }}>{fieldErrors.timeMinutes}</span>}
+              </div>
+            )}
           </div>
 
           <div className="form-group" style={{ marginBottom: "1.5rem" }}>

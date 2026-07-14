@@ -41,9 +41,11 @@ public class GameSessionFacade : IGameSessionFacade
 
     public async Task NotifyStageAdvanced(Guid sessionId, int newStageOrder, CancellationToken ct = default)
     {
-        // Placeholder for SignalR push; current notifier does not implement stage-advanced
-        // but we keep the contract surface stable for the Frontend PanelSesion polling
-        // and to avoid breaking the Facade seam.
-        await Task.CompletedTask;
+        await _notifier.NotifyProgressUpdated(sessionId, new
+        {
+            stageAdvanced = true,
+            currentStageOrder = newStageOrder,
+            elapsedSeconds = 0
+        }, ct);
     }
 }

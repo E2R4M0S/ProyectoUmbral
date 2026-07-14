@@ -53,6 +53,10 @@ vi.mock("../../../services/api", () => ({
   fetchWithAuth: vi.fn(),
 }));
 
+vi.mock("../../../services/triviaApi", () => ({
+  listQuizzes: vi.fn().mockResolvedValue([]),
+}));
+
 import { listMissions } from "../../../services/missionsApi";
 import { listSessions } from "../../../services/sessionsApi";
 import { listTeams } from "../../../services/teamsApi";
