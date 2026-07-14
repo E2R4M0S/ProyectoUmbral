@@ -28,10 +28,11 @@ public class KeycloakAdminService : IKeycloakAdminService
     }
 
     public async Task<string> CreateUserAsync(
-        string username, string email, string password, string? alias, CancellationToken ct)
+        string username, string email, string password, string firstName, string lastName, string? alias, CancellationToken ct)
     {
         var token = await GetAdminTokenAsync(ct);
-        var userId = await CreateKeycloakUserAsync(token, username, email, password, alias, ct);
+
+        var userId = await CreateKeycloakUserAsync(token, username, email, password, firstName, lastName, alias, ct);
         await AssignParticipantRoleAsync(token, userId, ct);
         return userId;
     }
@@ -63,9 +64,9 @@ public class KeycloakAdminService : IKeycloakAdminService
     }
 
     private async Task<string> CreateKeycloakUserAsync(
-        string token, string username, string email, string password, string? alias, CancellationToken ct)
+        string token, string username, string email, string password, string firstName, string lastName, string? alias, CancellationToken ct)
     {
-        var payload = BuildUserPayload(username, email, password, alias);
+        var payload = BuildUserPayload(username, email, password, firstName, lastName, alias);
 
         var request = new HttpRequestMessage(
             HttpMethod.Post,
@@ -136,13 +137,14 @@ public class KeycloakAdminService : IKeycloakAdminService
         }
     }
 
-    public async Task UpdateUserAsync(string userId, string name, string alias, CancellationToken ct)
+    public async Task UpdateUserAsync(string userId, string firstName, string lastName, string alias, CancellationToken ct)
     {
         var token = await GetAdminTokenAsync(ct);
 
         var payload = new
         {
-            firstName = name,
+            firstName,
+            lastName,
             attributes = new Dictionary<string, string[]>
             {
                 ["alias"] = new[] { alias }
@@ -179,9 +181,9 @@ public class KeycloakAdminService : IKeycloakAdminService
     }
 
     private async Task<string> CreateKeycloakOperatorUserAsync(
-        string token, string name, string email, string password, CancellationToken ct)
+        string token, string name, string email, CancellationToken ct)
     {
-        var payload = BuildOperatorPayload(name, email, password);
+        var payload = BuildOperatorPayload(name, email);
 
         var request = new HttpRequestMessage(
             HttpMethod.Post,
@@ -215,12 +217,8 @@ public class KeycloakAdminService : IKeycloakAdminService
         return userId;
     }
 
-    private static object BuildOperatorPayload(string name, string email, string password)
+    private static object BuildOperatorPayload(string name, string email)
     {
-        var credentials = new[]
-        {
-            new { type = "password", value = password, temporary = false }
-        };
 
         return new
         {
@@ -228,7 +226,6 @@ public class KeycloakAdminService : IKeycloakAdminService
             email,
             emailVerified = true,
             enabled = true,
-            credentials,
             attributes = new Dictionary<string, string[]>
             {
                 ["name"] = new[] { name }
@@ -275,6 +272,48 @@ public class KeycloakAdminService : IKeycloakAdminService
             throw new InvalidOperationException(
                 $"Failed to assign operator role to Keycloak user '{userId}': {assignResponse.StatusCode}");
         }
+    }
+
+    public async Task ExecuteActionsEmailAsync(string userId, List<string> actions, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}/execute-actions-email?lifespan=43200&redirect_uri={Uri.EscapeDataString($"http://localhost:5173")}&client_id=umbral-frontend")
+        {
+            Content = JsonContent.Create(actions)
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError(
+                "Keycloak execute-actions-email failed for user {UserId} with actions {Actions}: {StatusCode} {Error}",
+                userId, string.Join(", ", actions), response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
+
+        _logger.LogInformation(
+            "execute-actions-email dispatched to user {UserId} for actions: {Actions}",
+            userId, string.Join(", ", actions));
+    }
+
+    public async Task<CreateOperatorResult> CreateOperatorAsync(
+        string name, string email, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var userId = await CreateKeycloakOperatorUserAsync(token, name, email, ct);
+
+        await AssignOperatorRoleAsync(token, userId, ct);
+
+        await ExecuteActionsEmailAsync(userId, ["UPDATE_PASSWORD"], ct);
+
+        return new CreateOperatorResult(name, email, userId);
     }
 
     public async Task DeleteUserAsync(string userId, CancellationToken ct)
@@ -364,37 +403,33 @@ public class KeycloakAdminService : IKeycloakAdminService
         return new DisableOperatorResponse(message, wasAlreadyDisabled);
     }
 
-    private static object BuildUserPayload(string username, string email, string password, string? alias)
+    private static object BuildUserPayload(string username, string email, string password, string firstName, string lastName, string? alias)
     {
         var credentials = new[]
         {
             new { type = "password", value = password, temporary = false }
         };
 
+        var payload = new Dictionary<string, object>
+        {
+            ["username"] = username,
+            ["firstName"] = firstName,
+            ["lastName"] = lastName,
+            ["email"] = email,
+            ["emailVerified"] = false,
+            ["enabled"] = true,
+            ["credentials"] = credentials
+        };
+
         if (alias is not null)
         {
-            return new
+            payload["attributes"] = new Dictionary<string, string[]>
             {
-                username,
-                email,
-                emailVerified = true,
-                enabled = true,
-                credentials,
-                attributes = new Dictionary<string, string[]>
-                {
-                    ["alias"] = new[] { alias }
-                }
+                ["alias"] = new[] { alias }
             };
         }
 
-        return new
-        {
-            username,
-            email,
-            emailVerified = true,
-            enabled = true,
-            credentials
-        };
+        return payload;
     }
 
     public async Task<IReadOnlyList<UserRepresentation>> GetUsersAsync(

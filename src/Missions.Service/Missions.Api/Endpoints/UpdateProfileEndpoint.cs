@@ -44,7 +44,7 @@ public static class UpdateProfileEndpoint
                     });
                 }
 
-                command = new UpdateProfileCommand(command.Name, command.Alias, keycloakUserId);
+                command = new UpdateProfileCommand(command.FirstName, command.LastName, command.Alias, keycloakUserId);
             }
             catch (System.Text.Json.JsonException ex)
             {

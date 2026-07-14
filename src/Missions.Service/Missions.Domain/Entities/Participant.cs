@@ -3,7 +3,9 @@ namespace Missions.Domain.Entities;
 public class Participant
 {
     public Guid Id { get; private set; }
-    public string Name { get; private set; } = null!;
+    public string FirstName { get; private set; } = null!;
+    public string LastName { get; private set; } = null!;
+    public string Username { get; private set; } = null!;
     public string Alias { get; private set; } = null!;
     public string Email { get; private set; } = null!;
     public string KeycloakUserId { get; private set; } = null!;
@@ -11,7 +13,7 @@ public class Participant
 
     private Participant() { }
 
-    public static Participant Create(string name, string alias, string email, string keycloakUserId)
+    public static Participant Create(string firstName, string lastName, string username, string alias, string email, string keycloakUserId)
     {
         ValueObjects.Alias.Create(alias);
         ValueObjects.Email.Create(email);
@@ -19,7 +21,9 @@ public class Participant
         return new Participant
         {
             Id = Guid.NewGuid(),
-            Name = name.Trim(),
+            FirstName = firstName.Trim(),
+            LastName = lastName.Trim(),
+            Username = username.Trim(),
             Alias = alias.Trim(),
             Email = email.Trim().ToLowerInvariant(),
             KeycloakUserId = keycloakUserId,
@@ -27,11 +31,12 @@ public class Participant
         };
     }
 
-    public void Update(string name, string alias)
+    public void Update(string firstName, string lastName, string alias)
     {
         var trimmedAlias = alias.Trim();
-        ValueObjects.Alias.Create(trimmedAlias);
-        Name = name.Trim();
+        ValueObjects.Alias.Create(trimmedAlias); // validates via VO
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
         Alias = trimmedAlias;
     }
 }

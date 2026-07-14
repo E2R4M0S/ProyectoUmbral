@@ -18,6 +18,9 @@ TestResults/
 # ─── Node / Frontend ─────────────────────────────────────────
 node_modules/
 dist/
+
+# ─── Environment (contiene credenciales SMTP y API keys) ────
+.env
 build/
 .vite/
 *.tsbuildinfo

@@ -24,7 +24,6 @@ public class CreateOperatorCommandHandler : IRequestHandler<CreateOperatorComman
             var result = await _keycloakAdminService.CreateOperatorAsync(
                 command.Name,
                 command.Email,
-                command.Password,
                 ct);
 
             _logger.LogInformation(

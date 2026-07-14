@@ -22,7 +22,13 @@ public static class CreateOperatorEndpoint
 
                 return Results.Created(
                     $"/api/admin/operators/{result.KeycloakUserId}",
-                    new { name = result.Name, email = result.Email, keycloakUserId = result.KeycloakUserId });
+                    new
+                    {
+                        name = result.Name,
+                        email = result.Email,
+                        keycloakUserId = result.KeycloakUserId,
+                        message = $"Operator created. An email has been sent to {result.Email} to set their password."
+                    });
             }
             catch (FluentValidation.ValidationException ex)
             {

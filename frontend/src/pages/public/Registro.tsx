@@ -7,10 +7,20 @@ export function Registro() {
 
   if (registered) {
     return (
-      <div className="registro-success">
-        <h2>Registro exitoso</h2>
-        <p>Ya puedes iniciar sesión.</p>
-        <Link to="/">Volver al inicio</Link>
+      <div style={{
+        minHeight: "100vh", backgroundColor: "#1a1a2e", color: "white",
+        display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", fontFamily: "sans-serif", padding: "2rem",
+        textAlign: "center"
+      }}>
+        <h2 style={{ color: "#e94560", marginBottom: "0.5rem" }}>Registro exitoso</h2>
+        <p style={{ color: "#ccc", maxWidth: 400 }}>
+          Te hemos enviado un correo de verificación. Por favor revisá tu bandeja de entrada
+          y seguí el enlace para activar tu cuenta antes de iniciar sesión.
+        </p>
+        <Link to="/" style={{ marginTop: "1.5rem", color: "#e94560", fontWeight: 600 }}>
+          Volver al inicio
+        </Link>
       </div>
     );
   }

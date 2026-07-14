@@ -1,5 +1,7 @@
 interface RegistroRequest {
-  name: string;
+  firstName: string;
+  lastName: string;
+  username: string;
   alias: string;
   email: string;
   password: string;

@@ -37,19 +37,20 @@ public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand,
             throw new RegistrationException("Alias", $"Alias '{command.Alias}' is already taken.");
         }
 
-        await _keycloakAdminService.UpdateUserAsync(command.KeycloakUserId, command.Name, command.Alias, ct);
+        // Update Keycloak first (dual-write pattern)
+        await _keycloakAdminService.UpdateUserAsync(command.KeycloakUserId, command.FirstName, command.LastName, command.Alias, ct);
 
         try
         {
-            participant.Update(command.Name, command.Alias);
+            participant.Update(command.FirstName, command.LastName, command.Alias);
             await _participantRepository.UpdateAsync(participant, ct);
         }
         catch (Exception ex)
         {
             _logger.LogCritical(ex,
                 "Profile update failed: Keycloak updated but DB update failed for KeycloakUserId={KeycloakUserId}. " +
-                "Attempted values: Name={Name}, Alias={Alias}",
-                command.KeycloakUserId, command.Name, command.Alias);
+                "Attempted values: FirstName={FirstName}, LastName={LastName}, Alias={Alias}",
+                command.KeycloakUserId, command.FirstName, command.LastName, command.Alias);
             throw;
         }
 
@@ -57,6 +58,6 @@ public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand,
             "Profile updated: KeycloakUserId={KeycloakUserId}, Alias={Alias}",
             command.KeycloakUserId, command.Alias);
 
-        return new GetProfileResponse(participant.Name, participant.Alias, participant.Email);
+        return new GetProfileResponse(participant.FirstName, participant.LastName, participant.Alias, participant.Email);
     }
 }
