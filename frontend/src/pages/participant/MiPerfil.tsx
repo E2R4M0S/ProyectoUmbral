@@ -6,20 +6,23 @@ import type { PerfilData, UpdatePerfilRequest } from "../../types/perfil";
 type FormState = "idle" | "loading" | "saving";
 
 interface ValidationErrors {
-  name?: string;
+  firstName?: string;
+  lastName?: string;
   alias?: string;
   general?: string;
 }
 
 function validate(data: UpdatePerfilRequest): ValidationErrors {
   const e: ValidationErrors = {};
-  if (!data.name.trim())                     e.name  = "El nombre es requerido.";
-  else if (data.name.trim().length > 100)    e.name  = "El nombre no puede superar los 100 caracteres.";
-  if (!data.alias.trim())                    e.alias = "El alias es requerido.";
-  else if (data.alias.trim().length < 3)     e.alias = "El alias debe tener al menos 3 caracteres.";
-  else if (data.alias.trim().length > 50)    e.alias = "El alias no puede superar los 50 caracteres.";
+  if (!data.firstName.trim())                  e.firstName = "El nombre es requerido.";
+  else if (data.firstName.trim().length > 50)  e.firstName = "Máximo 50 caracteres.";
+  if (!data.lastName.trim())                   e.lastName = "El apellido es requerido.";
+  else if (data.lastName.trim().length > 50)   e.lastName = "Máximo 50 caracteres.";
+  if (!data.alias.trim())                      e.alias = "El alias es requerido.";
+  else if (data.alias.trim().length < 3)       e.alias = "Mínimo 3 caracteres.";
+  else if (data.alias.trim().length > 50)      e.alias = "Máximo 50 caracteres.";
   else if (!/^[a-zA-Z0-9_]+$/.test(data.alias.trim()))
-    e.alias = "El alias solo puede contener letras, números y guiones bajos.";
+    e.alias = "Solo letras, números y guiones bajos.";
   return e;
 }
 
@@ -33,8 +36,9 @@ export function MiPerfil() {
   const [successMsg, setSuccess]    = useState("");
   const [originalAlias, setOrigAlias] = useState("");
 
-  const [name, setName]   = useState("");
-  const [alias, setAlias] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName]   = useState("");
+  const [alias, setAlias]         = useState("");
 
   useEffect(() => { loadProfile(); }, []);
 
@@ -45,7 +49,8 @@ export function MiPerfil() {
     try {
       const data = await getProfile();
       setProfile(data);
-      setName(data.name);
+      setFirstName(data.firstName);
+      setLastName(data.lastName);
       setAlias(data.alias);
       setOrigAlias(data.alias);
     } catch (err) {
@@ -63,7 +68,7 @@ export function MiPerfil() {
     e.preventDefault();
     setSuccess("");
 
-    const formData: UpdatePerfilRequest = { name: name.trim(), alias: alias.trim() };
+    const formData: UpdatePerfilRequest = { firstName: firstName.trim(), lastName: lastName.trim(), alias: alias.trim() };
     const ve = validate(formData);
     if (Object.keys(ve).length > 0) { setErrors(ve); return; }
 
@@ -73,7 +78,8 @@ export function MiPerfil() {
     try {
       const updated = await updateProfile(formData);
       setProfile(updated);
-      setName(updated.name);
+      setFirstName(updated.firstName);
+      setLastName(updated.lastName);
       setAlias(updated.alias);
       setOrigAlias(updated.alias);
       setSuccess("Perfil actualizado correctamente.");
@@ -92,7 +98,8 @@ export function MiPerfil() {
             if (Array.isArray(parsed.details)) {
               for (const d of parsed.details) {
                 const f = d.field?.toLowerCase();
-                if (f === "name")  fe.name  = d.message;
+                if (f === "firstname")  fe.firstName = d.message;
+                else if (f === "lastname") fe.lastName = d.message;
                 else if (f === "alias") fe.alias = d.message;
                 else fe.general = d.message;
               }
@@ -121,6 +128,7 @@ export function MiPerfil() {
   }
 
   const isBusy = formState === "saving" || formState === "loading";
+  const fullName = `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim();
 
   return (
     <div className="page" style={{ maxWidth: 480 }}>
@@ -135,46 +143,50 @@ export function MiPerfil() {
             background: "var(--accent)", display: "flex", alignItems: "center",
             justifyContent: "center", fontWeight: 800, fontSize: "1.25rem", flexShrink: 0,
           }}>
-            {(profile.name || "?")[0].toUpperCase()}
+            {(profile.firstName || "?")[0].toUpperCase()}
           </div>
           <div>
-            <div style={{ fontWeight: 700 }}>{profile.name}</div>
+            <div style={{ fontWeight: 700 }}>{fullName}</div>
             <div style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>@{profile.alias}</div>
           </div>
         </div>
       )}
 
       {successMsg && <div className="alert alert-success" style={{ marginBottom: "1.25rem" }}>{successMsg}</div>}
-      {errors.general && !errors.name && !errors.alias && (
+      {errors.general && !errors.firstName && !errors.lastName && !errors.alias && (
         <div className="alert alert-error" style={{ marginBottom: "1.25rem" }}>{errors.general}</div>
       )}
 
       <div className="card">
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label" htmlFor="name">Nombre</label>
+            <label className="form-label" htmlFor="firstName">Nombre</label>
             <input
-              id="name"
-              type="text"
-              className="form-input"
-              style={errors.name ? { borderColor: "var(--color-error)" } : {}}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Tu nombre"
-              disabled={isBusy}
+              id="firstName" type="text" className="form-input"
+              style={errors.firstName ? { borderColor: "var(--color-error)" } : {}}
+              value={firstName} onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Tu nombre" disabled={isBusy}
             />
-            {errors.name && <span className="form-hint" style={{ color: "var(--color-error)" }}>{errors.name}</span>}
+            {errors.firstName && <span className="form-hint" style={{ color: "var(--color-error)" }}>{errors.firstName}</span>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="lastName">Apellido</label>
+            <input
+              id="lastName" type="text" className="form-input"
+              style={errors.lastName ? { borderColor: "var(--color-error)" } : {}}
+              value={lastName} onChange={(e) => setLastName(e.target.value)}
+              placeholder="Tu apellido" disabled={isBusy}
+            />
+            {errors.lastName && <span className="form-hint" style={{ color: "var(--color-error)" }}>{errors.lastName}</span>}
           </div>
 
           <div className="form-group" style={{ marginBottom: "1.5rem" }}>
             <label className="form-label" htmlFor="alias">Alias</label>
             <input
-              id="alias"
-              type="text"
-              className="form-input"
+              id="alias" type="text" className="form-input"
               style={errors.alias ? { borderColor: "var(--color-error)" } : {}}
-              value={alias}
-              onChange={(e) => setAlias(e.target.value)}
+              value={alias} onChange={(e) => setAlias(e.target.value)}
               placeholder="solo letras, números y _"
               disabled={isBusy}
             />
@@ -188,12 +200,7 @@ export function MiPerfil() {
             <button type="submit" className="btn btn-primary" disabled={isBusy} style={{ flex: 1 }}>
               {formState === "saving" ? "Guardando..." : "Guardar cambios"}
             </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={loadProfile}
-              disabled={isBusy}
-            >
+            <button type="button" className="btn btn-secondary" onClick={loadProfile} disabled={isBusy}>
               Descartar
             </button>
           </div>

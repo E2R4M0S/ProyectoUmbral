@@ -29,8 +29,8 @@ public class UpdateProfileCommandHandlerTests
     public async Task Handle_ShouldUpdateProfileAndReturnResponse()
     {
         // Arrange
-        var participant = Participant.Create("John Doe", "johnny", "john@test.com", "kc-123");
-        var command = new UpdateProfileCommand("Jane Doe", "jane_alias", "kc-123");
+        var participant = Participant.Create("John", "Doe", "johndoe", "johnny", "john@test.com", "kc-123");
+        var command = new UpdateProfileCommand("Jane", "Doe", "jane_alias", "kc-123");
 
         _participantRepository
             .GetByKeycloakUserIdAsync("kc-123", Arg.Any<CancellationToken>())
@@ -41,7 +41,7 @@ public class UpdateProfileCommandHandlerTests
             .Returns(true);
 
         _keycloakService
-            .UpdateUserAsync("kc-123", "Jane Doe", "jane_alias", Arg.Any<CancellationToken>())
+            .UpdateUserAsync("kc-123", "Jane", "Doe", "jane_alias", Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         // Act
@@ -49,11 +49,12 @@ public class UpdateProfileCommandHandlerTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Name.Should().Be("Jane Doe");
+        result.FirstName.Should().Be("Jane");
+        result.LastName.Should().Be("Doe");
         result.Alias.Should().Be("jane_alias");
 
         await _keycloakService.Received(1).UpdateUserAsync(
-            "kc-123", "Jane Doe", "jane_alias", Arg.Any<CancellationToken>());
+            "kc-123", "Jane", "Doe", "jane_alias", Arg.Any<CancellationToken>());
 
         await _participantRepository.Received(1).UpdateAsync(
             participant, Arg.Any<CancellationToken>());
@@ -63,7 +64,7 @@ public class UpdateProfileCommandHandlerTests
     public async Task Handle_ShouldThrow_WhenParticipantNotFound()
     {
         // Arrange
-        var command = new UpdateProfileCommand("Jane Doe", "jane_alias", "kc-notfound");
+        var command = new UpdateProfileCommand("Jane", "Doe", "jane_alias", "kc-notfound");
 
         _participantRepository
             .GetByKeycloakUserIdAsync("kc-notfound", Arg.Any<CancellationToken>())
@@ -81,8 +82,8 @@ public class UpdateProfileCommandHandlerTests
     public async Task Handle_ShouldThrow_WhenAliasTakenByAnother()
     {
         // Arrange
-        var participant = Participant.Create("John Doe", "johnny", "john@test.com", "kc-123");
-        var command = new UpdateProfileCommand("Jane Doe", "taken_alias", "kc-123");
+        var participant = Participant.Create("John", "Doe", "johndoe", "johnny", "john@test.com", "kc-123");
+        var command = new UpdateProfileCommand("Jane", "Doe", "taken_alias", "kc-123");
 
         _participantRepository
             .GetByKeycloakUserIdAsync("kc-123", Arg.Any<CancellationToken>())
@@ -104,8 +105,8 @@ public class UpdateProfileCommandHandlerTests
     public async Task Handle_ShouldPass_WhenUpdatingOwnAlias()
     {
         // Arrange
-        var participant = Participant.Create("John Doe", "johnny", "john@test.com", "kc-123");
-        var command = new UpdateProfileCommand("Jane Doe", "johnny", "kc-123"); // same alias
+        var participant = Participant.Create("John", "Doe", "johndoe", "johnny", "john@test.com", "kc-123");
+        var command = new UpdateProfileCommand("Jane", "Doe", "johnny", "kc-123"); // same alias
 
         _participantRepository
             .GetByKeycloakUserIdAsync("kc-123", Arg.Any<CancellationToken>())
@@ -116,7 +117,7 @@ public class UpdateProfileCommandHandlerTests
             .Returns(true);
 
         _keycloakService
-            .UpdateUserAsync("kc-123", "Jane Doe", "johnny", Arg.Any<CancellationToken>())
+            .UpdateUserAsync("kc-123", "Jane", "Doe", "johnny", Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         // Act
@@ -131,8 +132,8 @@ public class UpdateProfileCommandHandlerTests
     public async Task Handle_ShouldThrow_WhenKeycloakFails()
     {
         // Arrange
-        var participant = Participant.Create("John Doe", "johnny", "john@test.com", "kc-123");
-        var command = new UpdateProfileCommand("Jane Doe", "jane_alias", "kc-123");
+        var participant = Participant.Create("John", "Doe", "johndoe", "johnny", "john@test.com", "kc-123");
+        var command = new UpdateProfileCommand("Jane", "Doe", "jane_alias", "kc-123");
 
         _participantRepository
             .GetByKeycloakUserIdAsync("kc-123", Arg.Any<CancellationToken>())
@@ -143,7 +144,7 @@ public class UpdateProfileCommandHandlerTests
             .Returns(true);
 
         _keycloakService
-            .When(x => x.UpdateUserAsync("kc-123", "Jane Doe", "jane_alias", Arg.Any<CancellationToken>()))
+            .When(x => x.UpdateUserAsync("kc-123", "Jane", "Doe", "jane_alias", Arg.Any<CancellationToken>()))
             .Do(_ => throw new HttpRequestException("Keycloak unavailable"));
 
         // Act
@@ -157,8 +158,8 @@ public class UpdateProfileCommandHandlerTests
     public async Task Handle_ShouldThrowAndLogCritical_WhenDbFailsAfterKeycloakSuccess()
     {
         // Arrange
-        var participant = Participant.Create("John Doe", "johnny", "john@test.com", "kc-123");
-        var command = new UpdateProfileCommand("Jane Doe", "jane_alias", "kc-123");
+        var participant = Participant.Create("John", "Doe", "johndoe", "johnny", "john@test.com", "kc-123");
+        var command = new UpdateProfileCommand("Jane", "Doe", "jane_alias", "kc-123");
 
         _participantRepository
             .GetByKeycloakUserIdAsync("kc-123", Arg.Any<CancellationToken>())
@@ -169,7 +170,7 @@ public class UpdateProfileCommandHandlerTests
             .Returns(true);
 
         _keycloakService
-            .UpdateUserAsync("kc-123", "Jane Doe", "jane_alias", Arg.Any<CancellationToken>())
+            .UpdateUserAsync("kc-123", "Jane", "Doe", "jane_alias", Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         _participantRepository

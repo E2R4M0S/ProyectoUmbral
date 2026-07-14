@@ -28,11 +28,11 @@ public class KeycloakAdminService : IKeycloakAdminService
     }
 
     public async Task<string> CreateUserAsync(
-        string username, string email, string password, string? alias, CancellationToken ct)
+        string username, string email, string password, string firstName, string lastName, string? alias, CancellationToken ct)
     {
         var token = await GetAdminTokenAsync(ct);
 
-        var userId = await CreateKeycloakUserAsync(token, username, email, password, alias, ct);
+        var userId = await CreateKeycloakUserAsync(token, username, email, password, firstName, lastName, alias, ct);
 
         await AssignParticipantRoleAsync(token, userId, ct);
 
@@ -66,9 +66,9 @@ public class KeycloakAdminService : IKeycloakAdminService
     }
 
     private async Task<string> CreateKeycloakUserAsync(
-        string token, string username, string email, string password, string? alias, CancellationToken ct)
+        string token, string username, string email, string password, string firstName, string lastName, string? alias, CancellationToken ct)
     {
-        var payload = BuildUserPayload(username, email, password, alias);
+        var payload = BuildUserPayload(username, email, password, firstName, lastName, alias);
 
         var request = new HttpRequestMessage(
             HttpMethod.Post,
@@ -139,13 +139,14 @@ public class KeycloakAdminService : IKeycloakAdminService
         }
     }
 
-    public async Task UpdateUserAsync(string userId, string name, string alias, CancellationToken ct)
+    public async Task UpdateUserAsync(string userId, string firstName, string lastName, string alias, CancellationToken ct)
     {
         var token = await GetAdminTokenAsync(ct);
 
         var payload = new
         {
-            firstName = name,
+            firstName,
+            lastName,
             attributes = new Dictionary<string, string[]>
             {
                 ["alias"] = new[] { alias }
@@ -402,7 +403,7 @@ public class KeycloakAdminService : IKeycloakAdminService
         return new DisableOperatorResponse(message, wasAlreadyDisabled);
     }
 
-    private static object BuildUserPayload(string username, string email, string password, string? alias)
+    private static object BuildUserPayload(string username, string email, string password, string firstName, string lastName, string? alias)
     {
         var credentials = new[]
         {
@@ -414,30 +415,26 @@ public class KeycloakAdminService : IKeycloakAdminService
             }
         };
 
+        var payload = new Dictionary<string, object>
+        {
+            ["username"] = username,
+            ["firstName"] = firstName,
+            ["lastName"] = lastName,
+            ["email"] = email,
+            ["emailVerified"] = false,
+            ["enabled"] = true,
+            ["credentials"] = credentials
+        };
+
         if (alias is not null)
         {
-            return new
+            payload["attributes"] = new Dictionary<string, string[]>
             {
-                username,
-                email,
-                emailVerified = false,
-                enabled = true,
-                credentials,
-                attributes = new Dictionary<string, string[]>
-                {
-                    ["alias"] = new[] { alias }
-                }
+                ["alias"] = new[] { alias }
             };
         }
 
-        return new
-        {
-            username,
-            email,
-            emailVerified = false,
-            enabled = true,
-            credentials
-        };
+        return payload;
     }
 
     // ─── User listing methods ───────────────────────────────────────────────

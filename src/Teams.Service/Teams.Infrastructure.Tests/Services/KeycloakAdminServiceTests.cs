@@ -56,7 +56,7 @@ public class KeycloakAdminServiceTests
         handler.Enqueue(EmptyOk()); // assign role
 
         var svc = Build(handler);
-        var result = await svc.CreateUserAsync("john", "john@test.com", "pass", "jdoe", CancellationToken.None);
+        var result = await svc.CreateUserAsync("john", "john@test.com", "pass", "John", "Doe", "jdoe", CancellationToken.None);
 
         result.Should().Be("user-abc");
     }
@@ -68,7 +68,7 @@ public class KeycloakAdminServiceTests
         handler.Enqueue(new HttpResponseMessage(HttpStatusCode.Unauthorized));
 
         var svc = Build(handler);
-        await svc.Invoking(s => s.CreateUserAsync("u", "e@e.com", "p", null, CancellationToken.None))
+        await svc.Invoking(s => s.CreateUserAsync("u", "e@e.com", "p", "U", "U", null, CancellationToken.None))
             .Should().ThrowAsync<HttpRequestException>();
     }
 
@@ -83,7 +83,7 @@ public class KeycloakAdminServiceTests
         });
 
         var svc = Build(handler);
-        await svc.Invoking(s => s.CreateUserAsync("u", "e@e.com", "p", null, CancellationToken.None))
+        await svc.Invoking(s => s.CreateUserAsync("u", "e@e.com", "p", "U", "U", null, CancellationToken.None))
             .Should().ThrowAsync<HttpRequestException>();
     }
 
@@ -97,7 +97,7 @@ public class KeycloakAdminServiceTests
         handler.Enqueue(EmptyOk());
 
         var svc = Build(handler);
-        await svc.Invoking(s => s.CreateUserAsync("u", "e@e.com", "p", null, CancellationToken.None))
+        await svc.Invoking(s => s.CreateUserAsync("u", "e@e.com", "p", "U", "U", null, CancellationToken.None))
             .Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*Keycloak user ID*");
     }
@@ -112,7 +112,7 @@ public class KeycloakAdminServiceTests
         handler.Enqueue(EmptyOk()); // PUT user
 
         var svc = Build(handler);
-        await svc.Invoking(s => s.UpdateUserAsync("u1", "John", "jdoe", CancellationToken.None))
+        await svc.Invoking(s => s.UpdateUserAsync("u1", "John", "Doe", "jdoe", CancellationToken.None))
             .Should().NotThrowAsync();
     }
 
@@ -127,7 +127,7 @@ public class KeycloakAdminServiceTests
         });
 
         var svc = Build(handler);
-        await svc.Invoking(s => s.UpdateUserAsync("u1", "J", "j", CancellationToken.None))
+        await svc.Invoking(s => s.UpdateUserAsync("u1", "J", "Doe", "j", CancellationToken.None))
             .Should().ThrowAsync<HttpRequestException>();
     }
 

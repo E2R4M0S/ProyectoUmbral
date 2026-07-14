@@ -35,6 +35,8 @@ public class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, GetProfil
 
             participant = Participant.Create(
                 keycloakUser.FirstName ?? "Participante",
+                "",
+                keycloakUser.Email?.Split('@')[0] ?? alias,
                 alias,
                 string.IsNullOrEmpty(keycloakUser.Email) ? $"{alias}@umbral.local" : keycloakUser.Email,
                 query.KeycloakUserId);
@@ -42,6 +44,6 @@ public class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, GetProfil
             await _participantRepository.AddAsync(participant, ct);
         }
 
-        return new GetProfileResponse(participant.Name, participant.Alias, participant.Email);
+        return new GetProfileResponse(participant.FirstName, participant.LastName, participant.Alias, participant.Email);
     }
 }

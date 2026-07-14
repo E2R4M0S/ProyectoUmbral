@@ -6,7 +6,7 @@ namespace Teams.Application.Common.Interfaces;
 
 public interface IKeycloakAdminService
 {
-    Task<string> CreateUserAsync(string username, string email, string password, string? alias, CancellationToken ct);
+    Task<string> CreateUserAsync(string username, string email, string password, string firstName, string lastName, string? alias, CancellationToken ct);
 
     Task<CreateOperatorResult> CreateOperatorAsync(string name, string email, CancellationToken ct);
 
@@ -16,7 +16,7 @@ public interface IKeycloakAdminService
 
     Task DeleteUserAsync(string userId, CancellationToken ct);
 
-    Task UpdateUserAsync(string userId, string name, string alias, CancellationToken ct);
+    Task UpdateUserAsync(string userId, string firstName, string lastName, string alias, CancellationToken ct);
 
     Task<IReadOnlyList<UserRepresentation>> GetUsersAsync(int first, int max, string? search, bool? enabled, CancellationToken ct);
 

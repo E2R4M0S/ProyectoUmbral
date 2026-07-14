@@ -30,7 +30,7 @@ public class RegisterParticipantCommandHandlerTests
     {
         // Arrange
         var command = new RegisterParticipantCommand(
-            "John Doe", "johnny", "john@test.com", "Pass1234");
+            "John", "Doe", "johndoe", "johnny", "john@test.com", "Pass1234");
 
         _participantRepository
             .IsAliasUniqueAsync("johnny", Arg.Any<CancellationToken>())
@@ -45,6 +45,8 @@ public class RegisterParticipantCommandHandlerTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>())
             .Returns("keycloak-user-id");
@@ -56,15 +58,18 @@ public class RegisterParticipantCommandHandlerTests
         result.Should().NotBeEmpty();
 
         await _keycloakService.Received(1).CreateUserAsync(
-            command.Email, // username = email
+            command.Username,
             command.Email,
             command.Password,
+            command.FirstName,
+            command.LastName,
             command.Alias,
             Arg.Any<CancellationToken>());
 
         await _participantRepository.Received(1).AddAsync(
             Arg.Is<Participant>(p =>
-                p.Name == command.Name &&
+                p.FirstName == command.FirstName &&
+                p.LastName == command.LastName &&
                 p.Alias == command.Alias &&
                 p.Email == command.Email &&
                 p.KeycloakUserId == "keycloak-user-id"),
@@ -76,7 +81,7 @@ public class RegisterParticipantCommandHandlerTests
     {
         // Arrange
         var command = new RegisterParticipantCommand(
-            "John Doe", "johnny", "john@test.com", "Pass1234");
+            "John", "Doe", "johndoe", "johnny", "john@test.com", "Pass1234");
 
         _participantRepository
             .IsAliasUniqueAsync("johnny", Arg.Any<CancellationToken>())
@@ -95,7 +100,7 @@ public class RegisterParticipantCommandHandlerTests
     {
         // Arrange
         var command = new RegisterParticipantCommand(
-            "John Doe", "johnny", "john@test.com", "Pass1234");
+            "John", "Doe", "johndoe", "johnny", "john@test.com", "Pass1234");
 
         _participantRepository
             .IsAliasUniqueAsync("johnny", Arg.Any<CancellationToken>())
@@ -118,7 +123,7 @@ public class RegisterParticipantCommandHandlerTests
     {
         // Arrange
         var command = new RegisterParticipantCommand(
-            "John Doe", "johnny", "john@test.com", "Pass1234");
+            "John", "Doe", "johndoe", "johnny", "john@test.com", "Pass1234");
 
         _participantRepository
             .IsAliasUniqueAsync("johnny", Arg.Any<CancellationToken>())
@@ -130,6 +135,8 @@ public class RegisterParticipantCommandHandlerTests
 
         _keycloakService
             .CreateUserAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),

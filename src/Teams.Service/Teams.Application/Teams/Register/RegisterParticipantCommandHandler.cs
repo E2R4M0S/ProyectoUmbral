@@ -46,9 +46,11 @@ public class RegisterParticipantCommandHandler
         try
         {
             keycloakUserId = await _keycloakAdminService.CreateUserAsync(
-                command.Email,  // username = email
+                command.Username,
                 command.Email,
                 command.Password,
+                command.FirstName,
+                command.LastName,
                 command.Alias,
                 ct);
         }
@@ -63,7 +65,9 @@ public class RegisterParticipantCommandHandler
         try
         {
             participant = Participant.Create(
-                command.Name,
+                command.FirstName,
+                command.LastName,
+                command.Username,
                 command.Alias,
                 command.Email,
                 keycloakUserId);

@@ -3,6 +3,7 @@ using MediatR;
 namespace Teams.Application.Teams.Profile;
 
 public record UpdateProfileCommand(
-    string Name,
+    string FirstName,
+    string LastName,
     string Alias,
     string KeycloakUserId) : IRequest<GetProfileResponse>;

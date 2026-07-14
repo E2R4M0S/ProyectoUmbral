@@ -94,7 +94,7 @@ public class TeamsApiEndpointTests
     [Fact]
     public async Task RegisterParticipant_ValidCommand_CallsMediator()
     {
-        var command = new RegisterParticipantCommand("testuser", "alias1", "test@test.com", "pass123!");
+        var command = new RegisterParticipantCommand("testuser", "test", "testuser", "alias1", "test@test.com", "pass123!");
         _mediator.Send(command, Arg.Any<CancellationToken>()).Returns(Task.FromResult(Guid.NewGuid()));
 
         await _mediator.Send(command);
@@ -116,8 +116,8 @@ public class TeamsApiEndpointTests
     [Fact]
     public async Task UpdateProfile_ValidCommand_CallsMediator()
     {
-        var command = new UpdateProfileCommand("NewName", "NewAlias", "keycloak-id");
-        var result = new GetProfileResponse("NewName", "NewAlias", "new@test.com");
+        var command = new UpdateProfileCommand("NewName", "NewName", "NewAlias", "keycloak-id");
+        var result = new GetProfileResponse("NewName", "NewName", "NewAlias", "new@test.com");
         _mediator.Send(command, Arg.Any<CancellationToken>()).Returns(Task.FromResult(result));
 
         await _mediator.Send(command);

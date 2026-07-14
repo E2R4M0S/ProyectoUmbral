@@ -23,13 +23,14 @@ public class ParticipantRepositoryTests
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
         var repo = new ParticipantRepository(dbContext);
-        var participant = Participant.Create("Test User", "testalias", "test@test.com", "kc-123");
+        var participant = Participant.Create("Test", "User", "testuser", "testalias", "test@test.com", "kc-123");
 
         await repo.AddAsync(participant, CancellationToken.None);
 
         var saved = await dbContext.Participants.FirstOrDefaultAsync(p => p.Id == participant.Id);
         saved.Should().NotBeNull();
-        saved!.Name.Should().Be("Test User");
+        saved!.FirstName.Should().Be("Test");
+        saved.LastName.Should().Be("User");
         saved.Alias.Should().Be("testalias");
         saved.Email.Should().Be("test@test.com");
     }
@@ -51,7 +52,7 @@ public class ParticipantRepositoryTests
     {
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
-        var participant = Participant.Create("User", "taken", "u@test.com", "kc-1");
+        var participant = Participant.Create("User", "Name", "username", "taken", "u@test.com", "kc-1");
         dbContext.Participants.Add(participant);
         await dbContext.SaveChangesAsync();
 
@@ -78,7 +79,7 @@ public class ParticipantRepositoryTests
     {
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
-        var participant = Participant.Create("User", "alias", "taken@test.com", "kc-1");
+        var participant = Participant.Create("User", "Name", "username", "alias", "taken@test.com", "kc-1");
         dbContext.Participants.Add(participant);
         await dbContext.SaveChangesAsync();
 
@@ -93,7 +94,7 @@ public class ParticipantRepositoryTests
     {
         var dbName = Guid.NewGuid().ToString();
         await using var dbContext = CreateDbContext(dbName);
-        var participant = Participant.Create("User", "alias", "u@test.com", "kc-find-me");
+        var participant = Participant.Create("User", "Name", "username", "alias", "u@test.com", "kc-find-me");
         dbContext.Participants.Add(participant);
         await dbContext.SaveChangesAsync();
 
@@ -101,7 +102,8 @@ public class ParticipantRepositoryTests
         var result = await repo.GetByKeycloakUserIdAsync("kc-find-me", CancellationToken.None);
 
         result.Should().NotBeNull();
-        result!.Name.Should().Be("User");
+        result!.FirstName.Should().Be("User");
+        result.LastName.Should().Be("Name");
     }
 
     [Fact]

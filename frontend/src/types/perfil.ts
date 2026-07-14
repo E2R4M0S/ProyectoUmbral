@@ -1,10 +1,12 @@
 export interface PerfilData {
-  name: string;
+  firstName: string;
+  lastName: string;
   alias: string;
   email: string;
 }
 
 export interface UpdatePerfilRequest {
-  name: string;
+  firstName: string;
+  lastName: string;
   alias: string;
 }

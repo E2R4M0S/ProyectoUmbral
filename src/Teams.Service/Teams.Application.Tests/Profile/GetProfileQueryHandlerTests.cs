@@ -22,7 +22,7 @@ public class GetProfileQueryHandlerTests
     public async Task Handle_ShouldReturnProfile_WhenParticipantExists()
     {
         // Arrange
-        var participant = Participant.Create("John Doe", "johnny", "john@test.com", "kc-123");
+        var participant = Participant.Create("John", "Doe", "johndoe", "johnny", "john@test.com", "kc-123");
         var query = new GetProfileQuery("kc-123");
 
         _participantRepository
@@ -34,7 +34,8 @@ public class GetProfileQueryHandlerTests
 
         // Assert
         result.Should().NotBeNull();
-        result!.Name.Should().Be("John Doe");
+        result!.FirstName.Should().Be("John");
+        result.LastName.Should().Be("Doe");
         result.Alias.Should().Be("johnny");
         result.Email.Should().Be("john@test.com");
     }
