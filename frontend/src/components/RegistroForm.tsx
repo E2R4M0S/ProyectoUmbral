@@ -117,6 +117,7 @@ export function RegistroForm({ onSuccess }: RegistroFormProps) {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitError(null);
+    setFieldErrors({});
 
     const errors: FieldErrors = {
       firstName: validateFirstName(firstName),
@@ -143,9 +144,50 @@ export function RegistroForm({ onSuccess }: RegistroFormProps) {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
-          setSubmitError("El usuario, alias o email ya están registrados.");
+          // Conflict — parsear campo específico
+          let conflictField = "";
+          let conflictMsg = "ya está registrado.";
+          try {
+            const parsed = JSON.parse(err.body);
+            if (parsed.details?.length > 0) {
+              const d = parsed.details[0];
+              conflictField = d.field?.toLowerCase() ?? "";
+              conflictMsg = d.message ?? conflictMsg;
+            }
+          } catch {}
+          const labels: Record<string, string> = {
+            alias: "El alias",
+            email: "El email",
+            username: "El nombre de usuario",
+          };
+          const label = labels[conflictField] ?? "Ese valor";
+          setSubmitError(`${label} ${conflictMsg}`);
+        } else if (err.status === 400) {
+          // Validation error — mostrar por campo
+          const fe: FieldErrors = {};
+          let generalMsg = "";
+          try {
+            const parsed = JSON.parse(err.body);
+            if (parsed.details && Array.isArray(parsed.details)) {
+              for (const d of parsed.details) {
+                const f = d.field?.toLowerCase() ?? "";
+                const m = d.message ?? "";
+                if (f === "firstname") fe.firstName = m;
+                else if (f === "lastname") fe.lastName = m;
+                else if (f === "username") fe.username = m;
+                else if (f === "alias") fe.alias = m;
+                else if (f === "email") fe.email = m;
+                else if (f === "password") fe.password = m;
+                else generalMsg = m;
+              }
+            }
+          } catch {}
+          setFieldErrors(fe);
+          if (!Object.values(fe).some(Boolean)) {
+            setSubmitError(generalMsg || "Datos inválidos. Revisá los campos.");
+          }
         } else {
-          setSubmitError(err.body || "Error al registrar. Intentalo de nuevo.");
+          setSubmitError("Error del servidor. Intentalo de nuevo más tarde.");
         }
       } else {
         setSubmitError("Error de conexión. Verificá tu conexión a internet.");
@@ -155,10 +197,14 @@ export function RegistroForm({ onSuccess }: RegistroFormProps) {
     }
   }
 
+  function clearError(field: keyof FieldErrors) {
+    return () => setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+  }
+
   return (
     <form onSubmit={handleSubmit} noValidate style={{ maxWidth: 400, margin: "0 auto" }}>
       {submitError && (
-        <div style={{ color: "#dc3545", marginBottom: 16, padding: "8px 12px", border: "1px solid #dc3545", borderRadius: 4, backgroundColor: "#2d1a1a" }}>
+        <div style={{ color: "#dc3545", marginBottom: 16, padding: "8px 12px", border: "1px solid #dc3545", borderRadius: 4, backgroundColor: "#2d1a1a", fontSize: 14 }}>
           {submitError}
         </div>
       )}
@@ -167,14 +213,14 @@ export function RegistroForm({ onSuccess }: RegistroFormProps) {
         <div style={halfFieldStyle}>
           <label htmlFor="reg-firstName" style={labelStyle}>Nombre</label>
           <input id="reg-firstName" type="text" value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
+            onChange={(e) => { setFirstName(e.target.value); clearError("firstName")(); }}
             style={inputStyle(Boolean(fieldErrors.firstName))} autoComplete="given-name" />
           {fieldErrors.firstName && <p style={errorStyle}>{fieldErrors.firstName}</p>}
         </div>
         <div style={halfFieldStyle}>
           <label htmlFor="reg-lastName" style={labelStyle}>Apellido</label>
           <input id="reg-lastName" type="text" value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
+            onChange={(e) => { setLastName(e.target.value); clearError("lastName")(); }}
             style={inputStyle(Boolean(fieldErrors.lastName))} autoComplete="family-name" />
           {fieldErrors.lastName && <p style={errorStyle}>{fieldErrors.lastName}</p>}
         </div>
@@ -183,7 +229,7 @@ export function RegistroForm({ onSuccess }: RegistroFormProps) {
       <div style={fieldGroupStyle}>
         <label htmlFor="reg-username" style={labelStyle}>Nombre de usuario</label>
         <input id="reg-username" type="text" value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          onChange={(e) => { setUsername(e.target.value); clearError("username")(); }}
           style={inputStyle(Boolean(fieldErrors.username))} autoComplete="username" />
         {fieldErrors.username && <p style={errorStyle}>{fieldErrors.username}</p>}
       </div>
@@ -191,7 +237,7 @@ export function RegistroForm({ onSuccess }: RegistroFormProps) {
       <div style={fieldGroupStyle}>
         <label htmlFor="reg-alias" style={labelStyle}>Alias</label>
         <input id="reg-alias" type="text" value={alias}
-          onChange={(e) => setAlias(e.target.value)}
+          onChange={(e) => { setAlias(e.target.value); clearError("alias")(); }}
           style={inputStyle(Boolean(fieldErrors.alias))} />
         {fieldErrors.alias && <p style={errorStyle}>{fieldErrors.alias}</p>}
       </div>
@@ -199,7 +245,7 @@ export function RegistroForm({ onSuccess }: RegistroFormProps) {
       <div style={fieldGroupStyle}>
         <label htmlFor="reg-email" style={labelStyle}>Email</label>
         <input id="reg-email" type="email" value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => { setEmail(e.target.value); clearError("email")(); }}
           style={inputStyle(Boolean(fieldErrors.email))} autoComplete="email" />
         {fieldErrors.email && <p style={errorStyle}>{fieldErrors.email}</p>}
       </div>
@@ -207,7 +253,7 @@ export function RegistroForm({ onSuccess }: RegistroFormProps) {
       <div style={{ ...fieldGroupStyle, marginBottom: 20 }}>
         <label htmlFor="reg-password" style={labelStyle}>Contraseña</label>
         <input id="reg-password" type="password" value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => { setPassword(e.target.value); clearError("password")(); }}
           style={inputStyle(Boolean(fieldErrors.password))} autoComplete="new-password" />
         {fieldErrors.password && <p style={errorStyle}>{fieldErrors.password}</p>}
       </div>
