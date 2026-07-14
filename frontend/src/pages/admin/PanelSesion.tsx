@@ -105,6 +105,7 @@ export function PanelSesion() {
   const [advanceMsg, setAdvanceMsg] = useState("");
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [questionResults, setQuestionResults] = useState<AnswerResult[]>([]);
+  const [finalRanking, setFinalRanking] = useState<RankingEntry[]>([]);
 
   async function load() {
     if (!id) return;
@@ -158,13 +159,33 @@ export function PanelSesion() {
     if (progress) setLocalSeconds(progress.elapsedSeconds);
   }, [progress?.elapsedSeconds]);
 
+  useEffect(() => {
+    if (progress?.status !== "Finished" || !id) return;
+    // Use real-time ranking if already populated, else load from session detail
+    if (ranking.length > 0) {
+      setFinalRanking(ranking);
+      return;
+    }
+    getSessionById(id)
+      .then(detail => {
+        const sorted = [...(detail.participants ?? [])].sort((a, b) => b.score - a.score);
+        setFinalRanking(sorted.map((p, i) => ({
+          position: i + 1,
+          teamName: p.name || p.userId,
+          score: p.score,
+          userId: p.userId,
+        })));
+      })
+      .catch(() => {});
+  }, [progress?.status, id]);
+
   useSignalR({
     sessionId: id ?? "",
     onStatusChanged: () => { load(); },
     onProgressUpdated: () => {},
     onClueReleased: () => {},
     onConnectionStateChange: () => {},
-    onRankingUpdated: (incoming) => { setRanking(incoming); },
+    onRankingUpdated: (incoming) => { setRanking(incoming); setFinalRanking(incoming); },
     onQuestionResultsUpdated: (_, results) => { setQuestionResults(results); },
   });
 
@@ -379,6 +400,59 @@ export function PanelSesion() {
               </button>
               {clueMsg && <div style={clueMsg.includes("Error") ? css.msgError : css.msgSuccess}>{clueMsg}</div>}
             </div>
+          )}
+        </>
+      )}
+
+      {/* Final results podio — HU-45 */}
+      {progress.status === "Finished" && (
+        <>
+          <div style={css.sectionTitle}>Resultados Finales</div>
+          {finalRanking.length === 0 ? (
+            <p style={{ color: "#555", fontSize: "0.875rem" }}>Cargando resultados...</p>
+          ) : (
+            <>
+              {/* Podio top 3 */}
+              <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", alignItems: "flex-end", justifyContent: "center" }}>
+                {[1, 0, 2].map(idx => {
+                  const entry = finalRanking[idx];
+                  if (!entry) return null;
+                  const isFirst = entry.position === 1;
+                  const medalColor = entry.position === 1 ? "#fbbf24" : entry.position === 2 ? "#9ca3af" : "#cd7f32";
+                  const height = entry.position === 1 ? 100 : entry.position === 2 ? 80 : 65;
+                  return (
+                    <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.4rem" }}>
+                      <span style={{ fontSize: isFirst ? "1.75rem" : "1.25rem" }}>
+                        {entry.position === 1 ? "🥇" : entry.position === 2 ? "🥈" : "🥉"}
+                      </span>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontWeight: 700, color: "white", fontSize: "0.85rem", wordBreak: "break-word" }}>{entry.teamName}</div>
+                        <div style={{ fontWeight: 700, color: medalColor, fontSize: "0.9rem" }}>{entry.score} pts</div>
+                      </div>
+                      <div style={{ width: "100%", backgroundColor: medalColor, borderRadius: "6px 6px 0 0", height }} />
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Full list */}
+              {finalRanking.length > 3 && (
+                <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, overflow: "hidden", marginBottom: "1rem" }}>
+                  {finalRanking.slice(3).map((entry, i) => (
+                    <div key={i} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "0.55rem 1rem",
+                      borderBottom: i < finalRanking.length - 4 ? "1px solid #0f3460" : "none",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                        <span style={{ fontWeight: 700, minWidth: 24, color: "#555" }}>#{entry.position}</span>
+                        <span style={{ color: "#ccc", fontSize: "0.875rem" }}>{entry.teamName}</span>
+                      </div>
+                      <span style={{ fontWeight: 700, color: "#e94560" }}>{entry.score} pts</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </>
       )}
