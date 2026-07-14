@@ -1,0 +1,31 @@
+using System.Text.RegularExpressions;
+
+namespace Missions.Domain.ValueObjects;
+
+public partial record Alias
+{
+    public string Value { get; }
+
+    private Alias(string value) => Value = value;
+
+    public static Alias Create(string value)
+    {
+        var trimmed = value?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(trimmed))
+            throw new ArgumentException("Alias cannot be empty", nameof(value));
+
+        if (trimmed.Length < 3 || trimmed.Length > 50)
+            throw new ArgumentException("Alias must be between 3 and 50 characters", nameof(value));
+
+        if (!AliasRegex().IsMatch(trimmed))
+            throw new ArgumentException("Alias must be alphanumeric with underscores only", nameof(value));
+
+        return new Alias(trimmed);
+    }
+
+    public static implicit operator string(Alias alias) => alias.Value;
+
+    [GeneratedRegex(@"^[a-zA-Z0-9_]+$")]
+    private static partial Regex AliasRegex();
+}

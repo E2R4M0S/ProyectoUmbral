@@ -19,7 +19,6 @@ try
     builder.Host.UseSerilog((context, services, configuration) =>
         configuration.ReadFrom.Configuration(context.Configuration));
 
-    // JWT Bearer authentication — validates tokens from Keycloak
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
@@ -39,7 +38,6 @@ try
             };
         });
 
-    // Transform Keycloak realm_access.roles into ClaimTypes.Role claims
     builder.Services.AddScoped<IClaimsTransformation, KeycloakRolesTransformer>();
 
     builder.Services.AddAuthorization(options =>
@@ -50,6 +48,9 @@ try
         options.AddPolicy("operator_or_admin", policy =>
             policy.RequireAssertion(ctx =>
                 ctx.User.IsInRole("admin") || ctx.User.IsInRole("operator")));
+
+        options.AddPolicy("participant", policy =>
+            policy.RequireRole("participant"));
     });
 
     builder.Services.AddHealthChecks();
@@ -60,7 +61,6 @@ try
 
     var app = builder.Build();
 
-    // Auto-create database on startup for development
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<MissionsDbContext>();
@@ -68,14 +68,6 @@ try
     }
 
     app.UseSerilogRequestLogging();
-
-    // Temporary: log EF Core SQL
-    using (var scope = app.Services.CreateScope())
-    {
-        var loggerFactory = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
-        var context = scope.ServiceProvider.GetRequiredService<MissionsDbContext>();
-        // Force EF to log SQL
-    }
 
     app.UseAuthentication();
     app.UseAuthorization();
@@ -89,6 +81,7 @@ try
        .WithName("Health")
        .AllowAnonymous();
 
+    // Mission CRUD
     app.MapCreateMissionEndpoint();
     app.MapUpdateMissionEndpoint();
     app.MapChangeMissionStatusEndpoint();
@@ -99,6 +92,19 @@ try
     app.MapCreateClueEndpoint();
     app.MapDeleteClueEndpoint();
     app.MapStageQrEndpoint();
+
+    // Participant registration and profile
+    app.MapRegisterParticipantEndpoint();
+    app.MapGetProfileEndpoint();
+    app.MapUpdateProfileEndpoint();
+
+    // Operator management
+    app.MapCreateOperatorEndpoint();
+    app.MapDisableOperatorEndpoint();
+
+    // User listing
+    app.MapGetUsersEndpoint();
+    app.MapGetUserByIdEndpoint();
 
     app.Run();
 }
@@ -113,7 +119,7 @@ finally
 
 /// <summary>
 /// Maps Keycloak's <c>realm_access.roles</c> claim to <see cref="ClaimTypes.Role"/>
-/// so <c>[Authorize(Roles = "...")]</c> and role-based policies work natively.
+/// so role-based policies work natively.
 /// </summary>
 file sealed class KeycloakRolesTransformer : IClaimsTransformation
 {

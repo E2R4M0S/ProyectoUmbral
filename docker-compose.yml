@@ -56,17 +56,6 @@ services:
     networks:
       - umbral-network
 
-  teams-db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: teams
-      POSTGRES_USER: teams
-      POSTGRES_PASSWORD: teams123
-    volumes:
-      - teams-db-data:/var/lib/postgresql/data
-    networks:
-      - umbral-network
-
   trivia-db:
     image: postgres:16-alpine
     ports:
@@ -146,21 +135,6 @@ services:
       rabbitmq:
         condition: service_started
 
-  # ─── Teams.Service ────────────────────────────────────────
-  teams.service:
-    build:
-      context: ./src/Teams.Service
-      dockerfile: Teams.Api/Dockerfile
-    ports:
-      - "5003:80"
-    networks:
-      - umbral-network
-    environment:
-      ASPNETCORE_URLS: http://+:80
-    depends_on:
-      teams-db:
-        condition: service_started
-
   # ─── Trivia.Service ───────────────────────────────────────
   trivia.service:
     build:
@@ -208,7 +182,6 @@ volumes:
   keycloak-db-data:
   missions-db-data:
   sessions-db-data:
-  teams-db-data:
   trivia-db-data:
 
 networks:
