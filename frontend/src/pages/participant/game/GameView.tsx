@@ -109,12 +109,18 @@ function GameContent() {
     } catch { /* ignore */ }
   }, [state.clues, state.ranking, sessionId]);
 
-  // Force save ranking when transitioning to Finished
+  // Force save ranking, score, elapsed time and clues when transitioning to Finished
   useEffect(() => {
-    if (sessionId && state.sessionStatus === "Finished" && state.ranking.length > 0) {
+    if (sessionId && state.sessionStatus === "Finished") {
       try {
-        sessionStorage.setItem(`ranking_${sessionId}`, JSON.stringify(state.ranking));
+        if (state.ranking.length > 0) {
+          sessionStorage.setItem(`ranking_${sessionId}`, JSON.stringify(state.ranking));
+        }
         sessionStorage.setItem(`score_${sessionId}`, String(state.score));
+        sessionStorage.setItem(`elapsed_${sessionId}`, String(state.elapsedSeconds));
+        if (state.clues.length > 0) {
+          sessionStorage.setItem(`clues_${sessionId}`, JSON.stringify(state.clues));
+        }
       } catch { /* ignore */ }
     }
   }, [state.sessionStatus, sessionId]);
