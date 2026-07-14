@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from "react";
+﻿import { useState, useEffect, type FormEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getMissionById, updateMission, ApiError } from "../../services/missionsApi";
 import type { MissionDetail, Difficulty } from "../../types/mission";
@@ -159,12 +159,12 @@ export function EditarMision() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 400) {
-          setSubmitError("Datos inválidos. Verificá los campos.");
+          setSubmitError("Datos inválidos. Verifica los campos.");
         } else {
-          setSubmitError("Error al actualizar la misión. Intentalo de nuevo.");
+          setSubmitError("Error al actualizar la misión. Inténtalo de nuevo.");
         }
       } else {
-        setSubmitError("Error de conexión. Verificá tu conexión a internet.");
+        setSubmitError("Error de conexión. Verifica tu conexión a internet.");
       }
     } finally {
       setIsSubmitting(false);

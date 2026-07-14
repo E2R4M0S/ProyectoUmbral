@@ -4,109 +4,26 @@ import { listTeams, ApiError } from "../../services/teamsApi";
 import { useAuth } from "react-oidc-context";
 import type { TeamListItem, GetTeamsParams } from "../../types/team";
 
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  fontSize: 14,
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "10px 12px",
-  borderBottom: "2px solid #e94560",
-  backgroundColor: "#16213e",
-  fontWeight: 600,
-  color: "white",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderBottom: "1px solid #0f3460",
-  verticalAlign: "middle",
-  color: "white",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: 8,
-  border: "1px solid #0f3460",
-  borderRadius: 4,
-  boxSizing: "border-box",
-  backgroundColor: "#16213e",
-  color: "white",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: 4,
-  fontWeight: 600,
-  fontSize: 13,
-  color: "white",
-};
-
-const filterRowStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 12,
-  marginBottom: 16,
-  alignItems: "flex-end",
-  flexWrap: "wrap",
-};
-
-const filterGroupStyle: React.CSSProperties = {
-  flex: "1 1 180px",
-  minWidth: 150,
-};
-
-const paginationStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginTop: 16,
-  fontSize: 14,
-};
-
-const buttonStyle = (primary: boolean): React.CSSProperties => ({
-  padding: "6px 14px",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 600,
-  backgroundColor: primary ? "#0f3460" : "#6c757d",
-  color: "#fff",
-});
-
-const errorStyle: React.CSSProperties = {
-  padding: "10px 14px",
-  border: "1px solid #e94560",
-  borderRadius: 4,
-  backgroundColor: "#2d1a1a",
-  color: "#e94560",
-  marginBottom: 16,
-  fontSize: 14,
-};
-
-const containerStyle: React.CSSProperties = {
-  padding: "1rem",
-  maxWidth: 1200,
-  margin: "0 auto",
-  backgroundColor: "#1a1a2e",
-  minHeight: "100vh",
-  color: "white",
-};
+function getBasePath(token?: string): string {
+  if (!token) return "/operator";
+  try {
+    const p = JSON.parse(atob(token.split(".")[1]));
+    return p.realm_access?.roles?.includes("admin") ? "/admin" : "/operator";
+  } catch { return "/operator"; }
+}
 
 export function ListadoEquipos() {
   const auth = useAuth();
-  const base = auth.user?.access_token && (() => { try { const p = JSON.parse(atob(auth.user.access_token.split(".")[1])); return p.realm_access?.roles?.includes("admin") ? "/admin" : "/operator"; } catch { return "/operator"; } })() || "/operator";
+  const base = getBasePath(auth.user?.access_token);
 
-  const [items, setItems] = useState<TeamListItem[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, _setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [items, setItems]      = useState<TeamListItem[]>([]);
+  const [totalCount, setTotal] = useState(0);
+  const [page, setPage]        = useState(1);
+  const [search, setSearch]    = useState("");
+  const [loading, setLoading]  = useState(false);
+  const [error, setError]      = useState<string | null>(null);
 
+  const pageSize   = 12;
   const totalPages = Math.ceil(totalCount / pageSize);
 
   async function loadTeams() {
@@ -115,25 +32,20 @@ export function ListadoEquipos() {
     try {
       const params: GetTeamsParams = { page, pageSize };
       if (search.trim()) params.search = search.trim();
-
       const result = await listTeams(params);
       setItems(result.items);
-      setTotalCount(result.totalCount);
+      setTotal(result.totalCount);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(`Error ${err.status}: No se pudo cargar el listado de equipos.`);
-      } else {
-        setError("Error de conexión. Verificá tu conexión a internet.");
-      }
+      setError(err instanceof ApiError
+        ? `Error ${err.status}: No se pudo cargar el listado de equipos.`
+        : "Error de conexión. Verifica tu conexión a internet.");
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    loadTeams();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadTeams(); }, [page]);
 
   function handleSearchSubmit(e: FormEvent) {
     e.preventDefault();
@@ -141,118 +53,76 @@ export function ListadoEquipos() {
     loadTeams();
   }
 
-  function prevPage() {
-    if (page > 1) setPage((p) => p - 1);
-  }
-
-  function nextPage() {
-    if (page < totalPages) setPage((p) => p + 1);
-  }
-
   return (
-    <div style={containerStyle}>
-      <h2 style={{ marginBottom: "1rem" }}>Listado de Equipos</h2>
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Listado de Equipos</h1>
+          <p className="page-subtitle">
+            {totalCount} equipo{totalCount !== 1 ? "s" : ""} registrado{totalCount !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <Link to={`${base}/equipos/crear`} className="btn btn-primary">
+          + Nuevo Equipo
+        </Link>
+      </div>
 
-      {/* Search */}
-      <form onSubmit={handleSearchSubmit} style={{ marginBottom: 16 }}>
-        <div style={filterRowStyle}>
-          <div style={filterGroupStyle}>
-            <label htmlFor="search" style={labelStyle}>Buscar</label>
+      <form onSubmit={handleSearchSubmit}>
+        <div className="filter-row">
+          <div className="filter-group">
+            <label className="form-label" htmlFor="search">Buscar</label>
             <input
-              id="search"
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              id="search" type="text" className="form-input"
+              value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Nombre del equipo..."
-              style={inputStyle}
             />
           </div>
-
-          <div style={{ flex: "0 0 auto" }}>
-            <button type="submit" style={{ ...buttonStyle(true), marginTop: 20 }}>
-              Buscar
-            </button>
+          <div>
+            <label className="form-label" style={{ visibility: "hidden" }}>.</label>
+            <button type="submit" className="btn btn-secondary">Buscar</button>
           </div>
         </div>
       </form>
 
-      {/* Error */}
-      {error && <div style={errorStyle}>{error}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
 
-      {/* Loading */}
-      {loading && <div style={{ marginBottom: 16, color: "#aaa" }}>Cargando...</div>}
-
-      {/* Table */}
-      {!loading && (
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "3rem" }}>
+          <div className="spinner" style={{ margin: "0 auto" }} />
+        </div>
+      ) : items.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
+          <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>👥</div>
+          <p>No se encontraron equipos</p>
+        </div>
+      ) : (
         <>
-          <div style={{ marginBottom: 8, fontSize: 13, color: "#aaa" }}>
-            {totalCount === 0
-              ? "Sin resultados"
-              : `${totalCount} equipo${totalCount !== 1 ? "s" : ""} encontrado${totalCount !== 1 ? "s" : ""}`}
+          <div className="team-cards">
+            {items.map(item => (
+              <div key={item.id} className="team-card">
+                <div className="team-card-title">{item.name}</div>
+
+                <div className="team-card-stats">
+                  <span>👥 {item.memberCount} miembro{item.memberCount !== 1 ? "s" : ""}</span>
+                  <span className="pin-tag">{item.joinCode}</span>
+                </div>
+
+                <Link to={`${base}/equipos/${item.id}`} className="btn btn-ghost btn-sm" style={{ marginTop: "auto" }}>
+                  Ver detalle →
+                </Link>
+              </div>
+            ))}
           </div>
 
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Nombre</th>
-                <th style={thStyle}>Miembros</th>
-                <th style={thStyle}>Código de Unión</th>
-                <th style={thStyle}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={4} style={{ ...tdStyle, textAlign: "center", color: "#666" }}>
-                    No se encontraron equipos
-                  </td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={item.id}>
-                    <td style={tdStyle}>{item.name}</td>
-                    <td style={tdStyle}>{item.memberCount}</td>
-                    <td style={tdStyle}>
-                      <code style={{
-                        padding: "2px 8px",
-                        backgroundColor: "#0f3460",
-                        borderRadius: 4,
-                        color: "white",
-                      }}>
-                        {item.joinCode}
-                      </code>
-                    </td>
-                    <td style={tdStyle}>
-                      <Link to={`${base}/equipos/${item.id}`} style={{ ...buttonStyle(true), textDecoration: "none", display: "inline-block" }}>
-                        Ver Detalle
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-
-          {/* Pagination */}
           {totalCount > 0 && (
-            <div style={paginationStyle}>
-              <span>
-                Página {page} de {totalPages || 1} — {pageSize} por página
-              </span>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={prevPage}
-                  disabled={page <= 1}
-                  style={buttonStyle(false)}
-                >
-                  Anterior
+            <div className="pagination">
+              <span>Página {page} de {totalPages || 1}</span>
+              <div className="pagination-controls">
+                <button className="btn btn-ghost btn-sm" onClick={() => setPage(p => p - 1)} disabled={page <= 1}>
+                  ← Anterior
                 </button>
-                <button
-                  onClick={nextPage}
-                  disabled={page >= totalPages}
-                  style={buttonStyle(false)}
-                >
-                  Siguiente
+                <button className="btn btn-ghost btn-sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
+                  Siguiente →
                 </button>
               </div>
             </div>

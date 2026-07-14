@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from "react";
+﻿import { useState, useEffect, type FormEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "react-oidc-context";
 import { getTeamById, updateTeam, ApiError } from "../../services/teamsApi";
@@ -136,12 +136,12 @@ export function EditarEquipo() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 400) {
-          setSubmitError("Datos inválidos. Verificá los campos.");
+          setSubmitError("Datos inválidos. Verifica los campos.");
         } else {
-          setSubmitError("Error al actualizar el equipo. Intentalo de nuevo.");
+          setSubmitError("Error al actualizar el equipo. Inténtalo de nuevo.");
         }
       } else {
-        setSubmitError("Error de conexión. Verificá tu conexión a internet.");
+        setSubmitError("Error de conexión. Verifica tu conexión a internet.");
       }
     } finally {
       setIsSubmitting(false);

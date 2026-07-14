@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useAuth } from "../../auth/useAuth";
 import { getProfile, updateProfile, ApiError } from "../../services/perfilApi";
 import type { PerfilData, UpdatePerfilRequest } from "../../types/perfil";
@@ -102,10 +102,10 @@ export function MiPerfil() {
             setErrors({ general: "Error de validación. Revisá los datos." });
           }
         } else {
-          setErrors({ general: "Error del servidor. Intentalo de nuevo más tarde." });
+          setErrors({ general: "Error del servidor. Inténtalo de nuevo más tarde." });
         }
       } else {
-        setErrors({ general: "Ocurrió un error inesperado. Intentalo de nuevo." });
+        setErrors({ general: "Ocurrió un error inesperado. Inténtalo de nuevo." });
       }
     } finally {
       setFormState("idle");
@@ -129,17 +129,13 @@ export function MiPerfil() {
       </div>
 
       {profile && (
-        <div className="card" style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: "50%",
-            background: "var(--accent)", display: "flex", alignItems: "center",
-            justifyContent: "center", fontWeight: 800, fontSize: "1.25rem", flexShrink: 0,
-          }}>
+        <div className="card profile-avatar-card">
+          <div className="profile-avatar">
             {(profile.name || "?")[0].toUpperCase()}
           </div>
           <div>
-            <div style={{ fontWeight: 700 }}>{profile.name}</div>
-            <div style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>@{profile.alias}</div>
+            <div className="profile-name">{profile.name}</div>
+            <div className="profile-alias">@{profile.alias}</div>
           </div>
         </div>
       )}
@@ -156,35 +152,33 @@ export function MiPerfil() {
             <input
               id="name"
               type="text"
-              className="form-input"
-              style={errors.name ? { borderColor: "var(--color-error)" } : {}}
+              className={`form-input${errors.name ? " input-error" : ""}`}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Tu nombre"
               disabled={isBusy}
             />
-            {errors.name && <span className="form-hint" style={{ color: "var(--color-error)" }}>{errors.name}</span>}
+            {errors.name && <span className="form-hint form-hint-error">{errors.name}</span>}
           </div>
 
-          <div className="form-group" style={{ marginBottom: "1.5rem" }}>
+          <div className="form-group">
             <label className="form-label" htmlFor="alias">Alias</label>
             <input
               id="alias"
               type="text"
-              className="form-input"
-              style={errors.alias ? { borderColor: "var(--color-error)" } : {}}
+              className={`form-input${errors.alias ? " input-error" : ""}`}
               value={alias}
               onChange={(e) => setAlias(e.target.value)}
               placeholder="solo letras, números y _"
               disabled={isBusy}
             />
             {errors.alias
-              ? <span className="form-hint" style={{ color: "var(--color-error)" }}>{errors.alias}</span>
+              ? <span className="form-hint form-hint-error">{errors.alias}</span>
               : <span className="form-hint">Solo letras, números y guiones bajos.</span>
             }
           </div>
 
-          <div style={{ display: "flex", gap: "0.75rem" }}>
+          <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={isBusy} style={{ flex: 1 }}>
               {formState === "saving" ? "Guardando..." : "Guardar cambios"}
             </button>

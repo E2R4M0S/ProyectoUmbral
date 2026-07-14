@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+﻿import { useState, type FormEvent } from "react";
 import { registrarParticipante, ApiError } from "../services/registroApi";
 
 interface RegistroFormProps {
@@ -127,10 +127,10 @@ export function RegistroForm({ onSuccess }: RegistroFormProps) {
         if (err.status === 409) {
           setSubmitError("El alias o email ya están registrados.");
         } else {
-          setSubmitError(err.body || "Error al registrar. Intentalo de nuevo.");
+          setSubmitError(err.body || "Error al registrar. Inténtalo de nuevo.");
         }
       } else {
-        setSubmitError("Error de conexión. Verificá tu conexión a internet.");
+        setSubmitError("Error de conexión. Verifica tu conexión a internet.");
       }
     } finally {
       setIsSubmitting(false);

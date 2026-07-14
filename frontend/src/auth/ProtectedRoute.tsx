@@ -1,4 +1,4 @@
-import { useAuth } from "./useAuth";
+﻿import { useAuth } from "./useAuth";
 import { Outlet, Navigate, Link } from "react-router-dom";
 import type { ReactNode } from "react";
 
@@ -34,7 +34,7 @@ export function ProtectedRoute({ requiredRole, children }: ProtectedRouteProps) 
         <div style={{ padding: "4rem 2rem", textAlign: "center", color: "white", backgroundColor: "#1a1a2e", minHeight: "100vh", fontFamily: "sans-serif" }}>
           <h2 style={{ color: "#e94560", fontSize: "2rem" }}>403 - Acceso denegado</h2>
           <p style={{ color: "#ccc", marginBottom: "2rem" }}>
-            No tenés el rol requerido (<strong>{requiredRole}</strong>) para acceder a esta página.
+            No tienes el rol requerido (<strong>{requiredRole}</strong>) para acceder a esta página.
           </p>
           <p style={{ color: "#999", fontSize: "0.9rem", marginBottom: "2rem" }}>
             Tus roles: {roles.length > 0 ? roles.join(", ") : "ninguno"}

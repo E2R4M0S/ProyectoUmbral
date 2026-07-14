@@ -59,7 +59,7 @@ public class SessionRepository : ISessionRepository
         int pageSize,
         CancellationToken ct)
     {
-        var query = _context.Sessions.AsQueryable();
+        var query = _context.Sessions.Include(s => s.Participants).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {

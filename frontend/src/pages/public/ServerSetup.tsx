@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { setServerHost, getServerHost, clearServerHost } from "../../config/serverConfig";
 
 export function ServerSetup() {
@@ -8,7 +8,7 @@ export function ServerSetup() {
   function handleSave() {
     const value = host.trim();
     if (!value) {
-      setError("Ingresá la IP o dirección del servidor.");
+      setError("Ingresa la IP o dirección del servidor.");
       return;
     }
     setServerHost(value);

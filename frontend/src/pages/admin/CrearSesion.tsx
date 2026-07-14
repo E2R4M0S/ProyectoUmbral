@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type FormEvent } from "react";
+﻿import { useState, useEffect, useRef, type FormEvent } from "react";
 import { createSession, transitionSession, ApiError } from "../../services/sessionsApi";
 import { listMissions, getMissionById } from "../../services/missionsApi";
 import type { MissionListItem } from "../../types/mission";
@@ -316,11 +316,11 @@ export function CrearSesion() {
       setMissions([]);
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 400) setSubmitError("Datos inválidos. Verificá los campos.");
+        if (err.status === 400) setSubmitError("Datos inválidos. Verifica los campos.");
         else if (err.status === 404) setSubmitError("Misión no encontrada.");
-        else setSubmitError("Error al crear la sesión. Intentalo de nuevo.");
+        else setSubmitError("Error al crear la sesión. Inténtalo de nuevo.");
       } else {
-        setSubmitError("Error de conexión. Verificá tu conexión a internet.");
+        setSubmitError("Error de conexión. Verifica tu conexión a internet.");
       }
     } finally {
       setIsSubmitting(false);
@@ -407,7 +407,7 @@ export function CrearSesion() {
                 )}
                 {!searching && searchError && (
                   <li style={{ ...dropdownItemStyle, color: "#e94560" }}>
-                    Error al buscar misiones. Verificá la conexión.
+                    Error al buscar misiones. Verifica la conexión.
                   </li>
                 )}
                 {!searching && !searchError && missionResults.length === 0 && (

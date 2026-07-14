@@ -1,4 +1,4 @@
-import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Outlet, Link, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Registro } from "./pages/public/Registro";
@@ -72,7 +72,7 @@ function Home() {
         Iniciar Sesión
       </button>
       <p style={{ marginTop: "1.5rem", fontSize: "0.875rem", color: "var(--text-muted)" }}>
-        ¿No tenés cuenta?{" "}
+        ¿No tienes cuenta?{" "}
         <Link to="/registro">Registrate</Link>
       </p>
       {isProductionApk && (

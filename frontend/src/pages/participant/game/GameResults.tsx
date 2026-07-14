@@ -10,7 +10,6 @@ export function GameResults() {
 
   const isFinished = state.sessionStatus === "Finished";
 
-  // Restore score and ranking from sessionStorage
   useEffect(() => {
     if (sessionId) {
       const saved = sessionStorage.getItem(`score_${sessionId}`);
@@ -36,7 +35,7 @@ export function GameResults() {
       {isFinished ? (
         <>
           <div className="results-icon">🏆</div>
-          <h2 style={{ color: "#e94560" }}>¡Juego Terminado!</h2>
+          <h2 className="text-accent">¡Juego Terminado!</h2>
           <p>La experiencia ha finalizado.</p>
 
           <RankingBoard ranking={state.ranking} />
@@ -49,7 +48,7 @@ export function GameResults() {
       ) : (
         <>
           <div className="results-icon">⚠️</div>
-          <h2 style={{ color: "#ffc107" }}>Sesión Cancelada</h2>
+          <h2 className="text-warning">Sesión Cancelada</h2>
           <p>La sesión fue cancelada por el host.</p>
         </>
       )}
