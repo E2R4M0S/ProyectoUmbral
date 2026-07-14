@@ -97,6 +97,10 @@ try
     app.MapReleaseClueEndpoint();
     app.MapValidateQrEndpoint();
     app.MapParticipantScoreEndpoints();
+    app.MapCreateSessionTeamEndpoint();
+    app.MapGetSessionTeamsEndpoint();
+    app.MapJoinSessionTeamEndpoint();
+    app.MapRemoveTeamMemberEndpoint();
 
     app.Run();
 }
