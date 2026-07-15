@@ -35,12 +35,14 @@
     }
   ],
   "smtpServer": {
-    "host": "mailhog",
-    "port": "1025",
-    "from": "noreply@umbral.local",
-    "auth": "false",
+    "host": "smtp.gmail.com",
+    "port": "587",
+    "from": "cereijoservicios@gmail.com",
+    "auth": "true",
+    "user": "cereijoservicios@gmail.com",
+    "password": "${GMAIL_APP_PASSWORD}",
     "ssl": "false",
-    "starttls": "false"
+    "starttls": "true"
   },
   "roles": {
     "realm": [

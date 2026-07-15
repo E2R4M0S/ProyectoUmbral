@@ -50,10 +50,24 @@ public class RegisterParticipantCommandHandler : IRequestHandler<RegisterPartici
                 command.Alias,
                 ct);
         }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already registered"))
+        {
+            _logger.LogWarning("Registration failed — email '{Email}' already exists in Keycloak", command.Email);
+            throw new RegistrationException("Email", ex.Message);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to create user in Keycloak for email '{Email}'", command.Email);
             throw;
+        }
+
+        try
+        {
+            await _keycloakAdminService.ExecuteActionsEmailAsync(keycloakUserId, ["VERIFY_EMAIL"], ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send verification email to Keycloak user {KeycloakUserId}", keycloakUserId);
         }
 
         Participant participant;
