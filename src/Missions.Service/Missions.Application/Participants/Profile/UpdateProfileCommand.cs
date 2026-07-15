@@ -3,6 +3,7 @@ using MediatR;
 namespace Missions.Application.Participants.Profile;
 
 public record UpdateProfileCommand(
-    string Name,
+    string FirstName,
+    string LastName,
     string Alias,
     string KeycloakUserId) : IRequest<GetProfileResponse>;

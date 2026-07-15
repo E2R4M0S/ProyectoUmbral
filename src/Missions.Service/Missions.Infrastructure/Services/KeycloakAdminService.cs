@@ -84,6 +84,10 @@ public class KeycloakAdminService : IKeycloakAdminService
             _logger.LogError(
                 "Keycloak create user failed: {StatusCode} {Error}",
                 response.StatusCode, errorBody);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+                throw new InvalidOperationException($"Email '{email}' is already registered in Keycloak.");
+
             response.EnsureSuccessStatusCode();
         }
 
@@ -175,7 +179,7 @@ public class KeycloakAdminService : IKeycloakAdminService
         string name, string email, string password, CancellationToken ct)
     {
         var token = await GetAdminTokenAsync(ct);
-        var userId = await CreateKeycloakOperatorUserAsync(token, name, email, password, ct);
+        var userId = await CreateKeycloakOperatorUserAsync(token, name, email, ct);
         await AssignOperatorRoleAsync(token, userId, ct);
         return new CreateOperatorResult(name, email, userId);
     }

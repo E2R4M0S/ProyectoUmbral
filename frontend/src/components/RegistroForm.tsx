@@ -187,9 +187,11 @@ export function RegistroForm({ onSuccess }: RegistroFormProps) {
             setSubmitError(generalMsg || "Datos inválidos. Revisá los campos.");
           }
         } else {
+          console.error("Registro: status inesperado", err.status, err.body);
           setSubmitError("Error del servidor. Intentalo de nuevo más tarde.");
         }
       } else {
+        console.error("Registro: error no-ApiError", err);
         setSubmitError("Error de conexión. Verifica tu conexión a internet.");
       }
     } finally {
