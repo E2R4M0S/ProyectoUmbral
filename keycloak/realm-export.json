@@ -40,7 +40,7 @@
     "from": "cereijoservicios@gmail.com",
     "auth": "true",
     "user": "cereijoservicios@gmail.com",
-    "password": "${GMAIL_APP_PASSWORD}",
+    "password": "oapbxadwqxqqdqaa",
     "ssl": "false",
     "starttls": "true"
   },
