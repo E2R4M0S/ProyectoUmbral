@@ -2,6 +2,10 @@
 # Los docs de especificación se gestionan aparte del código
 Documentacion/
 docs/
+GUIA_DE_ESTUDIO_UMBRAL.md
+
+# ─── Builds locales de la APK (no se versionan, se generan con gradlew) ──
+*.apk
 
 # ─── .NET ─────────────────────────────────────────────────────
 bin/

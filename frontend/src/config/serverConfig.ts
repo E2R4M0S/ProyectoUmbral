@@ -18,10 +18,21 @@ export function clearServerHost(): void {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+// Two shapes are accepted in the "Configurar servidor" field:
+//   - a bare LAN IP/hostname (ej. "192.168.0.3") -> hits each service's direct
+//     port, only reachable when the phone is on the same network as the PC.
+//   - a full URL (ej. "https://xxxx.trycloudflare.com") -> a single public
+//     origin (Caddy behind a Cloudflare Tunnel) that path-routes to every
+//     service, same as the browser SPA already does via /api, /hub and /auth.
+function isTunnelHost(host: string): boolean {
+  return /^https?:\/\//i.test(host);
+}
+
 export function buildApiBase(): string {
   if (!isProductionApk) return "";
   const host = getServerHost();
-  return host ? `http://${host}:5000` : "";
+  if (!host) return "";
+  return isTunnelHost(host) ? host : `http://${host}:5000`;
 }
 
 export function buildKeycloakBase(): string {
@@ -30,13 +41,15 @@ export function buildKeycloakBase(): string {
     return hostname === "localhost" ? "http://localhost:8080" : `http://${hostname}:8080`;
   }
   const host = getServerHost();
-  return host ? `http://${host}:8080` : "http://localhost:8080";
+  if (!host) return "http://localhost:8080";
+  return isTunnelHost(host) ? `${host}/auth` : `http://${host}:8080`;
 }
 
 export function buildHubUrl(): string {
   if (!isProductionApk) return "/hub/game";
   const host = getServerHost();
-  return host ? `http://${host}:5005/hub/game` : "/hub/game";
+  if (!host) return "/hub/game";
+  return isTunnelHost(host) ? `${host}/hub/game` : `http://${host}:5005/hub/game`;
 }
 
 export function needsServerSetup(): boolean {
