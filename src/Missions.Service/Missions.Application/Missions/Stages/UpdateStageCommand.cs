@@ -7,5 +7,7 @@ public record UpdateStageCommand(
     Guid StageId,
     string Name,
     string Description,
-    int Order
+    int Order,
+    double? Latitude = null,
+    double? Longitude = null
 ) : IRequest<UpdateStageCommandResult>;

@@ -68,9 +68,9 @@ export function DetalleMision() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showStageForm, setShowStageForm] = useState(false);
-  const [stageForm, setStageForm] = useState({ name: "", description: "" });
+  const [stageForm, setStageForm] = useState({ name: "", description: "", latitude: "", longitude: "" });
   const [editingStage, setEditingStage] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", description: "", order: 1 });
+  const [editForm, setEditForm] = useState({ name: "", description: "", order: 1, latitude: "", longitude: "" });
   const [clueForm, setClueForm] = useState<Record<string, string>>({});
   const [showClueForm, setShowClueForm] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
@@ -98,10 +98,12 @@ export function DetalleMision() {
 
   async function handleCreateStage() {
     if (!id || !stageForm.name.trim() || !mission) return;
+    const lat = stageForm.latitude ? parseFloat(stageForm.latitude) : undefined;
+    const lng = stageForm.longitude ? parseFloat(stageForm.longitude) : undefined;
     try {
-      await createStage(id, { ...stageForm, order: nextOrder(mission.stages) });
+      await createStage(id, { name: stageForm.name, description: stageForm.description, order: nextOrder(mission.stages), latitude: lat, longitude: lng });
       setShowStageForm(false);
-      setStageForm({ name: "", description: "" });
+      setStageForm({ name: "", description: "", latitude: "", longitude: "" });
       notify("Etapa creada correctamente");
       load();
     } catch (e) { notify(e instanceof ApiError ? e.body : "Error al crear etapa", "error"); }
@@ -109,8 +111,10 @@ export function DetalleMision() {
 
   async function handleUpdateStage(stageId: string) {
     if (!id) return;
+    const lat = editForm.latitude ? parseFloat(editForm.latitude) : undefined;
+    const lng = editForm.longitude ? parseFloat(editForm.longitude) : undefined;
     try {
-      await updateStage(id, stageId, editForm);
+      await updateStage(id, stageId, { name: editForm.name, description: editForm.description, order: editForm.order, latitude: lat, longitude: lng });
       setEditingStage(null);
       notify("Etapa actualizada correctamente");
       load();
@@ -188,7 +192,7 @@ export function DetalleMision() {
           <div style={css.sectionHeader}>
             <h3 style={css.sectionTitle}>Etapas &nbsp;<span style={{ color: "#666", fontWeight: 400 }}>({mission.stages.length})</span></h3>
             {!showStageForm && (
-              <button style={css.btnAddStage} onClick={() => { setShowStageForm(true); setStageForm({ name: "", description: "" }); }}>
+              <button style={css.btnAddStage} onClick={() => { setShowStageForm(true); setStageForm({ name: "", description: "", latitude: "", longitude: "" }); }}>
                 + Nueva Etapa
               </button>
             )}
@@ -224,6 +228,30 @@ export function DetalleMision() {
                     />
                   </div>
                 </div>
+                <div style={{ ...css.formRow, marginBottom: "0.75rem" }}>
+                  <div>
+                    <label style={css.label}>Latitud (opcional)</label>
+                    <input
+                      style={css.input}
+                      type="number"
+                      step="any"
+                      placeholder="Ej: 10.492"
+                      value={stageForm.latitude}
+                      onChange={e => setStageForm(f => ({ ...f, latitude: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label style={css.label}>Longitud (opcional)</label>
+                    <input
+                      style={css.input}
+                      type="number"
+                      step="any"
+                      placeholder="Ej: -66.902"
+                      value={stageForm.longitude}
+                      onChange={e => setStageForm(f => ({ ...f, longitude: e.target.value }))}
+                    />
+                  </div>
+                </div>
                 <div style={css.formActions}>
                   <button style={css.btnSecondary} onClick={() => setShowStageForm(false)}>Cancelar</button>
                   <button style={{ ...css.btnAddStage, padding: "8px 18px", fontSize: "0.82rem" }} onClick={handleCreateStage}>
@@ -251,12 +279,17 @@ export function DetalleMision() {
                       {stage.name}
                     </div>
                     {stage.description && <p style={css.stageDesc}>{stage.description}</p>}
+                    {stage.latitude != null && stage.longitude != null && (
+                      <p style={{ ...css.stageDesc, color: "#4caf50", fontSize: "0.78rem" }}>
+                        🌍 {stage.latitude}, {stage.longitude}
+                      </p>
+                    )}
                   </div>
                   <div style={css.stageActions}>
                     <button style={css.btnSuccess} onClick={() => handleDownloadQr(stage.id, stage.name)}>⬇ QR</button>
                     <button style={css.btnPrimary} onClick={() => {
                       setEditingStage(stage.id);
-                      setEditForm({ name: stage.name, description: stage.description, order: stage.order });
+                      setEditForm({ name: stage.name, description: stage.description, order: stage.order, latitude: stage.latitude?.toString() ?? "", longitude: stage.longitude?.toString() ?? "" });
                     }}>Editar</button>
                     <button style={css.btnPrimary} onClick={() => setShowClueForm(showClueForm === stage.id ? null : stage.id)}>
                       {showClueForm === stage.id ? "Cerrar" : "+ Pista"}
@@ -277,6 +310,16 @@ export function DetalleMision() {
                     <div>
                       <label style={css.label}>Descripción</label>
                       <input style={css.input} value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div style={{ ...css.formRow, marginBottom: "0.75rem" }}>
+                    <div>
+                      <label style={css.label}>Latitud (opcional)</label>
+                      <input style={css.input} type="number" step="any" value={editForm.latitude} onChange={e => setEditForm(f => ({ ...f, latitude: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label style={css.label}>Longitud (opcional)</label>
+                      <input style={css.input} type="number" step="any" value={editForm.longitude} onChange={e => setEditForm(f => ({ ...f, longitude: e.target.value }))} />
                     </div>
                   </div>
                   <div style={{ marginBottom: "0.75rem", maxWidth: 120 }}>

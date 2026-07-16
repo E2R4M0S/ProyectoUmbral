@@ -77,7 +77,7 @@ public class Mission : IMissionComponent
         _stages.Add(stage);
     }
 
-    public void UpdateStage(Guid stageId, string name, string description, int order)
+    public void UpdateStage(Guid stageId, string name, string description, int order, double? latitude = null, double? longitude = null)
     {
         var stage = _stages.FirstOrDefault(s => s.Id == stageId);
         if (stage is null)
@@ -95,7 +95,7 @@ public class Mission : IMissionComponent
             throw new InvalidOperationException($"Ya existe una etapa con el nombre '{name.Trim()}'");
         }
 
-        stage.Update(name, description, order);
+        stage.Update(name, description, order, latitude, longitude);
     }
 
     public void AddStageClue(Guid stageId, string content, int? penalty, ReleaseType releaseType)

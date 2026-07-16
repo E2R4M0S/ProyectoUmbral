@@ -12,6 +12,8 @@ export interface SessionStage {
   missionStageId?: string;
   qrToken?: string;
   quizId?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface SessionResponse {
@@ -71,6 +73,8 @@ export interface StageInput {
   order: number;
   qrToken: string;
   timeMinutes?: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface CreateSessionRequest {

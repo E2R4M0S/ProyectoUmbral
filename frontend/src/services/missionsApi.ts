@@ -52,7 +52,7 @@ export async function changeMissionStatus(
 
 export async function createStage(
   missionId: string,
-  data: { name: string; description: string; order: number },
+  data: { name: string; description: string; order: number; latitude?: number; longitude?: number },
 ): Promise<void> {
   const response = await fetchWithAuth(`/api/admin/missions/${missionId}/stages`, {
     method: "POST",
@@ -70,7 +70,7 @@ export async function createStage(
 export async function updateStage(
   missionId: string,
   stageId: string,
-  data: { name: string; description: string; order: number },
+  data: { name: string; description: string; order: number; latitude?: number; longitude?: number },
 ): Promise<void> {
   const response = await fetchWithAuth(`/api/admin/missions/${missionId}/stages/${stageId}`, {
     method: "PUT",
