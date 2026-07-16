@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using MediatR;
 
 namespace Sessions.Application.Sessions.Create;
@@ -7,13 +8,13 @@ public record CreateSessionCommand(
     List<StageInput> Stages) : IRequest<CreateSessionCommandResult>;
 
 public record StageInput(
-    Guid MissionId,
-    Guid MissionStageId,
-    string MissionTitle,
-    string StageName,
-    string MissionType,
-    int Order,
-    string QrToken,
-    int TimeMinutes = 0,
-    double? Latitude = null,
-    double? Longitude = null);
+    [property: JsonPropertyName("missionId")] Guid MissionId,
+    [property: JsonPropertyName("missionStageId")] Guid MissionStageId,
+    [property: JsonPropertyName("missionTitle")] string MissionTitle,
+    [property: JsonPropertyName("stageName")] string StageName,
+    [property: JsonPropertyName("missionType")] string MissionType,
+    [property: JsonPropertyName("order")] int Order,
+    [property: JsonPropertyName("qrToken")] string QrToken,
+    [property: JsonPropertyName("timeMinutes")] int TimeMinutes = 0,
+    [property: JsonPropertyName("latitude")] double? Latitude = null,
+    [property: JsonPropertyName("longitude")] double? Longitude = null);
