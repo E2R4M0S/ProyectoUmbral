@@ -100,7 +100,9 @@ describe("QuestionCard", () => {
       expect(screen.getByText("✅ ¡Correcta!")).toBeInTheDocument()
     );
     expect(screen.getByText("+100 pts")).toBeInTheDocument();
-    expect(dispatch).toHaveBeenCalledWith({ type: "SET_SCORE", score: 100 });
+    // The running score badge is synced exclusively from GameView's ranking broadcast,
+    // not dispatched locally here (avoids double-counting when both fire for the same answer).
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: "SET_SCORE" }));
   });
 
   it("shows wrong feedback when answer is incorrect", async () => {
@@ -172,7 +174,7 @@ describe("QuestionCard", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("accumulates score in sessionStorage", async () => {
+  it("does not touch sessionStorage or dispatch score locally (GameView owns the running score)", async () => {
     sessionStorage.setItem("score_sess-1", "50");
     mockFetch.mockResolvedValue({
       ok: true,
@@ -183,6 +185,7 @@ describe("QuestionCard", () => {
     fireEvent.click(screen.getByText("4"));
 
     await waitFor(() => expect(screen.getByText("✅ ¡Correcta!")).toBeInTheDocument());
-    expect(dispatch).toHaveBeenCalledWith({ type: "SET_SCORE", score: 150 });
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: "SET_SCORE" }));
+    expect(sessionStorage.getItem("score_sess-1")).toBe("50");
   });
 });
