@@ -61,6 +61,24 @@ public static class NotificationEndpoints
             return Results.Ok();
         });
 
+        app.MapPost("/internal/notifications/team-answer-submitted", async (
+            [FromBody] TeamAnswerSubmittedNotification notification,
+            IHubContext<GameHub> hubContext) =>
+        {
+            await hubContext.Clients.Group(notification.SessionId.ToString())
+                .SendAsync("TeamAnswerSubmitted", notification, CancellationToken.None);
+            return Results.Ok();
+        });
+
+        app.MapPost("/internal/notifications/team-stage-advanced", async (
+            [FromBody] TeamStageAdvancedNotification notification,
+            IHubContext<GameHub> hubContext) =>
+        {
+            await hubContext.Clients.Group(notification.SessionId.ToString())
+                .SendAsync("TeamStageAdvanced", notification, CancellationToken.None);
+            return Results.Ok();
+        });
+
         app.MapPost("/internal/notifications/question-closed", async (
             [FromBody] QuestionClosedNotification notification,
             IHubContext<GameHub> hubContext) =>
@@ -112,5 +130,7 @@ public record QuestionClosedNotification(Guid SessionId, Guid QuestionId, Guid C
 public record RankingEntryDto(int Position, string TeamName, int Score);
 public record RankingUpdatedNotification(Guid SessionId, List<RankingEntryDto> Ranking);
 public record GateOpenedNotification(Guid SessionId, int NextStageIndex);
+public record TeamStageAdvancedNotification(Guid SessionId, Guid TeamId, int NewStageOrder, int TotalStages);
+public record TeamAnswerSubmittedNotification(Guid SessionId, Guid TeamId, Guid QuestionId, int SelectedIndex, bool IsCorrect, int PointsAwarded);
 public record QuestionResultsPayload(Guid QuizId, Guid QuestionId, List<AnswerResultItemDto> Results);
 public record AnswerResultItemDto(Guid AnswerId, string Text, int Count, double Percentage);

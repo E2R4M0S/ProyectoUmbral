@@ -89,6 +89,11 @@ export interface SessionProgress {
   name: string;
   status: SessionStatus;
   elapsedSeconds: number;
+  totalDurationSeconds: number;
+  // Seconds since the CURRENT mission actually started (server-anchored) — not derived from
+  // summing declared mission durations, so it stays accurate even when a mission finishes
+  // earlier or later than its estimated time.
+  currentMissionElapsedSeconds: number;
   participants: ParticipantProgress[];
   teamId: string | null;
   teamName: string | null;

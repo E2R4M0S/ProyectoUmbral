@@ -39,6 +39,22 @@ public static class QuestionEndpoints
         .WithName("GetAnswerCount")
         .RequireAuthorization("operator_or_admin");
 
+        // Cross-device team sync: let participants check if their team already answered this question
+        app.MapGet("/questions/{questionId:guid}/team-answer/{teamId:guid}", (Guid questionId, Guid teamId) =>
+        {
+            var key = (questionId, teamId);
+            if (AskQuestionCommandHandler.TeamAnswers.TryGetValue(key, out var selectedIndex))
+            {
+                var correctIndex = AskQuestionCommandHandler.CorrectAnswers.GetValueOrDefault(questionId, -1);
+                var isCorrect = correctIndex >= 0 && selectedIndex == correctIndex;
+                var pointsAwarded = AskQuestionCommandHandler.TeamAnswerPoints.GetValueOrDefault(key, 0);
+                return Results.Ok(new { answered = true, selectedIndex, isCorrect, pointsAwarded });
+            }
+            return Results.Ok(new { answered = false, selectedIndex = (int?)null, isCorrect = false, pointsAwarded = 0 });
+        })
+        .WithName("GetTeamAnswer")
+        .AllowAnonymous();
+
         // HU-43 + HU-44: close a question — reveals correct answer to participants and sends breakdown to operator
         app.MapPost("/questions/{questionId:guid}/close", async (
             Guid questionId,

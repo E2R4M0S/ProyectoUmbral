@@ -98,28 +98,46 @@ public class GameNotifier : IGameNotifier
         }
     }
 
-    public async Task NotifyRankingUpdatedAsync(Guid sessionId, IEnumerable<(Guid UserId, string Alias, int Score)> participants, CancellationToken ct = default)
+    public async Task NotifyRankingUpdatedAsync(Guid sessionId, IEnumerable<SessionRankingEntry> entries, CancellationToken ct = default)
     {
         try
         {
-            var entries = participants
-                .OrderByDescending(p => p.Score)
-                .Select(p => new
+            var leaderboardEntries = entries
+                .OrderByDescending(e => e.Score)
+                .Select(e => new
                 {
                     Id = Guid.NewGuid(),
                     QuizId = sessionId,
-                    TeamId = p.UserId,
-                    TeamName = p.Alias,
-                    p.Score,
+                    TeamId = e.TeamId ?? e.UserId ?? Guid.Empty,
+                    TeamName = e.DisplayName,
+                    e.Score,
                     UpdatedAt = DateTime.UtcNow
                 })
                 .ToList();
 
-            await _httpClient.PostAsJsonAsync("/internal/events/LeaderboardUpdated", entries, ct);
+            await _httpClient.PostAsJsonAsync("/internal/events/LeaderboardUpdated", leaderboardEntries, ct);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to send ranking update for {SessionId}", sessionId);
+        }
+    }
+
+    public async Task NotifyTeamStageAdvancedAsync(Guid sessionId, Guid teamId, int newStageOrder, int totalStages, CancellationToken ct = default)
+    {
+        try
+        {
+            await _httpClient.PostAsJsonAsync("/internal/notifications/team-stage-advanced", new
+            {
+                SessionId = sessionId,
+                TeamId = teamId,
+                NewStageOrder = newStageOrder,
+                TotalStages = totalStages
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send team stage advance notification for {SessionId}", sessionId);
         }
     }
 }

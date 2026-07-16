@@ -74,6 +74,11 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(configuration["RealTimeHub:Url"] ?? "http://localhost:5005");
         });
 
+        services.AddHttpClient("sessionsService", client =>
+        {
+            client.BaseAddress = new Uri(configuration["SessionsService:Url"] ?? "http://sessions.service:80");
+        });
+
         return services;
     }
 }

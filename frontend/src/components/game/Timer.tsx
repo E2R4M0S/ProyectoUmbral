@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useGame } from "../../contexts/GameContext";
+import { computeMissionRemaining } from "../../utils/missionTimer";
 
 function formatTime(seconds: number): string {
   const s = Math.max(0, seconds);
@@ -12,10 +13,11 @@ export function Timer() {
   const { state, dispatch } = useGame();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const hasLimit = state.timeLimitSeconds > 0;
-  const remaining = state.timeLimitSeconds - state.elapsedSeconds;
-  const isUrgent = hasLimit && remaining <= 60 && remaining > 0;
-  const isTimeUp = hasLimit && remaining <= 0;
+  const currentStage = state.stages.find(s => s.order === state.participantStageOrder);
+  const remaining = computeMissionRemaining(currentStage?.timeMinutes, state.currentMissionElapsedSeconds);
+  const hasLimit = remaining !== null;
+  const isUrgent = hasLimit && remaining! <= 60 && remaining! > 0;
+  const isTimeUp = hasLimit && remaining! <= 0;
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
@@ -38,7 +40,7 @@ export function Timer() {
         className="timer-display"
         style={isUrgent ? { color: "#e94560" } : isTimeUp ? { color: "#555" } : undefined}
       >
-        {isTimeUp ? "00:00" : formatTime(remaining)}
+        {isTimeUp ? "00:00" : formatTime(remaining!)}
       </div>
       <div style={{ fontSize: 10, color: "#666", textAlign: "center", marginTop: 2 }}>
         {isTimeUp ? "Tiempo agotado" : "restante"}

@@ -22,6 +22,10 @@ public class SessionTeamConfiguration : IEntityTypeConfiguration<SessionTeam>
             .IsRequired()
             .HasDefaultValue(5);
 
+        builder.Property(t => t.Score)
+            .IsRequired()
+            .HasDefaultValue(0);
+
         builder.Property(t => t.CreatedAt).IsRequired();
 
         builder.HasIndex(t => new { t.SessionId, t.Name }).IsUnique();

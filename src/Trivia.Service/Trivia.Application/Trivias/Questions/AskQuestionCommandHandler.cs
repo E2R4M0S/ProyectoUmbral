@@ -10,9 +10,15 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Gui
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<AskQuestionCommandHandler> _logger;
 
-    // Tracks correct answers and answer timings per question
+    // Tracks correct answers, answer timings, and team submissions per question
     public static readonly ConcurrentDictionary<Guid, int> CorrectAnswers = new();
     public static readonly ConcurrentDictionary<Guid, List<DateTime>> CorrectAnswerTimestamps = new();
+    // (questionId, teamId) → selectedIndex; used for idempotency and cross-device team sync
+    public static readonly ConcurrentDictionary<(Guid, Guid), int> TeamAnswers = new();
+    // (questionId, teamId) → points awarded; used by the polling endpoint for team sync feedback
+    public static readonly ConcurrentDictionary<(Guid, Guid), int> TeamAnswerPoints = new();
+    // (questionId, userId) → selectedIndex; one entry per participant for per-user counting
+    public static readonly ConcurrentDictionary<(Guid, Guid), int> UserAnswers = new();
 
     public AskQuestionCommandHandler(IHttpClientFactory httpClientFactory, ILogger<AskQuestionCommandHandler> logger)
     {

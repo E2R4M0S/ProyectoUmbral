@@ -6,12 +6,13 @@ import { Capacitor } from "@capacitor/core";
 interface QrScannerProps {
   active: boolean;
   onScan: (text: string) => void;
+  onClose?: () => void;
 }
 
 const WEB_READER_ID = "qr-reader";
 const FILE_READER_ID = "qr-file-reader";
 
-export function QrScanner({ active, onScan }: QrScannerProps) {
+export function QrScanner({ active, onScan, onClose }: QrScannerProps) {
   const isNative = Capacitor.isNativePlatform();
 
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -107,12 +108,20 @@ export function QrScanner({ active, onScan }: QrScannerProps) {
   }
 
   // ── Native overlay ────────────────────────────────────────────────────────
+  // Everything outside .scanner-native-overlay is force-hidden (visibility:hidden) while the
+  // native camera is active, so a "close" button anywhere else in the page is invisible and
+  // unreachable — it has to live inside this overlay to actually be tappable.
   if (isNative) {
     if (cameraError) return <ErrorBox message={cameraError} />;
     return (
       <div className="scanner-native-overlay">
         <div className="scanner-native-frame"><span /></div>
         <p className="scanner-native-label">Apuntá la cámara al código QR</p>
+        {onClose && (
+          <button type="button" className="scanner-native-close" onClick={onClose}>
+            ✕ Cerrar cámara
+          </button>
+        )}
       </div>
     );
   }

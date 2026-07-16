@@ -96,6 +96,25 @@ export function useSignalR(callbacks: UseSignalRCallbacks): void {
       }
     });
 
+    hub.on("TeamAnswerSubmitted", (payload: unknown) => {
+      const p = payload as { sessionId: string; teamId: string; questionId: string; selectedIndex: number; isCorrect: boolean; pointsAwarded: number };
+      if (p.sessionId === sessionId) {
+        try {
+          window.dispatchEvent(new CustomEvent("TeamAnswerSubmitted", { detail: p }));
+        } catch { }
+      }
+    });
+
+    hub.on("TeamStageAdvanced", (payload: unknown) => {
+      const p = payload as { sessionId: string; teamId: string; newStageOrder: number; totalStages: number };
+      if (p.sessionId === sessionId) {
+        try {
+          const ev = new CustomEvent("TeamStageAdvanced", { detail: p });
+          window.dispatchEvent(ev);
+        } catch { }
+      }
+    });
+
     hub.on("QuestionResultsUpdated", (payload: unknown) => {
       const p = payload as { quizId: string; questionId: string; results: AnswerResult[] };
       if (p.quizId === sessionId) {

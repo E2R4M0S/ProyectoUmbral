@@ -28,6 +28,14 @@ public class Session
     public DateTime? EndedAt { get; internal set; }
     public DateTime CreatedAt { get; private set; }
 
+    // When the CURRENT mission actually started (real wall-clock time), not a running sum of
+    // each prior mission's declared/estimated duration. Missions routinely finish earlier or
+    // later than their declared TimeMinutes (Trivia rounds are operator-paced; Treasure missions
+    // now auto-advance once every team finishes) — anchoring to actual start time is what lets
+    // the next mission's countdown begin at its full duration instead of appearing "stuck" for
+    // however long the previous mission's real time diverged from its estimate.
+    public DateTime? CurrentMissionStartedAt { get; internal set; }
+
     private readonly List<SessionParticipant> _participants = new();
     public IReadOnlyList<SessionParticipant> Participants => _participants.AsReadOnly();
 
@@ -115,6 +123,11 @@ public class Session
             throw new InvalidOperationException(
                 "Cannot advance stage: already on the last stage");
 
+        var previousMissionId = GetCurrentStage()?.MissionId;
         CurrentStageOrder++;
+        var newMissionId = GetCurrentStage()?.MissionId;
+
+        if (newMissionId != previousMissionId)
+            CurrentMissionStartedAt = DateTime.UtcNow;
     }
 }

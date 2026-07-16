@@ -86,7 +86,15 @@ public class KeycloakAdminService : IKeycloakAdminService
                 response.StatusCode, errorBody);
 
             if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
-                throw new InvalidOperationException($"Email '{email}' is already registered in Keycloak.");
+            {
+                var field = errorBody.Contains("username", StringComparison.OrdinalIgnoreCase)
+                    ? "username"
+                    : "email";
+                var msg = field == "username"
+                    ? $"ya está en uso."
+                    : $"ya está registrado.";
+                throw new Missions.Application.Common.Exceptions.RegistrationException(field, msg);
+            }
 
             response.EnsureSuccessStatusCode();
         }

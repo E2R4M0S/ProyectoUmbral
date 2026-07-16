@@ -5,6 +5,7 @@ import { getSessionProgress, getSessionById, transitionSession, advanceStage, Ap
 import { getMissionById } from "../../services/missionsApi";
 import { fetchWithAuth } from "../../services/api";
 import { getSessionTeams, createSessionTeam, removeTeamMember } from "../../services/sessionTeamsApi";
+import { computeMissionRemaining } from "../../utils/missionTimer";
 import { useSignalR } from "../../hooks/useSignalR";
 import type { AnswerResult } from "../../hooks/useSignalR";
 import type { SessionProgress, ParticipantProgress, SessionStatus, SessionStage } from "../../types/session";
@@ -96,18 +97,26 @@ export function PanelSesion() {
   const [currentStageOrder, setCurrentStageOrder] = useState(0);
   const [mission, setMission] = useState<MissionDetail | null>(null);
   const [selectedClueId, setSelectedClueId] = useState<string>("");
+  const [clueMode, setClueMode] = useState<"predefined" | "custom">("predefined");
+  const [customClueText, setCustomClueText] = useState("");
+  const [customCluePenalty, setCustomCluePenalty] = useState("");
   const [releasing, setReleasing] = useState(false);
   const [clueMsg, setClueMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [localSeconds, setLocalSeconds] = useState(0);
+  // Seconds since the CURRENT mission started (server-anchored) — drives the mission countdown,
+  // separate from localSeconds (whole-session elapsed, used only for the total-duration auto-finish).
+  const [localMissionSeconds, setLocalMissionSeconds] = useState(0);
   const lastServerRef = useRef(0);
+  const autoFinishedRef = useRef(false);
   const [selectedQuizId, setSelectedQuizId] = useState<string>("");
   const [advancing, setAdvancing] = useState(false);
   const [advanceMsg, setAdvanceMsg] = useState("");
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [questionResults, setQuestionResults] = useState<AnswerResult[]>([]);
   const [finalRanking, setFinalRanking] = useState<RankingEntry[]>([]);
+  const [questionTimer, setQuestionTimer] = useState<number | null>(null);
   const [teams, setTeams] = useState<SessionTeam[]>([]);
 
   async function load() {
@@ -117,6 +126,7 @@ export function PanelSesion() {
       setProgress(p);
       lastServerRef.current = p.elapsedSeconds;
       setLocalSeconds(p.elapsedSeconds);
+      setLocalMissionSeconds(p.currentMissionElapsedSeconds);
       setError("");
     } catch {
       setError("No se pudo cargar la sesión.");
@@ -131,8 +141,9 @@ export function PanelSesion() {
     try {
       const m = await getMissionById(current.missionId);
       setMission(m);
-      const firstClue = m.stages?.flatMap(st => st.clues ?? [])?.[0];
-      if (firstClue) setSelectedClueId(firstClue.id);
+      // Pistas de ESTA etapa únicamente — no de todas las etapas de la misión.
+      const firstClue = m.stages?.find(st => st.id === current.missionStageId)?.clues?.[0];
+      setSelectedClueId(firstClue?.id ?? "");
     } catch { /* best-effort */ }
   }
 
@@ -161,7 +172,10 @@ export function PanelSesion() {
 
   useEffect(() => {
     if (!progress || progress.status !== "Active") return;
-    const tick = setInterval(() => setLocalSeconds(prev => prev + 1), 1000);
+    const tick = setInterval(() => {
+      setLocalSeconds(prev => prev + 1);
+      setLocalMissionSeconds(prev => prev + 1);
+    }, 1000);
     return () => clearInterval(tick);
   }, [progress?.status]);
 
@@ -170,56 +184,135 @@ export function PanelSesion() {
   }, [progress?.elapsedSeconds]);
 
   useEffect(() => {
+    if (progress) setLocalMissionSeconds(progress.currentMissionElapsedSeconds);
+  }, [progress?.currentMissionElapsedSeconds]);
+
+  // Auto-finish when remaining time reaches 0
+  useEffect(() => {
+    if (!id || progress?.status !== "Active" || autoFinishedRef.current) return;
+    const totalSeconds = progress?.totalDurationSeconds ?? 0;
+    if (totalSeconds <= 0 || localSeconds < totalSeconds) return;
+    autoFinishedRef.current = true;
+    transitionSession(id, "Finished").then(() => load()).catch(() => {});
+  }, [localSeconds, progress?.status, progress?.totalDurationSeconds, id]);
+
+  useEffect(() => {
+    const stage = stages.find(st => st.order === currentStageOrder + 1);
+    if (!stage || stage.missionType !== "Trivia") {
+      setQuestionTimer(null);
+      return;
+    }
+    const rawId = stage.missionStageId ?? stage.quizId ?? "";
+    const isEmpty = !rawId || rawId === "00000000-0000-0000-0000-000000000000";
+    if (!isEmpty) setSelectedQuizId(rawId);
+  }, [currentStageOrder, stages]);
+
+  useEffect(() => {
     if (progress?.status !== "Finished" || !id) return;
     // Use real-time ranking if already populated, else load from session detail
     if (ranking.length > 0) {
       setFinalRanking(ranking);
       return;
     }
-    getSessionById(id)
-      .then(detail => {
-        const sorted = [...(detail.participants ?? [])].sort((a, b) => b.score - a.score);
-        setFinalRanking(sorted.map((p, i) => ({
+    fetchWithAuth(`/api/sessions/${id}/ranking`)
+      .then(r => r.json())
+      .then((data: { type: string; displayName: string; score: number; teamId?: string; userId?: string }[]) => {
+        setFinalRanking(data.map((e, i) => ({
           position: i + 1,
-          teamName: p.name || p.userId,
-          score: p.score,
-          userId: p.userId,
+          teamName: e.displayName,
+          score: e.score,
+          userId: e.userId,
         })));
       })
       .catch(() => {});
   }, [progress?.status, id]);
 
+  // Stage can now auto-advance server-side (Treasure QR scans, trivia round closing) without
+  // this operator ever clicking anything — re-pull stages/currentStageOrder when that happens
+  // so the dashboard (and its per-mission timer) follows real progress instead of lagging.
+  const refreshStageFromServer = useCallback(async () => {
+    if (!id) return;
+    try {
+      const detail = await getSessionById(id);
+      const newOrder = detail.currentStageOrder ?? 0;
+      setStages(detail.stages ?? []);
+      setCurrentStageOrder(newOrder);
+      await loadMissionForStage(detail.stages ?? [], newOrder);
+    } catch { /* ignore */ }
+  }, [id]);
+
   useSignalR({
     sessionId: id ?? "",
     onStatusChanged: () => { load(); },
-    onProgressUpdated: () => {},
+    onProgressUpdated: (data) => {
+      const p = data as { stageAdvanced?: boolean };
+      if (p?.stageAdvanced) { refreshStageFromServer(); load(); }
+    },
     onClueReleased: () => {},
     onConnectionStateChange: () => {},
     onRankingUpdated: (incoming) => { setRanking(incoming); setFinalRanking(incoming); },
     onQuestionResultsUpdated: (_, results) => { setQuestionResults(results); },
   });
 
-  const allClues: Clue[] = mission?.stages?.flatMap(st => st.clues ?? []) ?? [];
-  const selectedClue = allClues.find(c => c.id === selectedClueId);
+  // A team created but never joined by anyone can't ever answer a trivia question — counting it
+  // as an expected responder means "esperando respuestas" never reaches 100% and the round never
+  // auto-closes. Only non-empty teams, plus solo participants who aren't in any team, count.
+  const nonEmptyTeams = teams.filter(t => t.memberCount > 0);
+  const teamMemberIds = new Set(teams.flatMap(t => t.members.map(m => m.userId)));
+  const soloParticipantCount = Math.max(0, (progress?.participants?.length || 0) - teamMemberIds.size);
+  const expectedResponders = nonEmptyTeams.length > 0
+    ? nonEmptyTeams.length + soloParticipantCount
+    : (progress?.participants?.length || 0);
+
   const currentStage = stages.find(st => st.order === currentStageOrder + 1);
+  // Solo las pistas de la etapa actual — nunca las de otras etapas de la misma misión.
+  const currentMissionStage = mission?.stages?.find(st => st.id === currentStage?.missionStageId);
+  const stageClues: Clue[] = currentMissionStage?.clues ?? [];
+  const selectedClue = stageClues.find(c => c.id === selectedClueId);
   const isLastStage = stages.length === 0 || currentStageOrder >= stages.length - 1;
   const canAdvance = progress?.status === "Active" && !isLastStage;
   const isTreasure = currentStage?.missionType === "Treasure";
   const isTerminal = progress?.status === "Finished" || progress?.status === "Cancelled";
+  const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
+  const isQuizPreset = currentStage?.missionType === "Trivia" &&
+    Boolean(currentStage?.missionStageId) &&
+    currentStage?.missionStageId !== EMPTY_GUID;
+
+  // Same algorithm the participant's Timer uses (computeMissionRemaining), fed the same
+  // server-anchored mission-elapsed seconds, so operator and participants stay in sync.
+  const treasureRemaining: number | null = isTreasure
+    ? computeMissionRemaining(currentStage?.timeMinutes, localMissionSeconds)
+    : null;
+
+  // Once a mission's time budget is spent, keep advancing stage-by-stage (treasureRemaining
+  // stays 0 for every remaining stage of that mission) until reaching the next mission.
+  const treasureAdvancingRef = useRef(false);
+  useEffect(() => {
+    if (treasureRemaining !== 0 || !currentStage?.missionId || progress?.status !== "Active") return;
+    if (isLastStage || advancing || treasureAdvancingRef.current) return;
+    treasureAdvancingRef.current = true;
+    handleAdvanceStage().finally(() => { treasureAdvancingRef.current = false; });
+  }, [treasureRemaining, currentStage?.missionId, progress?.status, isLastStage, advancing]);
+
 
   const handleReleaseClue = async () => {
-    if (!selectedClueId) return;
+    const isCustom = clueMode === "custom";
+    if (isCustom ? !customClueText.trim() : !selectedClueId) return;
     setReleasing(true);
     setClueMsg("");
     try {
+      const body = isCustom
+        ? { content: customClueText.trim(), penalty: customCluePenalty ? Number(customCluePenalty) : null, teamId: null }
+        : { clueId: selectedClueId, teamId: null };
       const resp = await fetchWithAuth(`/api/sessions/${id}/clues/release`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clueId: selectedClueId, teamId: null }),
+        body: JSON.stringify(body),
       });
       if (!resp.ok) throw new Error();
       const result = await resp.json();
       setClueMsg(result.hasContent ? "Pista enviada correctamente." : "Pista enviada (sin contenido definido).");
+      if (isCustom) { setCustomClueText(""); setCustomCluePenalty(""); }
     } catch {
       setClueMsg("Error al liberar la pista.");
     } finally {
@@ -291,11 +384,28 @@ export function PanelSesion() {
         </div>
       </div>
 
-      {/* Timer */}
-      <div style={css.timerBox}>
-        <div style={css.timerValue}>{formatTime(localSeconds)}</div>
-        <div style={css.timerLabel}>tiempo transcurrido</div>
-      </div>
+      {/* Timer — treasure mission countdown or trivia question countdown, never both */}
+      {(() => {
+        if (isTreasure && treasureRemaining !== null && progress?.status === "Active") {
+          const color = treasureRemaining <= 60 ? "#e94560" : treasureRemaining <= 300 ? "#fbbf24" : "#34d399";
+          return (
+            <div style={css.timerBox}>
+              <div style={{ ...css.timerValue, color }}>{formatTime(treasureRemaining)}</div>
+              <div style={css.timerLabel}>tiempo restante de misión</div>
+            </div>
+          );
+        }
+        if (!isTreasure && questionTimer !== null) {
+          const color = questionTimer <= 5 ? "#e94560" : questionTimer <= 10 ? "#fbbf24" : "#34d399";
+          return (
+            <div style={css.timerBox}>
+              <div style={{ ...css.timerValue, color }}>{formatTime(questionTimer)}</div>
+              <div style={css.timerLabel}>tiempo de pregunta</div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Transition buttons */}
       {!isTerminal && getTransitions(progress.status as SessionStatus).length > 0 && (
@@ -346,6 +456,7 @@ export function PanelSesion() {
               </div>
             )}
           </div>
+
         </>
       )}
 
@@ -389,36 +500,80 @@ export function PanelSesion() {
         </>
       )}
 
-      {/* Clues — only for Treasure */}
+      {/* Clues — only for Treasure, and only for the current stage */}
       {isTreasure && !isTerminal && (
         <>
-          <div style={css.sectionTitle}>Pistas disponibles</div>
-          {allClues.length === 0 ? (
-            <p style={{ color: "#555", fontSize: "0.875rem" }}>Esta misión no tiene pistas definidas.</p>
-          ) : (
-            <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "1rem" }}>
-              <select value={selectedClueId} onChange={e => setSelectedClueId(e.target.value)} style={css.select}>
-                {allClues.map(clue => (
-                  <option key={clue.id} value={clue.id}>
-                    {clue.content?.substring(0, 80)}{(clue.content?.length ?? 0) > 80 ? "..." : ""}
-                    {clue.penalty != null ? ` (−${clue.penalty} pts)` : ""}
-                  </option>
-                ))}
-              </select>
-              {selectedClue && (
-                <div style={{ padding: "0.75rem", backgroundColor: "#0d1b35", borderRadius: 6, marginBottom: "0.75rem", fontSize: "0.875rem", color: "#ccc", lineHeight: 1.5 }}>
-                  {selectedClue.content}
-                  {selectedClue.penalty != null && (
-                    <span style={{ color: "#e94560", marginLeft: 8, fontSize: "0.78rem" }}>−{selectedClue.penalty} pts</span>
-                  )}
-                </div>
-              )}
-              <button onClick={handleReleaseClue} disabled={releasing || !selectedClueId} style={releasing ? css.btnDisabled : css.btnPrimary}>
-                {releasing ? "Enviando..." : "Liberar Pista"}
+          <div style={css.sectionTitle}>Pistas de esta etapa</div>
+          <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "1rem" }}>
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+              <button
+                onClick={() => setClueMode("predefined")}
+                style={clueMode === "predefined" ? css.btnBlue : css.btnGhost}
+              >
+                Predefinidas{stageClues.length > 0 ? ` (${stageClues.length})` : ""}
               </button>
-              {clueMsg && <div style={clueMsg.includes("Error") ? css.msgError : css.msgSuccess}>{clueMsg}</div>}
+              <button
+                onClick={() => setClueMode("custom")}
+                style={clueMode === "custom" ? css.btnBlue : css.btnGhost}
+              >
+                ✏️ Crear en vivo
+              </button>
             </div>
-          )}
+
+            {clueMode === "predefined" ? (
+              stageClues.length === 0 ? (
+                <p style={{ color: "#555", fontSize: "0.875rem", marginBottom: "0.75rem" }}>
+                  Esta etapa no tiene pistas predefinidas — usá "Crear en vivo" para mandar una ahora.
+                </p>
+              ) : (
+                <>
+                  <select value={selectedClueId} onChange={e => setSelectedClueId(e.target.value)} style={css.select}>
+                    {stageClues.map(clue => (
+                      <option key={clue.id} value={clue.id}>
+                        {clue.content?.substring(0, 80)}{(clue.content?.length ?? 0) > 80 ? "..." : ""}
+                        {clue.penalty != null ? ` (−${clue.penalty} pts)` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedClue && (
+                    <div style={{ padding: "0.75rem", backgroundColor: "#0d1b35", borderRadius: 6, marginBottom: "0.75rem", fontSize: "0.875rem", color: "#ccc", lineHeight: 1.5 }}>
+                      {selectedClue.content}
+                      {selectedClue.penalty != null && (
+                        <span style={{ color: "#e94560", marginLeft: 8, fontSize: "0.78rem" }}>−{selectedClue.penalty} pts</span>
+                      )}
+                    </div>
+                  )}
+                </>
+              )
+            ) : (
+              <>
+                <textarea
+                  value={customClueText}
+                  onChange={e => setCustomClueText(e.target.value)}
+                  placeholder="Escribí la pista para enviar ahora mismo..."
+                  rows={3}
+                  style={{ ...css.select, resize: "vertical" as const, fontFamily: "inherit" }}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  value={customCluePenalty}
+                  onChange={e => setCustomCluePenalty(e.target.value)}
+                  placeholder="Penalización en puntos (opcional)"
+                  style={css.select}
+                />
+              </>
+            )}
+
+            <button
+              onClick={handleReleaseClue}
+              disabled={releasing || (clueMode === "predefined" ? !selectedClueId : !customClueText.trim())}
+              style={releasing ? css.btnDisabled : css.btnPrimary}
+            >
+              {releasing ? "Enviando..." : "🔔 Liberar Pista"}
+            </button>
+            {clueMsg && <div style={clueMsg.includes("Error") ? css.msgError : css.msgSuccess}>{clueMsg}</div>}
+          </div>
         </>
       )}
 
@@ -479,11 +634,11 @@ export function PanelSesion() {
       {!isTreasure && !isTerminal && progress.status === "Active" && (
         <>
           <div style={css.sectionTitle}>Quiz de Trivia</div>
-          <QuizSelector selectedQuizId={selectedQuizId} onSelect={setSelectedQuizId} />
+          {!isQuizPreset && <QuizSelector selectedQuizId={selectedQuizId} onSelect={setSelectedQuizId} />}
           {selectedQuizId && (
             <>
               <div style={{ ...css.sectionTitle, marginTop: "1.25rem" }}>Enviar Preguntas</div>
-              <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} totalParticipants={progress.participants?.length || 0} questionResults={questionResults} onClearResults={() => setQuestionResults([])} />
+              <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} totalParticipants={expectedResponders} questionResults={questionResults} onClearResults={() => setQuestionResults([])} onTimerUpdate={(s) => setQuestionTimer(s)} onQuizComplete={() => { if (!isLastStage) handleAdvanceStage(); }} />
             </>
           )}
           {ranking.length > 0 && (
@@ -539,29 +694,52 @@ function QuizSelector({ selectedQuizId, onSelect }: { selectedQuizId: string; on
   );
 }
 
-function QuizQuestionSender({ sessionId, quizId, totalParticipants, questionResults, onClearResults }: { sessionId: string; quizId: string; totalParticipants: number; questionResults: AnswerResult[]; onClearResults: () => void }) {
+function QuizQuestionSender({ sessionId, quizId, totalParticipants, questionResults, onClearResults, onTimerUpdate, onQuizComplete }: { sessionId: string; quizId: string; totalParticipants: number; questionResults: AnswerResult[]; onClearResults: () => void; onTimerUpdate?: (seconds: number | null) => void; onQuizComplete?: () => void }) {
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [questions, setQuestions] = useState<{ id: string; text: string; answers: { id: string; text: string; isCorrect: boolean }[] }[]>([]);
+  const [questions, setQuestions] = useState<{ id: string; text: string; timeLimitSeconds: number; answers: { id: string; text: string; isCorrect: boolean }[] }[]>([]);
   const [sending, setSending] = useState(false);
-  const [closing, setClosing] = useState(false);
   const [questionClosed, setQuestionClosed] = useState(false);
   const [msg, setMsg] = useState("");
   const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
   const [answerCount, setAnswerCount] = useState(0);
-  const [cooldown, setCooldown] = useState(0);
-  const prevAllAnswered = useRef(false);
+  const [autoSeconds, setAutoSeconds] = useState<number | null>(null);
+  const [phase, setPhase] = useState<"idle" | "active" | "results" | "done">("idle");
+
+  // Refs to read current values inside timer callbacks without stale closures
+  const currentQuestionIdRef = useRef<string | null>(null);
+  const questionClosedRef = useRef(false);
+  const currentIdxRef = useRef(0);
+  const questionsRef = useRef(questions);
+  const doSendQuestionRef = useRef<((idx: number) => Promise<void>) | null>(null);
+  const onTimerUpdateRef = useRef(onTimerUpdate);
+  const onQuizCompleteRef = useRef(onQuizComplete);
+  useEffect(() => { currentQuestionIdRef.current = currentQuestionId; }, [currentQuestionId]);
+  useEffect(() => { questionClosedRef.current = questionClosed; }, [questionClosed]);
+  useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
+  useEffect(() => { questionsRef.current = questions; }, [questions]);
+  useEffect(() => { onTimerUpdateRef.current = onTimerUpdate; }, [onTimerUpdate]);
+  useEffect(() => { onQuizCompleteRef.current = onQuizComplete; }, [onQuizComplete]);
+
+  // Notify parent when the last question has been closed, so it can move the
+  // session on to the next mission (mirrors the Treasure mission time-up auto-advance).
+  useEffect(() => {
+    if (phase === "done") onQuizCompleteRef.current?.();
+  }, [phase]);
 
   useEffect(() => {
     if (!quizId) return;
-    setCurrentIdx(0); setCurrentQuestionId(null); setAnswerCount(0); setMsg(""); setCooldown(0);
-    prevAllAnswered.current = false;
+    setCurrentIdx(0); currentIdxRef.current = 0;
+    setCurrentQuestionId(null); currentQuestionIdRef.current = null;
+    setAnswerCount(0); setMsg(""); setPhase("idle");
+    setQuestionClosed(false); questionClosedRef.current = false;
     fetchWithAuth(`/api/quizzes/${quizId}`).then(r => r.json())
       .then(data => setQuestions(data.questions || []))
       .catch(() => setMsg("Error al cargar preguntas"));
   }, [quizId]);
 
+  // Poll answer count while question is active
   useEffect(() => {
-    if (!currentQuestionId) return;
+    if (!currentQuestionId || questionClosed) return;
     const interval = setInterval(async () => {
       try {
         const resp = await fetchWithAuth(`/api/trivia/questions/${currentQuestionId}/answer-count`);
@@ -569,32 +747,41 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants, questionResu
       } catch { }
     }, 2000);
     return () => clearInterval(interval);
-  }, [currentQuestionId]);
+  }, [currentQuestionId, questionClosed]);
 
-  const allAnswered = totalParticipants > 0 && answerCount >= totalParticipants;
-
-  // Start 5-second review cooldown when all participants finish answering
-  useEffect(() => {
-    if (allAnswered && !prevAllAnswered.current) {
-      setCooldown(5);
+  const doCloseQuestion = useCallback(async (qId: string) => {
+    if (questionClosedRef.current) return;
+    questionClosedRef.current = true;
+    try {
+      await fetchWithAuth(`/api/trivia/questions/${qId}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+      setQuestionClosed(true);
+      setPhase("results");
+    } catch {
+      questionClosedRef.current = false;
+      setMsg("Error al cerrar la pregunta");
     }
-    prevAllAnswered.current = allAnswered;
-  }, [allAnswered]);
+  }, [sessionId]);
 
+  // Auto-close when all participants have answered
   useEffect(() => {
-    if (cooldown <= 0) return;
-    const t = setTimeout(() => setCooldown(c => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [cooldown]);
+    if (!currentQuestionId || questionClosed || totalParticipants <= 0 || answerCount < totalParticipants) return;
+    doCloseQuestion(currentQuestionId);
+  }, [answerCount, totalParticipants, currentQuestionId, questionClosed, doCloseQuestion]);
 
-  const canGoNext = allAnswered && cooldown === 0;
-
-  const sendQuestion = async () => {
-    if (!questions.length) return;
-    const q = questions[currentIdx];
-    setSending(true); setCurrentQuestionId(null); setAnswerCount(0); setMsg(""); setCooldown(0);
-    setQuestionClosed(false); onClearResults();
-    prevAllAnswered.current = false;
+  const doSendQuestion = useCallback(async (idx: number) => {
+    const qs = questionsRef.current;
+    if (!qs.length || idx >= qs.length) return;
+    const q = qs[idx];
+    setSending(true);
+    setCurrentQuestionId(null); currentQuestionIdRef.current = null;
+    setAnswerCount(0); setMsg(""); setAutoSeconds(null);
+    setQuestionClosed(false); questionClosedRef.current = false;
+    setPhase("active");
+    onClearResults();
     try {
       const resp = await fetchWithAuth("/api/trivia/questions/ask", {
         method: "POST",
@@ -602,57 +789,86 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants, questionResu
         body: JSON.stringify({
           sessionId, questionText: q.text,
           options: q.answers.map(a => a.text),
-          timeLimitSeconds: 30,
+          timeLimitSeconds: q.timeLimitSeconds || 30,
           correctAnswerIndex: q.answers.findIndex(a => a.isCorrect),
         }),
       });
       if (!resp.ok) throw new Error(await resp.text());
       const data = await resp.json();
       setCurrentQuestionId(data.questionId);
-      setMsg(`Pregunta ${currentIdx + 1}/${questions.length} enviada`);
+      currentQuestionIdRef.current = data.questionId;
     } catch (ex: unknown) {
       setMsg("Error: " + ((ex as Error)?.message || "desconocido"));
+      setPhase("idle");
     } finally {
       setSending(false);
     }
-  };
+  }, [sessionId, onClearResults]);
+  useEffect(() => { doSendQuestionRef.current = doSendQuestion; }, [doSendQuestion]);
 
-  const closeQuestion = async () => {
-    if (!currentQuestionId) return;
-    setClosing(true);
-    try {
-      await fetchWithAuth(`/api/trivia/questions/${currentQuestionId}/close`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId }),
-      });
-      setQuestionClosed(true);
-    } catch {
-      setMsg("Error al cerrar la pregunta");
-    } finally {
-      setClosing(false);
-    }
-  };
-
-  const goNext = () => {
-    if (currentIdx < questions.length - 1) {
-      setCurrentIdx(i => i + 1); setCurrentQuestionId(null); setAnswerCount(0); setMsg(""); setCooldown(0);
-      setQuestionClosed(false); onClearResults();
-      prevAllAnswered.current = false;
+  // Notify parent of question timer state
+  useEffect(() => {
+    if (!currentQuestionId || questionClosed) {
+      onTimerUpdateRef.current?.(null);
     } else {
-      setMsg("¡Todas las preguntas enviadas!");
+      onTimerUpdateRef.current?.(autoSeconds);
     }
-  };
+  }, [autoSeconds, currentQuestionId, questionClosed]);
+
+  // Auto-close countdown when a question is active
+  useEffect(() => {
+    if (!currentQuestionId || questionClosed) return;
+    const q = questionsRef.current[currentIdxRef.current];
+    const LIMIT = q?.timeLimitSeconds || 30;
+    let timeLeft = LIMIT;
+    setAutoSeconds(timeLeft);
+    const timer = setInterval(() => {
+      timeLeft--;
+      setAutoSeconds(timeLeft);
+      if (timeLeft <= 0) {
+        clearInterval(timer);
+        const qId = currentQuestionIdRef.current;
+        if (qId) doCloseQuestion(qId);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [currentQuestionId, doCloseQuestion]);
+
+  // Auto-advance immediately after question closes: send next question with no delay.
+  useEffect(() => {
+    if (phase !== "results") return;
+    const timer = setTimeout(() => {
+      const nextIdx = currentIdxRef.current + 1;
+      const qs = questionsRef.current;
+      if (nextIdx < qs.length) {
+        setCurrentIdx(nextIdx); currentIdxRef.current = nextIdx;
+        doSendQuestionRef.current?.(nextIdx);
+      } else {
+        setPhase("done");
+        setCurrentQuestionId(null); currentQuestionIdRef.current = null;
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [phase]);
 
   if (!questions.length) return <p style={{ color: "#555", fontSize: "0.875rem" }}>Cargando preguntas...</p>;
 
   const q = questions[currentIdx];
+  const allAnswered = totalParticipants > 0 && answerCount >= totalParticipants;
 
   return (
     <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "1rem" }}>
       <div style={{ fontSize: "0.78rem", color: "#888", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: 1 }}>
         Pregunta {currentIdx + 1} de {questions.length}
       </div>
+
+      {/* Auto-close countdown */}
+      {currentQuestionId && !questionClosed && autoSeconds !== null && (
+        <div style={{ fontSize: "0.82rem", color: autoSeconds <= 5 ? "#e94560" : autoSeconds <= 10 ? "#fbbf24" : "#aaa", marginBottom: "0.5rem", fontWeight: autoSeconds <= 10 ? 700 : 400 }}>
+          ⏱ Se cierra en {autoSeconds}s
+        </div>
+      )}
+
       <div style={{ fontWeight: 600, color: "white", marginBottom: "0.5rem", lineHeight: 1.4 }}>{q.text}</div>
       <div style={{ color: "#888", fontSize: "0.82rem", marginBottom: "0.75rem" }}>
         {q.answers.map((a, i) => (
@@ -661,30 +877,30 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants, questionResu
           </span>
         ))}
       </div>
+
       {currentQuestionId && totalParticipants > 0 && (
         <div style={{ color: "#ccc", fontSize: "0.82rem", marginBottom: "0.75rem" }}>
           Respondieron: {answerCount} / {totalParticipants}
-          {allAnswered && cooldown > 0 && <span style={{ color: "#fbbf24", marginLeft: 8 }}>— revisando ({cooldown}s)</span>}
-          {allAnswered && cooldown === 0 && <span style={{ color: "#4caf50", marginLeft: 8 }}>✅ Todos respondieron</span>}
+          {allAnswered && <span style={{ color: "#4caf50", marginLeft: 8 }}>✅ Todos respondieron</span>}
         </div>
       )}
-      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-        {!currentQuestionId ? (
-          <button onClick={sendQuestion} disabled={sending} style={{ padding: "8px 18px", backgroundColor: sending ? "#555" : "#e94560", color: "white", border: "none", borderRadius: 6, cursor: sending ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
-            {sending ? "Enviando..." : "Enviar Pregunta"}
+
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+        {phase === "idle" && (
+          <button onClick={() => doSendQuestion(0)} disabled={sending} style={{ padding: "8px 18px", backgroundColor: sending ? "#555" : "#e94560", color: "white", border: "none", borderRadius: 6, cursor: sending ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+            {sending ? "Enviando..." : "Iniciar Quiz"}
           </button>
-        ) : !questionClosed ? (
-          <button onClick={closeQuestion} disabled={closing || !canGoNext} style={{ padding: "8px 18px", backgroundColor: closing ? "#555" : canGoNext ? "#1a2d4a" : "#2a2a2a", color: closing ? "#888" : canGoNext ? "#3b82f6" : "#555", border: `1px solid ${canGoNext ? "#3b82f6" : "#333"}`, borderRadius: 6, cursor: (closing || !canGoNext) ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
-            {closing ? "Cerrando..." : !allAnswered ? "Esperando respuestas..." : cooldown > 0 ? `Cerrar en ${cooldown}s` : "Cerrar Pregunta"}
+        )}
+        {phase === "active" && currentQuestionId && !questionClosed && (
+          <button onClick={() => doCloseQuestion(currentQuestionId)} style={{ padding: "6px 14px", backgroundColor: "transparent", color: "#3b82f6", border: "1px solid #3b82f6", borderRadius: 6, cursor: "pointer", fontSize: "0.8rem" }}>
+            Cerrar ya
           </button>
-        ) : currentIdx < questions.length - 1 ? (
-          <button onClick={goNext} style={{ padding: "8px 18px", backgroundColor: "#1a4d2e", color: "#4caf50", border: "1px solid #4caf50", borderRadius: 6, cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
-            Siguiente →
-          </button>
-        ) : (
+        )}
+        {phase === "done" && (
           <div style={{ color: "#4caf50", fontSize: "0.82rem", padding: "8px 0" }}>✅ Quiz completado</div>
         )}
       </div>
+
       {questionClosed && questionResults.length > 0 && (
         <div style={{ marginTop: "0.75rem", backgroundColor: "#0d1b35", borderRadius: 6, padding: "0.75rem" }}>
           <div style={{ fontSize: "0.72rem", color: "#888", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: "0.5rem" }}>Distribución de respuestas</div>
@@ -701,7 +917,7 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants, questionResu
           ))}
         </div>
       )}
-      {msg && <div style={{ marginTop: "0.5rem", color: msg.includes("Error") ? "#e94560" : "#4caf50", fontSize: "0.82rem" }}>{msg}</div>}
+      {msg && <div style={{ marginTop: "0.5rem", color: msg.includes("Error") ? "#e94560" : "#888", fontSize: "0.82rem" }}>{msg}</div>}
     </div>
   );
 }

@@ -33,11 +33,37 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
 
     public async Task<AnswerResult> Handle(SubmitAnswerCommand request, CancellationToken ct)
     {
-        // Check if the answer is correct using the stored correct answer index
         var correctIndex = AskQuestionCommandHandler.CorrectAnswers.GetValueOrDefault(request.QuestionId, -1);
         var selectedIndex = int.TryParse(request.AnswerId.ToString()?.Last().ToString(), out var idx) ? idx : -1;
         bool isCorrect = correctIndex >= 0 && selectedIndex == correctIndex;
 
+        // Per-user idempotency: each participant submits exactly once per question.
+        if (request.UserId != Guid.Empty)
+        {
+            var userKey = (request.QuestionId, request.UserId);
+            if (!AskQuestionCommandHandler.UserAnswers.TryAdd(userKey, selectedIndex))
+            {
+                var existingIdx = AskQuestionCommandHandler.UserAnswers[userKey];
+                var wasCorrect = correctIndex >= 0 && existingIdx == correctIndex;
+                _logger.LogInformation("User {UserId} already answered question {QuestionId} — ignoring duplicate", request.UserId, request.QuestionId);
+                return new AnswerResult(wasCorrect, 0, 0);
+            }
+        }
+
+        // Per-team idempotency: only the first submission per team triggers scoring and SignalR notification.
+        var teamKey = (request.QuestionId, request.TeamId);
+        bool firstForTeam = AskQuestionCommandHandler.TeamAnswers.TryAdd(teamKey, selectedIndex);
+
+        if (!firstForTeam && request.UserId == Guid.Empty)
+        {
+            // Legacy path (no userId): team already answered, reject entirely.
+            var existingIndex = AskQuestionCommandHandler.TeamAnswers[teamKey];
+            var wasCorrect = correctIndex >= 0 && existingIndex == correctIndex;
+            _logger.LogInformation("Team {TeamId} already answered question {QuestionId} — ignoring duplicate", request.TeamId, request.QuestionId);
+            return new AnswerResult(wasCorrect, 0, 0);
+        }
+
+        // Save the participant's answer to DB so answerCount increments for every member.
         var answer = new Trivia.Domain.Entities.ParticipantAnswer
         {
             Id = Guid.NewGuid(),
@@ -48,14 +74,45 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
             Timestamp = request.Timestamp,
             IsCorrect = isCorrect
         };
-
-        // Save to DB
         if (_answerRepo is not null)
-        {
             await _answerRepo.AddAsync(answer, ct);
+
+        // Sync submission: not the first for the team — skip scoring and notification.
+        if (!firstForTeam)
+        {
+            var existingPoints = AskQuestionCommandHandler.TeamAnswerPoints.GetValueOrDefault(teamKey, 0);
+            return new AnswerResult(isCorrect, existingPoints, 0);
         }
 
-        // Publish integration event
+        // First submission for this team: calculate score, notify team members, update leaderboard.
+        int earlyDelta = 0;
+        if (isCorrect && request.AskedAt != default)
+        {
+            var elapsed = request.Timestamp - request.AskedAt;
+            earlyDelta = _scoringStrategy.CalculateScore(elapsed, request.TimeLimitSeconds);
+        }
+        AskQuestionCommandHandler.TeamAnswerPoints[teamKey] = earlyDelta;
+
+        // Notify all team members immediately via SignalR.
+        try
+        {
+            var rtClient = _httpClientFactory.CreateClient("realTimeHub");
+            await rtClient.PostAsJsonAsync("/internal/notifications/team-answer-submitted", new
+            {
+                SessionId = request.QuizId,
+                TeamId = request.TeamId,
+                QuestionId = request.QuestionId,
+                SelectedIndex = selectedIndex,
+                IsCorrect = isCorrect,
+                PointsAwarded = earlyDelta,
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to notify team answer submitted for team {TeamId}", request.TeamId);
+        }
+
+        // Publish integration event to RabbitMQ.
         var payload = new
         {
             answer.Id,
@@ -68,7 +125,7 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
         };
         await _publisher.PublishAsync("TriviaAnswerSubmittedEvent", payload, ct);
 
-        // Update leaderboard for all participants (correct = points, incorrect = 0)
+        // Update leaderboard.
         int position = 0;
         int delta = 0;
 
@@ -78,7 +135,6 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
             {
                 if (isCorrect)
                 {
-                    // Track position (kept for AnswerResult metadata)
                     var timestamps = AskQuestionCommandHandler.CorrectAnswerTimestamps
                         .GetOrAdd(request.QuestionId, _ => new List<DateTime>());
 
@@ -89,12 +145,10 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
                         position = timestamps.IndexOf(request.Timestamp) + 1;
                     }
 
-                    // Use time-based scoring strategy
                     var timeElapsed = request.Timestamp - request.AskedAt;
                     delta = _scoringStrategy.CalculateScore(timeElapsed, request.TimeLimitSeconds);
                 }
 
-                // Create or update leaderboard entry (even for 0 points, so everyone appears)
                 var existing = await _leaderboardRepo.GetByTeamAsync(request.QuizId, request.TeamId, ct);
                 if (existing == null)
                 {
@@ -114,7 +168,6 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
                     await _leaderboardRepo.AddOrUpdateAsync(existing, ct);
                 }
 
-                // Publish leaderboard snapshot for all participants to see
                 try
                 {
                     var leaderboard = await _leaderboardRepo.GetByQuizAsync(request.QuizId, ct);
@@ -124,6 +177,20 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Failed to publish immediate LeaderboardUpdated event");
+                }
+
+                if (isCorrect && delta > 0)
+                {
+                    try
+                    {
+                        var sessionsClient = _httpClientFactory.CreateClient("sessionsService");
+                        await sessionsClient.PostAsJsonAsync("/internal/teams/score",
+                            new { TeamId = request.TeamId, Delta = delta }, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to notify Sessions.Service of team score for team {TeamId}", request.TeamId);
+                    }
                 }
             }
 

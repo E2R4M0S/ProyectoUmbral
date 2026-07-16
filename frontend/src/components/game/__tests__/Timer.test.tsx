@@ -3,9 +3,21 @@ import { render, screen } from "@testing-library/react";
 import { GameContext } from "../../../contexts/GameContext";
 import { Timer } from "../Timer";
 import type { GameState } from "../../../types/game";
+import type { SessionStage } from "../../../types/session";
 
 function createMockDispatch() {
   return vi.fn();
+}
+
+function treasureStage(timeMinutes: number, order = 1): SessionStage {
+  return {
+    missionId: "mission-1",
+    missionTitle: "Test Mission",
+    stageName: "Stage 1",
+    missionType: "Treasure",
+    order,
+    timeMinutes,
+  };
 }
 
 function renderTimer(state: Partial<GameState> = {}) {
@@ -19,9 +31,9 @@ function renderTimer(state: Partial<GameState> = {}) {
     participantStageOrder: 1,
     totalStages: 0,
     stages: [],
-    timeLimitSeconds: 0,
     currentQuizId: null,
     elapsedSeconds: 0,
+    currentMissionElapsedSeconds: 0,
     clues: [],
     score: 0,
     connectionState: "Disconnected",
@@ -59,22 +71,22 @@ describe("Timer", () => {
   });
 
   it("renders initial time as 00:00", () => {
-    renderTimer({ elapsedSeconds: 0, timeLimitSeconds: 3600 });
+    renderTimer({ currentMissionElapsedSeconds: 0, stages: [treasureStage(60)], participantStageOrder: 1, currentMissionType: "Treasure" });
     expect(screen.getByText("60:00")).toBeInTheDocument();
   });
 
   it("renders elapsed time correctly", () => {
-    renderTimer({ elapsedSeconds: 65, timeLimitSeconds: 3600 });
+    renderTimer({ currentMissionElapsedSeconds: 65, stages: [treasureStage(60)], participantStageOrder: 1, currentMissionType: "Treasure" });
     expect(screen.getByText("58:55")).toBeInTheDocument();
   });
 
   it("renders large time values", () => {
-    renderTimer({ elapsedSeconds: 3, timeLimitSeconds: 3664 });
-    expect(screen.getByText("61:01")).toBeInTheDocument();
+    renderTimer({ currentMissionElapsedSeconds: 100, stages: [treasureStage(100)], participantStageOrder: 1, currentMissionType: "Treasure" });
+    expect(screen.getByText("98:20")).toBeInTheDocument();
   });
 
   it("dispatches TICK every second", () => {
-    const { dispatch } = renderTimer({ elapsedSeconds: 0 });
+    const { dispatch } = renderTimer({ currentMissionElapsedSeconds: 0 });
 
     vi.advanceTimersByTime(3000);
 

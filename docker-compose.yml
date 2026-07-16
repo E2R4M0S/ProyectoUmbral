@@ -160,6 +160,7 @@ services:
       ASPNETCORE_URLS: http://+:80
       RABBITMQ_HOST: rabbitmq
       ENABLE_INTERNAL_TESTS: "true"
+      RealTimeHub__Url: http://realtimehub:80
     depends_on:
       trivia-db:
         condition: service_healthy

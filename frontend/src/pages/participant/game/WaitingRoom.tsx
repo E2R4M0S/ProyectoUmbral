@@ -7,7 +7,7 @@ import { getSessionTeams, joinSessionTeam } from "../../../services/sessionTeams
 import type { SessionTeam } from "../../../services/sessionTeamsApi";
 
 export function WaitingRoom({ loading = false }: { loading?: boolean }) {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const { sessionId } = useParams<{ sessionId: string }>();
   const auth = useAuth();
 
@@ -35,13 +35,21 @@ export function WaitingRoom({ loading = false }: { loading?: boolean }) {
   }
 
   async function loadTeams() {
-    if (!sessionId || loading) return;
+    if (!sessionId) return;
     try {
       const data = await getSessionTeams(sessionId);
       setTeams(data);
       if (userId) {
         const mine = data.find(t => t.members.some(m => m.userId === userId));
         setMyTeamId(mine?.id ?? null);
+        if (mine) {
+          const teamData = { id: mine.id, name: mine.name, memberIds: mine.members.map(m => m.userId) };
+          // Persist to both storages so QuestionCard can use it even if context is lost
+          try { sessionStorage.setItem(`myTeam_${sessionId}`, JSON.stringify(teamData)); } catch { /* ignore */ }
+          try { localStorage.setItem(`myTeam_${sessionId}`, JSON.stringify(teamData)); } catch { /* ignore */ }
+          dispatch({ type: "MY_IDENTITY_LOADED", userId, team: teamData });
+        }
+        // If not found, don't dispatch — preserve existing state.myTeam without stale-closure risk
       }
     } catch { /* ignore */ }
   }

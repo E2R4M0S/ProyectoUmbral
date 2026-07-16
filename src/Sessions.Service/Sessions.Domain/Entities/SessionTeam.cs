@@ -8,6 +8,7 @@ public class SessionTeam
     public Guid SessionId { get; private set; }
     public string Name { get; private set; } = null!;
     public int MaxMembers { get; private set; }
+    public int Score { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public IReadOnlyList<SessionTeamMember> Members => _members.AsReadOnly();
 
@@ -39,6 +40,12 @@ public class SessionTeam
 
         _members.Add(SessionTeamMember.Create(Id, userId, userAlias));
     }
+
+    public void AddScore(int delta) { if (delta > 0) Score += delta; }
+
+    public void ApplyPenalty(int amount) { if (amount > 0) Score = Math.Max(0, Score - amount); }
+
+    public void ResetScore() => Score = 0;
 
     public void RemoveMember(Guid userId)
     {

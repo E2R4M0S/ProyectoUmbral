@@ -1094,6 +1094,17 @@ button, input, select, textarea { font-family: inherit; }
   color: var(--text-muted);
   margin-bottom: var(--space-1);
 }
+.game-team-chip {
+  display: inline-block;
+  margin-top: var(--space-1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #93c5fd;
+  background: rgba(59,130,246,0.15);
+  border: 1px solid rgba(59,130,246,0.3);
+  border-radius: 12px;
+  padding: 2px 8px;
+}
 .game-mission-name {
   font-size: var(--font-size-base);
   font-weight: 700;
@@ -1387,6 +1398,18 @@ body.scanner-active .scanner-native-overlay * {
   font-weight: 600;
   text-shadow: 0 1px 4px rgba(0,0,0,0.8);
   text-align: center;
+}
+
+.scanner-native-close {
+  margin-top: 2.5rem;
+  padding: 12px 28px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .clue-option-btn {

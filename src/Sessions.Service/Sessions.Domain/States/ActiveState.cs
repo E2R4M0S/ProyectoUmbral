@@ -19,7 +19,10 @@ public class ActiveState : ISessionState
     public void OnEnter(Session context)
     {
         if (context.StartedAt is null)
+        {
             context.StartedAt = DateTime.UtcNow;
+            context.CurrentMissionStartedAt = context.StartedAt;
+        }
     }
 
     public void OnExit(Session context) { }
