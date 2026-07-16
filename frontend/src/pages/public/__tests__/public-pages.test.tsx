@@ -23,7 +23,7 @@ describe("Registro (página pública)", () => {
 
   it("contains name, alias, email and password fields", () => {
     wrap(<Registro />);
-    expect(screen.getByLabelText(/nombre/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre")).toBeInTheDocument();
     expect(screen.getByLabelText(/alias/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/contraseña/i)).toBeInTheDocument();

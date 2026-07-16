@@ -119,7 +119,6 @@ describe("CrearOperador", () => {
     wrap(<CrearOperador />);
     expect(screen.getByLabelText(/nombre/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/contraseña/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /crear operador/i })).toBeInTheDocument();
   });
 

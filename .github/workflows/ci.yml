@@ -1,0 +1,108 @@
+name: CI — Build & Test
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  NODE_VERSION: "22"
+
+jobs:
+  backend-missions:
+    name: Missions.Service
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('src/Missions.Service/**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      - run: dotnet restore src/Missions.Service/Missions.Service.slnx
+      - run: dotnet build src/Missions.Service/Missions.Service.slnx --no-restore -c Release
+      - run: dotnet test src/Missions.Service/Missions.Service.slnx --no-build -c Release --verbosity normal
+
+  backend-sessions:
+    name: Sessions.Service
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('src/Sessions.Service/**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      - run: dotnet restore src/Sessions.Service/Sessions.Service.slnx
+      - run: dotnet build src/Sessions.Service/Sessions.Service.slnx --no-restore -c Release
+      - run: dotnet test src/Sessions.Service/Sessions.Service.slnx --no-build -c Release --verbosity normal
+
+  backend-trivia:
+    name: Trivia.Service
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('src/Trivia.Service/**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      - run: dotnet restore src/Trivia.Service/Trivia.Service.slnx
+      - run: dotnet build src/Trivia.Service/Trivia.Service.slnx --no-restore -c Release
+      - run: dotnet test src/Trivia.Service/Trivia.Service.slnx --no-build -c Release --verbosity normal
+
+  backend-gateway:
+    name: ApiGateway + RealTimeHub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('src/ApiGateway/**/*.csproj', 'src/RealTimeHub/**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      - run: dotnet restore src/ApiGateway/ApiGateway.csproj
+      - run: dotnet build src/ApiGateway/ApiGateway.csproj --no-restore -c Release
+      - run: dotnet test src/ApiGateway.Tests/ApiGateway.Tests.csproj --no-restore -c Release --verbosity normal
+      - run: dotnet restore src/RealTimeHub/RealTimeHub.csproj
+      - run: dotnet build src/RealTimeHub/RealTimeHub.csproj --no-restore -c Release
+      - run: dotnet test src/RealTimeHub.Tests/RealTimeHub.Tests.csproj --no-restore -c Release --verbosity normal
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - run: npm test
+        working-directory: frontend

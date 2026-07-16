@@ -23,13 +23,13 @@ describe("perfilApi", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("getProfile fetches /api/teams/profile", async () => {
-    const mock = { name: "John", alias: "jdoe", email: "john@test.com" };
+    const mock = { firstName: "John", lastName: "", alias: "jdoe", email: "john@test.com" };
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(mock) } as Response);
 
     const result = await getProfile();
 
     expect(result.alias).toBe("jdoe");
-    expect(mockFetch).toHaveBeenCalledWith("/api/teams/profile");
+    expect(mockFetch).toHaveBeenCalledWith("/api/profile");
   });
 
   it("getProfile throws ApiError on failure", async () => {
@@ -38,17 +38,17 @@ describe("perfilApi", () => {
   });
 
   it("updateProfile puts to /api/teams/profile", async () => {
-    const mock = { name: "Jane", alias: "jdoe2", email: "jane@test.com" };
+    const mock = { firstName: "Jane", lastName: "", alias: "jdoe2", email: "jane@test.com" };
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(mock) } as Response);
 
-    const result = await updateProfile({ name: "Jane", alias: "jdoe2" });
+    const result = await updateProfile({ firstName: "Jane", lastName: "", alias: "jdoe2" });
 
-    expect(result.name).toBe("Jane");
-    expect(mockFetch).toHaveBeenCalledWith("/api/teams/profile", expect.objectContaining({ method: "PUT" }));
+    expect(result.firstName).toBe("Jane");
+    expect(mockFetch).toHaveBeenCalledWith("/api/profile", expect.objectContaining({ method: "PUT" }));
   });
 
   it("updateProfile throws ApiError on failure", async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 400, text: () => Promise.resolve("Bad") } as Response);
-    await expect(updateProfile({ name: "", alias: "" })).rejects.toThrow(ApiError);
+    await expect(updateProfile({ firstName: "", lastName: "", alias: "" })).rejects.toThrow(ApiError);
   });
 });

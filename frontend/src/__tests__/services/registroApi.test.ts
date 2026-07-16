@@ -24,7 +24,9 @@ describe("registrarParticipante", () => {
     });
 
     const result = await registrarParticipante({
-      name: "John",
+      firstName: "John",
+      lastName: "Doe",
+      username: "jdoe",
       alias: "jdoe",
       email: "john@test.com",
       password: "pass123",
@@ -32,7 +34,7 @@ describe("registrarParticipante", () => {
 
     expect(result.id).toBe("new-user-id");
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/teams/register",
+      "/api/register",
       expect.objectContaining({ method: "POST" })
     );
   });
@@ -45,14 +47,14 @@ describe("registrarParticipante", () => {
     });
 
     await expect(
-      registrarParticipante({ name: "J", alias: "j", email: "dup@test.com", password: "p" })
+      registrarParticipante({ firstName: "J", lastName: "", username: "j", alias: "j", email: "dup@test.com", password: "p" })
     ).rejects.toThrow(ApiError);
   });
 
   it("sends correct content-type header", async () => {
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ id: "x" }) });
 
-    await registrarParticipante({ name: "A", alias: "a", email: "a@b.com", password: "p" });
+    await registrarParticipante({ firstName: "A", lastName: "", username: "a", alias: "a", email: "a@b.com", password: "p" });
 
     const [, options] = mockFetch.mock.calls[0];
     expect(options.headers["Content-Type"]).toBe("application/json");

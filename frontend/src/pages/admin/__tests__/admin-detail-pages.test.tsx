@@ -50,6 +50,10 @@ vi.mock("../../../services/api", () => ({
   fetchWithAuth: vi.fn(),
 }));
 
+vi.mock("../../../hooks/useSignalR", () => ({
+  useSignalR: vi.fn(),
+}));
+
 import { getMissionById } from "../../../services/missionsApi";
 import { getSessionProgress, getSessionById } from "../../../services/sessionsApi";
 import { getTeamById } from "../../../services/teamsApi";

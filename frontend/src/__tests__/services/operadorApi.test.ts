@@ -26,7 +26,7 @@ describe("operadorApi", () => {
     const mock = { id: "op-1", name: "Alice", email: "alice@test.com" };
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(mock) } as Response);
 
-    const result = await crearOperador({ name: "Alice", email: "alice@test.com", password: "pass" });
+    const result = await crearOperador({ name: "Alice", email: "alice@test.com" });
 
     expect(result.name).toBe("Alice");
     expect(mockFetch).toHaveBeenCalledWith(
@@ -37,7 +37,7 @@ describe("operadorApi", () => {
 
   it("crearOperador throws ApiError on 409 conflict", async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 409, text: () => Promise.resolve("Conflict") } as Response);
-    await expect(crearOperador({ name: "A", email: "dup@test.com", password: "p" })).rejects.toThrow(ApiError);
+    await expect(crearOperador({ name: "A", email: "dup@test.com" })).rejects.toThrow(ApiError);
   });
 
   it("desactivarOperador posts to /api/admin/operators/disable", async () => {

@@ -25,7 +25,9 @@ describe("RegistroForm", () => {
 
   it("renders all form fields and the submit button", () => {
     render(<RegistroForm onSuccess={onSuccess} />);
-    expect(screen.getByLabelText(/nombre/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre")).toBeInTheDocument();
+    expect(screen.getByLabelText("Apellido")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre de usuario")).toBeInTheDocument();
     expect(screen.getByLabelText(/alias/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/contraseña/i)).toBeInTheDocument();
@@ -38,6 +40,8 @@ describe("RegistroForm", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/nombre es obligatorio/i)).toBeInTheDocument();
+      expect(screen.getByText(/apellido es obligatorio/i)).toBeInTheDocument();
+      expect(screen.getByText(/usuario es obligatorio/i)).toBeInTheDocument();
       expect(screen.getByText(/alias es obligatorio/i)).toBeInTheDocument();
       expect(screen.getByText(/email es obligatorio/i)).toBeInTheDocument();
       expect(screen.getByText(/contraseña es obligatoria/i)).toBeInTheDocument();
@@ -52,7 +56,7 @@ describe("RegistroForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /registrarse/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/al menos 3 caracteres/i)).toBeInTheDocument()
+      expect(screen.getByText(/mínimo 3 caracteres/i)).toBeInTheDocument()
     );
   });
 
@@ -62,7 +66,7 @@ describe("RegistroForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /registrarse/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/solo puede contener letras/i)).toBeInTheDocument()
+      expect(screen.getByText(/solo letras, números y guiones bajos/i)).toBeInTheDocument()
     );
   });
 
@@ -82,7 +86,7 @@ describe("RegistroForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /registrarse/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/al menos 8 caracteres/i)).toBeInTheDocument()
+      expect(screen.getByText(/mínimo 8 caracteres/i)).toBeInTheDocument()
     );
   });
 
@@ -90,7 +94,9 @@ describe("RegistroForm", () => {
     mockRegistrar.mockResolvedValue({ id: "user-123" });
     render(<RegistroForm onSuccess={onSuccess} />);
 
-    fireEvent.change(screen.getByLabelText(/nombre/i), { target: { value: "John Doe" } });
+    fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "John" } });
+    fireEvent.change(screen.getByLabelText("Apellido"), { target: { value: "Doe" } });
+    fireEvent.change(screen.getByLabelText("Nombre de usuario"), { target: { value: "jdoe" } });
     fireEvent.change(screen.getByLabelText(/alias/i), { target: { value: "jdoe123" } });
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "john@test.com" } });
     fireEvent.change(screen.getByLabelText(/contraseña/i), { target: { value: "password123" } });
@@ -99,7 +105,9 @@ describe("RegistroForm", () => {
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
     expect(mockRegistrar).toHaveBeenCalledWith({
-      name: "John Doe",
+      firstName: "John",
+      lastName: "Doe",
+      username: "jdoe",
       alias: "jdoe123",
       email: "john@test.com",
       password: "password123",
@@ -107,17 +115,19 @@ describe("RegistroForm", () => {
   });
 
   it("shows conflict error on 409 response", async () => {
-    mockRegistrar.mockRejectedValue(new ApiError(409, "Conflict"));
+    mockRegistrar.mockRejectedValue(new ApiError(409, JSON.stringify({ details: [{ field: "alias", message: "ya está registrado." }] })));
     render(<RegistroForm onSuccess={onSuccess} />);
 
-    fireEvent.change(screen.getByLabelText(/nombre/i), { target: { value: "John" } });
+    fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "John" } });
+    fireEvent.change(screen.getByLabelText("Apellido"), { target: { value: "Doe" } });
+    fireEvent.change(screen.getByLabelText("Nombre de usuario"), { target: { value: "jdoe" } });
     fireEvent.change(screen.getByLabelText(/alias/i), { target: { value: "jdoe" } });
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "john@test.com" } });
     fireEvent.change(screen.getByLabelText(/contraseña/i), { target: { value: "password123" } });
     fireEvent.click(screen.getByRole("button", { name: /registrarse/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/alias o email ya están registrados/i)).toBeInTheDocument()
+      expect(screen.getByText(/El alias ya está registrado/i)).toBeInTheDocument()
     );
     expect(onSuccess).not.toHaveBeenCalled();
   });
@@ -126,14 +136,16 @@ describe("RegistroForm", () => {
     mockRegistrar.mockRejectedValue(new ApiError(500, "Internal server error"));
     render(<RegistroForm onSuccess={onSuccess} />);
 
-    fireEvent.change(screen.getByLabelText(/nombre/i), { target: { value: "John" } });
+    fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "John" } });
+    fireEvent.change(screen.getByLabelText("Apellido"), { target: { value: "Doe" } });
+    fireEvent.change(screen.getByLabelText("Nombre de usuario"), { target: { value: "jdoe" } });
     fireEvent.change(screen.getByLabelText(/alias/i), { target: { value: "jdoe" } });
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "john@test.com" } });
     fireEvent.change(screen.getByLabelText(/contraseña/i), { target: { value: "password123" } });
     fireEvent.click(screen.getByRole("button", { name: /registrarse/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/Internal server error/i)).toBeInTheDocument()
+      expect(screen.getByText(/Error del servidor/i)).toBeInTheDocument()
     );
   });
 
@@ -141,14 +153,16 @@ describe("RegistroForm", () => {
     mockRegistrar.mockRejectedValue(new Error("Network error"));
     render(<RegistroForm onSuccess={onSuccess} />);
 
-    fireEvent.change(screen.getByLabelText(/nombre/i), { target: { value: "John" } });
+    fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "John" } });
+    fireEvent.change(screen.getByLabelText("Apellido"), { target: { value: "Doe" } });
+    fireEvent.change(screen.getByLabelText("Nombre de usuario"), { target: { value: "jdoe" } });
     fireEvent.change(screen.getByLabelText(/alias/i), { target: { value: "jdoe" } });
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "john@test.com" } });
     fireEvent.change(screen.getByLabelText(/contraseña/i), { target: { value: "password123" } });
     fireEvent.click(screen.getByRole("button", { name: /registrarse/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/error de conexión/i)).toBeInTheDocument()
+      expect(screen.getByText(/Error de conexión/i)).toBeInTheDocument()
     );
   });
 
@@ -157,7 +171,9 @@ describe("RegistroForm", () => {
     mockRegistrar.mockReturnValue(new Promise((r) => (resolve = r)));
     render(<RegistroForm onSuccess={onSuccess} />);
 
-    fireEvent.change(screen.getByLabelText(/nombre/i), { target: { value: "John" } });
+    fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "John" } });
+    fireEvent.change(screen.getByLabelText("Apellido"), { target: { value: "Doe" } });
+    fireEvent.change(screen.getByLabelText("Nombre de usuario"), { target: { value: "jdoe" } });
     fireEvent.change(screen.getByLabelText(/alias/i), { target: { value: "jdoe" } });
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "john@test.com" } });
     fireEvent.change(screen.getByLabelText(/contraseña/i), { target: { value: "password123" } });

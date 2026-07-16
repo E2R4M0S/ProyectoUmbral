@@ -166,9 +166,9 @@ describe("MiPerfil", () => {
   });
 
   it("shows profile form after load", async () => {
-    vi.mocked(getProfile).mockResolvedValue({ name: "John Doe", alias: "jdoe", email: "john@test.com" });
+    vi.mocked(getProfile).mockResolvedValue({ firstName: "John", lastName: "Doe", alias: "jdoe", email: "john@test.com" });
     withRouter(<MiPerfil />);
-    await waitFor(() => expect(screen.getByDisplayValue("John Doe")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByDisplayValue("John")).toBeInTheDocument());
   });
 });
 
@@ -214,13 +214,13 @@ describe("GameResults", () => {
   it("renders results page with ranking", () => {
     render(
       <MemoryRouter initialEntries={["/game/sess-1/results"]}>
-        <GameContext.Provider value={{ state: { ...defaultState, sessionStatus: "Finished" }, dispatch: vi.fn() }}>
+        <GameContext.Provider value={{ state: { ...defaultState, sessionStatus: "Finished", ranking: [{ position: 1, teamName: "Team A", score: 100, userId: "u1" }] }, dispatch: vi.fn() }}>
           <Routes>
             <Route path="/game/:sessionId/results" element={<GameResults />} />
           </Routes>
         </GameContext.Provider>
       </MemoryRouter>
     );
-    expect(screen.getByText("Ranking")).toBeInTheDocument();
+    expect(screen.getByText("Ranking Final")).toBeInTheDocument();
   });
 });
