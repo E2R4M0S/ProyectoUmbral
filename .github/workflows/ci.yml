@@ -76,15 +76,19 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('src/ApiGateway/**/*.csproj', 'src/RealTimeHub/**/*.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('src/ApiGateway/**/*.csproj', 'src/ApiGateway.Tests/**/*.csproj', 'src/RealTimeHub/**/*.csproj', 'src/RealTimeHub.Tests/**/*.csproj') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
       - run: dotnet restore src/ApiGateway/ApiGateway.csproj
+      - run: dotnet restore src/ApiGateway.Tests/ApiGateway.Tests.csproj
       - run: dotnet build src/ApiGateway/ApiGateway.csproj --no-restore -c Release
-      - run: dotnet test src/ApiGateway.Tests/ApiGateway.Tests.csproj --no-restore -c Release --verbosity normal
+      - run: dotnet build src/ApiGateway.Tests/ApiGateway.Tests.csproj --no-restore -c Release
+      - run: dotnet test src/ApiGateway.Tests/ApiGateway.Tests.csproj --no-build -c Release --verbosity normal
       - run: dotnet restore src/RealTimeHub/RealTimeHub.csproj
+      - run: dotnet restore src/RealTimeHub.Tests/RealTimeHub.Tests.csproj
       - run: dotnet build src/RealTimeHub/RealTimeHub.csproj --no-restore -c Release
-      - run: dotnet test src/RealTimeHub.Tests/RealTimeHub.Tests.csproj --no-restore -c Release --verbosity normal
+      - run: dotnet build src/RealTimeHub.Tests/RealTimeHub.Tests.csproj --no-restore -c Release
+      - run: dotnet test src/RealTimeHub.Tests/RealTimeHub.Tests.csproj --no-build -c Release --verbosity normal
 
   frontend:
     name: Frontend
