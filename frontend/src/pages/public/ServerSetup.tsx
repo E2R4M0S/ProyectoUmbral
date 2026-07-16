@@ -33,7 +33,7 @@ export function ServerSetup() {
           <input
             style={inputStyle}
             type="text"
-            placeholder="ej: 192.168.0.10"
+            placeholder="ej: 192.168.0.10 o https://xxxx.trycloudflare.com"
             value={host}
             onChange={(e) => { setHost(e.target.value); setError(""); }}
             onKeyDown={(e) => e.key === "Enter" && handleSave()}
@@ -45,8 +45,10 @@ export function ServerSetup() {
         </div>
 
         <p style={hintStyle}>
-          La IP de la PC que corre el backend.{"\n"}
-          Podés verla corriendo <strong>ipconfig</strong> en la PC.
+          Misma red Wi-Fi que la PC: ingresá su IP (verla con{" "}
+          <strong>ipconfig</strong> en la PC).{"\n"}
+          Desde otra red (ej. el profesor evaluando): ingresá la URL completa
+          del túnel (https://...) que te dio Cloudflare.
         </p>
 
         <button style={btnStyle} onClick={handleSave}>

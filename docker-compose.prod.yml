@@ -1,0 +1,28 @@
+# Overlay de producción — se usa JUNTO con docker-compose.yml, no reemplaza nada:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Agrega Caddy como único punto de entrada (HTTP plano puertas adentro) y ajusta
+# Keycloak para que detecte su hostname público dinámicamente a partir del Host
+# header que reenvía Cloudflare Tunnel — necesario porque la URL de un Quick
+# Tunnel (*.trycloudflare.com) cambia cada vez que se reinicia.
+# Ver DEPLOY.md para la guía paso a paso.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      - umbral-network
+    depends_on:
+      - frontend
+      - keycloak
+
+  keycloak:
+    environment:
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_PROXY_HEADERS: xforwarded

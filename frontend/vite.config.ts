@@ -10,6 +10,10 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    // Sin esto, Vite rechaza cualquier request cuyo header Host no esté en su
+    // allowlist (localhost/IP local) — necesario para exponerse vía túnel público
+    // (Cloudflare Tunnel, ngrok, etc.) donde el Host es un dominio externo.
+    allowedHosts: true,
     proxy: {
       "/api": {
         target: process.env.VITE_API_URL || "http://localhost:5000",

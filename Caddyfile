@@ -1,0 +1,26 @@
+{
+	# HTTPS lo termina Cloudflare en el borde del túnel — Caddy solo habla HTTP
+	# plano puertas adentro y no necesita (ni puede) pedir su propio certificado,
+	# porque no es alcanzable directamente desde internet.
+	auto_https off
+}
+
+:80 {
+	# Caddy solo ve la conexión interna en HTTP y por defecto pisa X-Forwarded-Proto
+	# con "http" al reenviar — hay que forzarlo a "https" a mano, porque Cloudflare
+	# ya terminó TLS en el borde y esa es la única forma real en que llega el cliente.
+	# Sin esto, Keycloak (hostname dinámico) arma su issuer/redirects en http:// y
+	# rompe el login.
+	handle /auth/* {
+		reverse_proxy keycloak:8080 {
+			header_up X-Forwarded-Proto https
+		}
+	}
+
+	# Todo lo demás (la SPA, /api, /hub vía el proxy que ya arma Vite) va al frontend.
+	handle {
+		reverse_proxy frontend:5173 {
+			header_up X-Forwarded-Proto https
+		}
+	}
+}
