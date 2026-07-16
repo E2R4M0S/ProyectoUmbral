@@ -119,45 +119,13 @@ public class TypedTriviaAnswerSubmittedConsumer : BackgroundService
                 return;
             }
 
-            var quizId = root.GetProperty("quizId").GetGuid();
-            var teamId = root.GetProperty("teamId").GetGuid();
-            var isCorrect = root.GetProperty("isCorrect").GetBoolean();
-
-            int delta = isCorrect ? 10 : 0;
-
-            using var scope = _serviceProvider.CreateScope();
-            var leaderboardRepo = scope.ServiceProvider.GetService<ILeaderboardRepository>();
-            var publisher = scope.ServiceProvider.GetService<IEventPublisher>();
-
-            if (leaderboardRepo != null)
-            {
-                var existing = await leaderboardRepo.GetByTeamAsync(quizId, teamId);
-                if (existing == null)
-                {
-                    var entry = new Trivia.Domain.Entities.LeaderboardEntry { QuizId = quizId, TeamId = teamId, Score = delta };
-                    await leaderboardRepo.AddOrUpdateAsync(entry);
-                }
-                else
-                {
-                    existing.Score += delta;
-                    await leaderboardRepo.AddOrUpdateAsync(existing);
-                }
-
-                if (publisher != null)
-                {
-                    var leaderboard = await leaderboardRepo.GetByQuizAsync(quizId);
-                    // publish snapshot to RealTimeHub (via IEventPublisher abstraction)
-                    try
-                    {
-                        await publisher.PublishAsync("LeaderboardUpdated", leaderboard);
-                        _logger.LogInformation("Published LeaderboardUpdated snapshot after processing event for quiz {QuizId}", quizId);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to publish LeaderboardUpdated after processing event");
-                    }
-                }
-            }
+            // Scoring for this answer already happened synchronously in SubmitAnswerCommandHandler
+            // (correct, time-based delta via IScoringStrategy) and was already broadcast via
+            // LeaderboardUpdated. This consumer used to ALSO add a flat +10 on top of that for every
+            // correct answer, silently doubling every team's score — that's why a good answer could
+            // show up as, say, 80 points instead of the 40 actually earned. It must not touch the
+            // leaderboard; it only exists to drain the queue for whatever else may still publish here.
+            _logger.LogDebug("TriviaAnswerSubmittedEvent consumed (no-op — scoring is synchronous)");
         }
         catch (Exception ex)
         {

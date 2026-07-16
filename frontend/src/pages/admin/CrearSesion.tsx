@@ -1,8 +1,15 @@
 ﻿import { useState, useEffect, useRef, type FormEvent } from "react";
-import { createSession, transitionSession, ApiError } from "../../services/sessionsApi";
+import { createSession, ApiError } from "../../services/sessionsApi";
 import { listMissions, getMissionById } from "../../services/missionsApi";
+import { fetchWithAuth } from "../../services/api";
 import type { MissionListItem } from "../../types/mission";
 import type { StageInput } from "../../types/session";
+
+interface QuizOption {
+  id: string;
+  title: string;
+  questionCount: number;
+}
 
 interface MissionEntry {
   missionId: string;
@@ -11,6 +18,9 @@ interface MissionEntry {
   timeMinutes: number;
   stageCount: number;
   stages: StageInput[];
+  quizId?: string;
+  quizTitle?: string;
+  questionCount?: number;
 }
 
 interface FieldErrors {
@@ -162,11 +172,16 @@ export function CrearSesion() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [createdSession, setCreatedSession] = useState<{ id: string; pin: string } | null>(null);
+  const [quizzes, setQuizzes] = useState<QuizOption[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchIdRef = useRef(0);
   const missionsRef = useRef<MissionEntry[]>([]);
 
   useEffect(() => { missionsRef.current = missions; }, [missions]);
+
+  useEffect(() => {
+    fetchWithAuth("/api/quizzes").then(r => r.json()).then(setQuizzes).catch(() => {});
+  }, []);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -258,15 +273,18 @@ export function CrearSesion() {
             missionType: item.type,
             order: nextOrder,
             qrToken: "00000000-0000-0000-0000-000000000000",
-            timeMinutes: detail.timeMinutes,
+            timeMinutes: 0,
           };
           return [...prev, {
             missionId: item.id,
             missionTitle: item.title,
             missionType: item.type,
-            timeMinutes: detail.timeMinutes,
+            timeMinutes: 0,
             stageCount: 1,
             stages: [stage],
+            quizId: "",
+            quizTitle: "",
+            questionCount: 0,
           }];
         });
       }
@@ -289,6 +307,22 @@ export function CrearSesion() {
     });
   }
 
+  function selectQuizForMission(missionId: string, quizId: string) {
+    const quiz = quizzes.find(q => q.id === quizId);
+    if (!quiz) {
+      setMissions(prev => prev.map(m => m.missionId !== missionId ? m : {
+        ...m, quizId: "", quizTitle: "", questionCount: 0, timeMinutes: 0,
+        stages: m.stages.map(s => ({ ...s, missionStageId: "00000000-0000-0000-0000-000000000000", timeMinutes: 0 })),
+      }));
+      return;
+    }
+    const timeMinutes = Math.max(1, Math.ceil(quiz.questionCount * 30 / 60));
+    setMissions(prev => prev.map(m => m.missionId !== missionId ? m : {
+      ...m, quizId: quiz.id, quizTitle: quiz.title, questionCount: quiz.questionCount, timeMinutes,
+      stages: m.stages.map(s => ({ ...s, missionStageId: quiz.id, timeMinutes })),
+    }));
+  }
+
   function buildFlatStages(): StageInput[] {
     return missions.flatMap(m => m.stages);
   }
@@ -300,6 +334,8 @@ export function CrearSesion() {
 
     const errors: FieldErrors = { name: validateName(name) };
     if (missions.length === 0) errors.stages = "Agregá al menos una misión.";
+    else if (missions.some(m => m.missionType === "Trivia" && !m.quizId))
+      errors.stages = "Seleccioná un quiz para cada misión de Trivia.";
     setFieldErrors(errors);
     if (Object.values(errors).some(Boolean)) return;
 
@@ -309,7 +345,6 @@ export function CrearSesion() {
         name: name.trim(),
         stages: buildFlatStages(),
       });
-      await transitionSession(result.id, "Preparing");
       setSuccess(true);
       setCreatedSession({ id: result.id, pin: result.pin });
       setName("");
@@ -362,24 +397,51 @@ export function CrearSesion() {
           {missions.length > 0 && (
             <div data-testid="stage-list" style={{ marginBottom: 8 }}>
               {missions.map((m, i) => (
-                <div key={m.missionId} style={missionCardStyle}>
-                  <span style={orderBadgeStyle}>{i + 1}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{m.missionTitle}</div>
-                    <div style={{ color: "#999", fontSize: "0.78rem", marginTop: 2 }}>
-                      {m.missionType} · {m.timeMinutes === -1 ? "10 seg (prueba)" : `${m.timeMinutes} min`}
-                      {m.missionType === "Treasure" && ` · ${m.stageCount} etapa${m.stageCount !== 1 ? "s" : ""}`}
-                      {m.missionType === "Trivia" && " · Quiz se selecciona en el panel"}
+                <div key={m.missionId} style={{ ...missionCardStyle, flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <span style={orderBadgeStyle}>{i + 1}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{m.missionTitle}</div>
+                      <div style={{ color: "#999", fontSize: "0.78rem", marginTop: 2 }}>
+                        {m.missionType === "Treasure"
+                          ? `${m.timeMinutes === -1 ? "10 seg (prueba)" : `${m.timeMinutes} min`} · ${m.stageCount} etapa${m.stageCount !== 1 ? "s" : ""}`
+                          : m.quizId
+                            ? `${m.timeMinutes} min · ${m.questionCount} preg. · ${m.quizTitle}`
+                            : "Trivia · seleccionar quiz"}
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => removeMission(m.missionId)}
+                      style={removeBtnStyle}
+                      aria-label={`Quitar misión ${m.missionTitle}`}
+                    >
+                      Quitar
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeMission(m.missionId)}
-                    style={removeBtnStyle}
-                    aria-label={`Quitar misión ${m.missionTitle}`}
-                  >
-                    Quitar
-                  </button>
+                  {m.missionType === "Trivia" && (
+                    <div style={{ paddingLeft: 38 }}>
+                      <select
+                        value={m.quizId ?? ""}
+                        onChange={e => selectQuizForMission(m.missionId, e.target.value)}
+                        style={{
+                          width: "100%", padding: "6px 8px", borderRadius: 4,
+                          border: `1px solid ${!m.quizId ? "#e94560" : "#0f3460"}`,
+                          backgroundColor: "#0d1b35", color: "white", fontSize: "0.82rem",
+                        }}
+                      >
+                        <option value="">— Seleccionar quiz —</option>
+                        {quizzes.map(q => (
+                          <option key={q.id} value={q.id}>{q.title} ({q.questionCount} preg.)</option>
+                        ))}
+                      </select>
+                      {!m.quizId && (
+                        <p style={{ color: "#e94560", fontSize: "0.75rem", margin: "4px 0 0" }}>
+                          Requerido para crear la sesión
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

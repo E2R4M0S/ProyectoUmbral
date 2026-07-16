@@ -29,6 +29,13 @@ public class SessionParticipant
 
     public void AdvanceStage() => CurrentStageOrder++;
 
+    // Pulls a lagging participant forward to the session's current stage (e.g. when the
+    // session advances past a Trivia stage, which has no QR for the participant to scan).
+    public void CatchUpTo(int order)
+    {
+        if (order > CurrentStageOrder) CurrentStageOrder = order;
+    }
+
     public void Complete() => CompletedAt = DateTime.UtcNow;
 
     public bool HasCompleted => CompletedAt.HasValue;
@@ -40,6 +47,8 @@ public class SessionParticipant
     public int Score { get; private set; }
 
     public void AddScore(int delta) { if (delta > 0) Score += delta; }
+
+    public void ApplyPenalty(int amount) { if (amount > 0) Score = Math.Max(0, Score - amount); }
 
     public void ResetScore() => Score = 0;
 }

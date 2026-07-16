@@ -32,4 +32,20 @@ public interface ISessionRepository
     Task<bool> IsTeamNameUniqueInSessionAsync(Guid sessionId, string name, CancellationToken ct);
     Task<SessionTeam?> GetParticipantTeamInSessionAsync(Guid sessionId, Guid userId, CancellationToken ct);
     Task UpdateTeamAsync(SessionTeam team, CancellationToken ct);
+    Task AddTeamScoreAsync(Guid teamId, int delta, CancellationToken ct = default);
+    Task<List<SessionRankingEntry>> GetSessionRankingAsync(Guid sessionId, CancellationToken ct = default);
+
+    // Clue penalties
+    // teamId null = the clue was broadcast to the whole session (current UI behavior): every
+    // team and every teamless participant currently in the session is penalized.
+    Task ApplyCluePenaltyAsync(Guid sessionId, Guid? teamId, int amount, CancellationToken ct = default);
 }
+
+public record SessionRankingEntry(
+    string Type,        // "team" | "individual"
+    string DisplayName,
+    int Score,
+    int MemberCount,    // 0 for individual
+    Guid? TeamId,
+    Guid? UserId
+);

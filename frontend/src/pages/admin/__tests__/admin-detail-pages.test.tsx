@@ -183,7 +183,8 @@ describe("PanelSesion", () => {
   it("shows session panel after load", async () => {
     vi.mocked(getSessionProgress).mockResolvedValue({
       sessionId: "s1", name: "Sesión Live", status: "Active",
-      elapsedSeconds: 120, participants: [], teamId: null, teamName: null
+      elapsedSeconds: 120, totalDurationSeconds: 0, currentMissionElapsedSeconds: 120,
+      participants: [], teamId: null, teamName: null
     });
     vi.mocked(getSessionById).mockResolvedValue({
       id: "s1", name: "Sesión Live", pin: "111222", status: "Active",

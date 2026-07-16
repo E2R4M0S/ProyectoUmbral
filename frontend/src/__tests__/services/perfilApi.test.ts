@@ -37,11 +37,11 @@ describe("perfilApi", () => {
     await expect(getProfile()).rejects.toThrow(ApiError);
   });
 
-  it("updateProfile puts to /api/teams/profile", async () => {
-    const mock = { firstName: "Jane", lastName: "", alias: "jdoe2", email: "jane@test.com" };
+  it("updateProfile puts to /api/profile", async () => {
+    const mock = { firstName: "Jane", lastName: "Doe", alias: "jdoe2", email: "jane@test.com" };
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(mock) } as Response);
 
-    const result = await updateProfile({ firstName: "Jane", lastName: "", alias: "jdoe2" });
+    const result = await updateProfile({ firstName: "Jane", lastName: "Doe", alias: "jdoe2" });
 
     expect(result.firstName).toBe("Jane");
     expect(mockFetch).toHaveBeenCalledWith("/api/profile", expect.objectContaining({ method: "PUT" }));

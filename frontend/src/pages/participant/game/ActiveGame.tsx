@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useGame } from "../../../contexts/GameContext";
 import { Timer } from "../../../components/game/Timer";
 import { ClueCard } from "../../../components/game/ClueCard";
@@ -7,13 +7,14 @@ import { RankingBoard } from "../../../components/game/RankingBoard";
 import { QuestionCard } from "../../../components/game/QuestionCard";
 import { QrScanner } from "../../../components/QrScanner";
 import { validateQr } from "../../../services/sessionsApi";
+import { getSessionTeams } from "../../../services/sessionTeamsApi";
+import { userManager } from "../../../auth/keycloak";
 
 type ScanPhase = "idle" | "loading" | "success" | "error" | "waiting_gate" | "gate_opened" | "eliminated";
 
 export function ActiveGame() {
   const { state, dispatch } = useGame();
   const { sessionId } = useParams<{ sessionId: string }>();
-  const navigate = useNavigate();
 
   const isTreasure = state.currentMissionType === "Treasure";
 
@@ -30,37 +31,101 @@ export function ActiveGame() {
   const [scanError, setScanError] = useState("");
   const [cameraActive, setCameraActive] = useState(false);
   const [gateInfo, setGateInfo] = useState<{ position: number; threshold: number } | null>(null);
+  // True once this participant scanned the very last stage of the whole session — they stay
+  // mounted here (not navigated away) so the session's "Finished" status can flip GameView to
+  // the real final results screen instead of a dead-end "mission complete" page.
+  const [participantCompleted, setParticipantCompleted] = useState(false);
 
   const scanPhaseRef = useRef<ScanPhase>("idle");
   useEffect(() => { scanPhaseRef.current = scanPhase; }, [scanPhase]);
 
-  // Auto-advance past the current mission when the timer runs out
-  const timeUpHandledRef = useRef(false);
+  // Load team on mount if context lost it (e.g. browser with expired API token); retry every 3s
   useEffect(() => {
-    if (state.timeLimitSeconds <= 0) return;
-    if (state.elapsedSeconds < state.timeLimitSeconds) {
-      timeUpHandledRef.current = false;
-      return;
-    }
-    if (timeUpHandledRef.current) return;
-    timeUpHandledRef.current = true;
+    if (!sessionId) return;
+    let cancelled = false;
+    const restore = async () => {
+      if (cancelled) return;
+      // 1. Try sessionStorage first (set by WaitingRoom)
+      try {
+        const saved = sessionStorage.getItem(`myTeam_${sessionId}`);
+        if (saved) {
+          const teamData = JSON.parse(saved);
+          if (!cancelled) dispatch({ type: "MY_IDENTITY_LOADED", userId: state.myUserId ?? "", team: teamData });
+          return true;
+        }
+      } catch { /* ignore */ }
+      // 2. Try localStorage (also set by WaitingRoom)
+      try {
+        const saved = localStorage.getItem(`myTeam_${sessionId}`);
+        if (saved) {
+          const teamData = JSON.parse(saved);
+          try { sessionStorage.setItem(`myTeam_${sessionId}`, saved); } catch { /* ignore */ }
+          if (!cancelled) dispatch({ type: "MY_IDENTITY_LOADED", userId: state.myUserId ?? "", team: teamData });
+          return true;
+        }
+      } catch { /* ignore */ }
+      // 3. Fall back to API (retried until OIDC is ready)
+      try {
+        const user = await userManager.getUser();
+        const userId = user?.profile?.sub as string | undefined;
+        if (!userId) return false; // OIDC not ready — will retry
+        const teams = await getSessionTeams(sessionId);
+        const myTeam = teams.find(t => t.members.some(m => m.userId === userId));
+        if (myTeam) {
+          const teamData = { id: myTeam.id, name: myTeam.name, memberIds: myTeam.members.map(m => m.userId) };
+          try { sessionStorage.setItem(`myTeam_${sessionId}`, JSON.stringify(teamData)); } catch { /* ignore */ }
+          try { localStorage.setItem(`myTeam_${sessionId}`, JSON.stringify(teamData)); } catch { /* ignore */ }
+          if (!cancelled) dispatch({ type: "MY_IDENTITY_LOADED", userId, team: teamData });
+          return true;
+        }
+      } catch { /* ignore */ }
+      return false;
+    };
+    let interval: ReturnType<typeof setInterval> | null = null;
+    restore().then(found => {
+      if (!found && !cancelled) {
+        interval = setInterval(async () => {
+          if (cancelled) { if (interval) clearInterval(interval); return; }
+          const ok = await restore();
+          if (ok && interval) clearInterval(interval);
+        }, 3000);
+      }
+    });
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
+  }, [sessionId]); // eslint-disable-line
 
-    const current = state.stages.find(s => s.order === state.participantStageOrder);
-    if (!current) {
-      navigate(`/juego/${sessionId}/completada`, { replace: true });
-      return;
-    }
+  // Refs to avoid stale closures in event handlers
+  const myTeamIdRef = useRef(state.myTeam?.id);
+  useEffect(() => { myTeamIdRef.current = state.myTeam?.id; }, [state.myTeam?.id]);
+  const participantStageOrderRef = useRef(state.participantStageOrder);
+  useEffect(() => { participantStageOrderRef.current = state.participantStageOrder; }, [state.participantStageOrder]);
 
-    const missionStages = state.stages.filter(s => s.missionId === current.missionId);
-    const lastOrder = Math.max(...missionStages.map(s => s.order));
-    const nextOrder = lastOrder + 1;
+  // Team QR sync: when a teammate scans their QR, advance our stage too
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ teamId: string; newStageOrder: number; totalStages: number }>).detail;
+      if (!myTeamIdRef.current || detail.teamId !== myTeamIdRef.current) return;
+      if (detail.newStageOrder <= participantStageOrderRef.current) return;
 
-    if (state.stages.some(s => s.order === nextOrder)) {
-      dispatch({ type: "STAGE_ADVANCED", participantStageOrder: nextOrder, totalStages: state.totalStages });
-    } else {
-      navigate(`/juego/${sessionId}/completada`, { replace: true });
-    }
-  }, [state.elapsedSeconds, state.timeLimitSeconds, state.stages, state.participantStageOrder, state.totalStages, dispatch, navigate, sessionId]);
+      if (detail.newStageOrder > detail.totalStages) {
+        // Teammate completed the last stage — stay mounted for the session's Finished switch
+        setParticipantCompleted(true);
+        return;
+      }
+
+      try {
+        sessionStorage.setItem(`participantStage_${sessionId}`, JSON.stringify({
+          participantStageOrder: detail.newStageOrder,
+        }));
+      } catch { }
+      dispatch({ type: "STAGE_ADVANCED", participantStageOrder: detail.newStageOrder, totalStages: detail.totalStages });
+    };
+    window.addEventListener("TeamStageAdvanced", handler);
+    return () => window.removeEventListener("TeamStageAdvanced", handler);
+  }, [sessionId, dispatch]);
 
   const handleScan = useCallback(async (text: string) => {
     if (scanPhaseRef.current !== "idle") return;
@@ -111,9 +176,9 @@ export function ActiveGame() {
       if (result.isAtGate && result.gateOpened) {
         setScanPhase("gate_opened");
         setTimeout(() => {
+          if (result.isLastStage) { setParticipantCompleted(true); return; }
           setScanPhase("idle");
           setCameraActive(false);
-          if (result.isLastStage) navigate(`/juego/${sessionId}/completada`, { replace: true });
         }, 2000);
         return;
       }
@@ -128,7 +193,7 @@ export function ActiveGame() {
 
       setScanPhase("success");
       setTimeout(() => {
-        if (result.isLastStage) navigate(`/juego/${sessionId}/completada`, { replace: true });
+        if (result.isLastStage) setParticipantCompleted(true);
         else { setScanPhase("idle"); setCameraActive(false); }
       }, 1500);
 
@@ -136,7 +201,7 @@ export function ActiveGame() {
       setScanError("Error de conexión. Intentá de nuevo.");
       setScanPhase("error");
     }
-  }, [sessionId, navigate, dispatch]);
+  }, [sessionId, dispatch]);
 
   function retryScanner() {
     setScanError("");
@@ -147,6 +212,18 @@ export function ActiveGame() {
   const showScanner = !state.isWaiting && isTreasure;
   const stageDisplay = missionStageIndex > 0 ? missionStageIndex : state.participantStageOrder;
   const stageTotal = missionStageTotal > 0 ? missionStageTotal : state.totalStages;
+
+  // Stay mounted here (instead of navigating away) once done — GameView switches to the
+  // real final-results screen automatically as soon as the session's status flips to Finished.
+  if (participantCompleted) {
+    return (
+      <div className="mision-completada">
+        <div className="mision-completada-icon">🏆</div>
+        <h2>¡Completaste todas las etapas!</h2>
+        <p>Esperando a que finalice la sesión para ver los resultados finales...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="active-game">
@@ -165,6 +242,9 @@ export function ActiveGame() {
             <div className="game-stage-counter">
               Etapa <strong>{stageDisplay}</strong> de <strong>{stageTotal}</strong>
             </div>
+          )}
+          {state.myTeam && (
+            <div className="game-team-chip">👥 {state.myTeam.name}</div>
           )}
         </div>
         <div className="game-score-badge">
@@ -195,7 +275,7 @@ export function ActiveGame() {
               {cameraActive ? (
                 <>
                   <p className="scan-hint">Encontrá la ubicación y escaneá el código QR</p>
-                  <QrScanner active={true} onScan={handleScan} />
+                  <QrScanner active={true} onScan={handleScan} onClose={() => setCameraActive(false)} />
                   <button onClick={() => setCameraActive(false)} className="btn-scan-close">
                     Cerrar cámara
                   </button>

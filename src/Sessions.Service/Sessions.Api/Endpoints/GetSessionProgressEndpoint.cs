@@ -38,6 +38,6 @@ public static class GetSessionProgressEndpoint
             }
         })
         .WithName("GetSessionProgress")
-        .RequireAuthorization("operator_or_admin");
+        .RequireAuthorization();
     }
 }

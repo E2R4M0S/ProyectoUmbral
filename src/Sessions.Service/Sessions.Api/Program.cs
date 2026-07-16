@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Sessions.Api.Endpoints;
 using Sessions.Application;
@@ -64,7 +65,6 @@ try
 
     var app = builder.Build();
 
-    // Auto-create database on startup for development
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<SessionsDbContext>();

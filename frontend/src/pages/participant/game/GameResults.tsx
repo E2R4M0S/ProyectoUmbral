@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGame } from "../../../contexts/GameContext";
+import { isMyRankingEntry } from "../../../utils/rankingMatch";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -33,7 +34,7 @@ export function GameResults() {
     setCluesUsed(savedClues ? (JSON.parse(savedClues) as unknown[]).length : state.clues.length);
   }, [sessionId]); // eslint-disable-line
 
-  const myPosition  = state.myUserId ? state.ranking.findIndex(r => r.userId === state.myUserId) + 1 : 0;
+  const myPosition = state.ranking.findIndex(r => isMyRankingEntry(r, state.myUserId, state.myTeam)) + 1;
   const totalPlayers = state.ranking.length;
 
   function handleReturn() {
@@ -87,7 +88,7 @@ export function GameResults() {
               <div className="results-ranking-title">Ranking Final</div>
               <div className="results-ranking-list">
                 {state.ranking.map((entry, i) => {
-                  const isMe = state.myUserId && entry.userId === state.myUserId;
+                  const isMe = isMyRankingEntry(entry, state.myUserId, state.myTeam);
                   return (
                     <div key={i} className={`results-ranking-row${isMe ? " is-me" : ""}`}>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>

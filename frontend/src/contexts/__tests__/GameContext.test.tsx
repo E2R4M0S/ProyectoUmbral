@@ -108,6 +108,19 @@ describe("GameContext reducer", () => {
     expect(result.current.state.elapsedSeconds).toBe(0);
   });
 
+  it("ELAPSED_SYNCED overwrites elapsedSeconds and currentMissionElapsedSeconds with server values", () => {
+    const { result } = renderHook(() => useGame(), { wrapper });
+
+    act(() => {
+      result.current.dispatch({ type: "STATUS_CHANGED", status: "Active" });
+      result.current.dispatch({ type: "TICK" });
+      result.current.dispatch({ type: "ELAPSED_SYNCED", elapsedSeconds: 90, currentMissionElapsedSeconds: 40 });
+    });
+
+    expect(result.current.state.elapsedSeconds).toBe(90);
+    expect(result.current.state.currentMissionElapsedSeconds).toBe(40);
+  });
+
   it("SET_SCORE updates score", () => {
     const { result } = renderHook(() => useGame(), { wrapper });
 

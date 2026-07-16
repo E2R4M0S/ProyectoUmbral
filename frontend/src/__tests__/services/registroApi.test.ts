@@ -17,7 +17,7 @@ describe("ApiError (registroApi)", () => {
 describe("registrarParticipante", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("posts to /api/teams/register and returns id", async () => {
+  it("posts to /api/register and returns id", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ id: "new-user-id" }),
@@ -47,14 +47,14 @@ describe("registrarParticipante", () => {
     });
 
     await expect(
-      registrarParticipante({ firstName: "J", lastName: "", username: "j", alias: "j", email: "dup@test.com", password: "p" })
+      registrarParticipante({ firstName: "J", lastName: "D", username: "jd", alias: "j", email: "dup@test.com", password: "p" })
     ).rejects.toThrow(ApiError);
   });
 
   it("sends correct content-type header", async () => {
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ id: "x" }) });
 
-    await registrarParticipante({ firstName: "A", lastName: "", username: "a", alias: "a", email: "a@b.com", password: "p" });
+    await registrarParticipante({ firstName: "A", lastName: "B", username: "ab", alias: "a", email: "a@b.com", password: "p" });
 
     const [, options] = mockFetch.mock.calls[0];
     expect(options.headers["Content-Type"]).toBe("application/json");

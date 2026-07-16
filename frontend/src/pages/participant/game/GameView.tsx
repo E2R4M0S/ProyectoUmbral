@@ -1,11 +1,12 @@
 import { useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { GameProvider, useGame } from "../../../contexts/GameContext";
-import { getSessionById } from "../../../services/sessionsApi";
+import { getSessionById, getSessionProgress } from "../../../services/sessionsApi";
 import { getRankingByQuiz } from "../../../services/triviaApi";
 import { getSessionTeams } from "../../../services/sessionTeamsApi";
 import { useSignalR } from "../../../hooks/useSignalR";
 import { userManager } from "../../../auth/keycloak";
+import { isMyRankingEntry } from "../../../utils/rankingMatch";
 import { WaitingRoom } from "./WaitingRoom";
 import { ActiveGame } from "./ActiveGame";
 import { GameResults } from "./GameResults";
@@ -21,6 +22,26 @@ function GameContent() {
   useEffect(() => { currentStageOrderRef.current = state.currentStageOrder; });
   const sessionStatusRef = useRef(state.sessionStatus);
   useEffect(() => { sessionStatusRef.current = state.sessionStatus; });
+
+  // If getSessionById failed on first load (e.g. token not ready → 401), retry once SignalR connects
+  useEffect(() => {
+    if (state.connectionState !== "Connected" || state.sessionStatus !== null || !sessionId) return;
+    getSessionById(sessionId)
+      .then(session => {
+        const sorted = [...session.stages].sort((a, b) => a.order - b.order);
+        const currentStage = sorted.find(s => s.order === session.currentStageOrder) ?? sorted[0] ?? null;
+        dispatch({
+          type: "SESSION_LOADED",
+          name: session.name,
+          status: session.status as SessionStatus,
+          missionType: currentStage?.missionType ?? null,
+          stageOrder: session.currentStageOrder,
+          totalStages: sorted.length,
+          stages: sorted,
+        });
+      })
+      .catch(() => {});
+  }, [state.connectionState, state.sessionStatus, sessionId, dispatch]);
 
   // Fallback polling: if the SignalR ProgressUpdated event is missed (e.g. Docker not rebuilt),
   // re-fetch session state every 8s and update stage if the operator advanced it.
@@ -47,6 +68,28 @@ function GameContent() {
         }
       } catch { /* ignore */ }
     }, 8000);
+    return () => clearInterval(poll);
+  }, [sessionId, dispatch]);
+
+  // Sync elapsedSeconds from the server every 5s (same source the operator dashboard polls),
+  // so every participant's mission timer counts down from the exact same numbers instead of
+  // drifting apart on local per-client clocks.
+  useEffect(() => {
+    if (!sessionId) return;
+    const sync = async () => {
+      const status = sessionStatusRef.current;
+      if (status !== "Active" && status !== "Paused") return;
+      try {
+        const progress = await getSessionProgress(sessionId);
+        dispatch({
+          type: "ELAPSED_SYNCED",
+          elapsedSeconds: progress.elapsedSeconds,
+          currentMissionElapsedSeconds: progress.currentMissionElapsedSeconds,
+        });
+      } catch { /* ignore */ }
+    };
+    sync();
+    const poll = setInterval(sync, 5000);
     return () => clearInterval(poll);
   }, [sessionId, dispatch]);
 
@@ -86,6 +129,17 @@ function GameContent() {
     },
     onRankingUpdated: (ranking: RankingEntry[]) => {
       dispatch({ type: "RANKING_UPDATED", ranking });
+      // QR scans (Treasure) never report the new score directly like trivia answers do — the
+      // ranking broadcast that follows every scan is the only place it shows up, so mirror the
+      // participant's own entry into the score badge here (covers the scanner and every
+      // teammate, since team members share both score and this same broadcast).
+      const mine = ranking.find(e => isMyRankingEntry(e, state.myUserId, state.myTeam));
+      if (mine && mine.score !== state.score) {
+        dispatch({ type: "SET_SCORE", score: mine.score });
+        if (sessionId) {
+          try { sessionStorage.setItem(`score_${sessionId}`, String(mine.score)); } catch { /* ignore */ }
+        }
+      }
     },
     onQuestionAsked: (question: TriviaQuestion) => {
       dispatch({ type: "QUESTION_RECEIVED", question });
@@ -206,18 +260,21 @@ function GameViewInner() {
           }
         }
 
-        // Load the current user's identity and team membership
+        // Load the current user's identity (always) and team membership (if any) — myUserId
+        // must be set even for solo participants, since the score badge and ranking "me"
+        // highlight both key off it regardless of team status.
         try {
           const user = await userManager.getUser();
           const userId = user?.profile?.sub as string | undefined;
           if (userId && sessionId) {
             const allTeams = await getSessionTeams(sessionId);
             const myTeam = allTeams.find(t => t.members.some(m => m.userId === userId));
-            dispatch({
-              type: "MY_IDENTITY_LOADED",
-              userId,
-              team: myTeam ? { id: myTeam.id, name: myTeam.name, memberIds: myTeam.members.map(m => m.userId) } : null,
-            });
+            let teamData = null;
+            if (myTeam) {
+              teamData = { id: myTeam.id, name: myTeam.name, memberIds: myTeam.members.map(m => m.userId) };
+              try { sessionStorage.setItem(`myTeam_${sessionId}`, JSON.stringify(teamData)); } catch { /* ignore */ }
+            }
+            dispatch({ type: "MY_IDENTITY_LOADED", userId, team: teamData });
           }
         } catch { /* ignore — team info is optional */ }
       })

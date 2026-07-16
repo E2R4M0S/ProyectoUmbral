@@ -14,6 +14,7 @@ public static class ReleaseClueEndpoint
             [FromBody] ReleaseClueRequest request,
             IGameSessionFacade facade,
             ISessionRepository sessionRepo,
+            IGameNotifier notifier,
             IHttpClientFactory httpClientFactory,
             ILogger<Program> logger) =>
         {
@@ -28,46 +29,86 @@ public static class ReleaseClueEndpoint
                 if (currentStage is null)
                     return Results.BadRequest(new { error = "No active stage", message = "Session has no current stage" });
 
-                // 2. Fetch mission detail from Missions.Service
-                var httpClient = httpClientFactory.CreateClient("MissionsClient");
-                var missionResponse = await httpClient.GetAsync($"/{currentStage.MissionId}", CancellationToken.None);
+                // Clues only make sense for Treasure hunts — Trivia has no location-based hints to give.
+                if (currentStage.MissionType != "Treasure")
+                    return Results.BadRequest(new { error = "Not a Treasure stage", message = "Clues can only be released during a Treasure stage" });
 
-                string? clueContent = null;
-                int? cluePenalty = null;
+                Guid clueId;
+                string? clueContent;
+                int? cluePenalty;
 
-                if (missionResponse.IsSuccessStatusCode)
+                if (request.ClueId is { } predefinedClueId)
                 {
-                    var mission = await missionResponse.Content.ReadFromJsonAsync<JsonElement>();
-                    if (mission.TryGetProperty("stages", out var stages))
+                    // 2. Fetch mission detail from Missions.Service and look the clue up ONLY
+                    //    within the session's current stage — a clue from a different stage of
+                    //    the same mission must not be releasable early.
+                    var httpClient = httpClientFactory.CreateClient("MissionsClient");
+                    var missionResponse = await httpClient.GetAsync($"/{currentStage.MissionId}", CancellationToken.None);
+
+                    clueId = predefinedClueId;
+                    clueContent = null;
+                    cluePenalty = null;
+
+                    if (missionResponse.IsSuccessStatusCode)
                     {
-                        foreach (var stage in stages.EnumerateArray())
+                        var mission = await missionResponse.Content.ReadFromJsonAsync<JsonElement>();
+                        if (mission.TryGetProperty("stages", out var stages))
                         {
-                            if (stage.TryGetProperty("clues", out var clues))
+                            foreach (var stage in stages.EnumerateArray())
                             {
-                                foreach (var clue in clues.EnumerateArray())
+                                if (!stage.TryGetProperty("id", out var stageId) ||
+                                    stageId.GetGuid() != currentStage.MissionStageId)
+                                    continue;
+
+                                if (stage.TryGetProperty("clues", out var clues))
                                 {
-                                    if (clue.TryGetProperty("id", out var cid) &&
-                                        cid.GetGuid() == request.ClueId)
+                                    foreach (var clue in clues.EnumerateArray())
                                     {
-                                        clueContent = clue.TryGetProperty("content", out var c) ? c.GetString() : null;
-                                        cluePenalty = clue.TryGetProperty("penalty", out var p) && p.ValueKind != JsonValueKind.Null ? p.GetInt32() : null;
-                                        break;
+                                        if (clue.TryGetProperty("id", out var cid) &&
+                                            cid.GetGuid() == predefinedClueId)
+                                        {
+                                            clueContent = clue.TryGetProperty("content", out var c) ? c.GetString() : null;
+                                            cluePenalty = clue.TryGetProperty("penalty", out var p) && p.ValueKind != JsonValueKind.Null ? p.GetInt32() : null;
+                                        }
                                     }
                                 }
+                                break;
                             }
-                            if (clueContent is not null) break;
                         }
                     }
+
+                    if (clueContent is null)
+                        return Results.BadRequest(new { error = "Clue not found", message = "That clue does not belong to the session's current stage" });
+                }
+                else if (!string.IsNullOrWhiteSpace(request.Content))
+                {
+                    // Ad-hoc clue created live by the operator — not a predefined MissionClue,
+                    // so it's broadcast directly without any Missions.Service lookup.
+                    clueId = Guid.NewGuid();
+                    clueContent = request.Content.Trim();
+                    cluePenalty = request.Penalty;
+                }
+                else
+                {
+                    return Results.BadRequest(new { error = "Missing clue", message = "Provide either clueId or content" });
                 }
 
                 // 3. Send real clue data via SignalR through Facade
-                await facade.ReleaseClueAndNotify(id, request.ClueId, request.TeamId, clueContent, cluePenalty);
+                await facade.ReleaseClueAndNotify(id, clueId, request.TeamId, clueContent, cluePenalty);
+
+                // 4. Apply the penalty (if any) and let everyone see the updated score right away.
+                if (cluePenalty is { } penaltyAmount && penaltyAmount > 0)
+                {
+                    await sessionRepo.ApplyCluePenaltyAsync(id, request.TeamId, penaltyAmount, CancellationToken.None);
+                    var rankingAfterPenalty = await sessionRepo.GetSessionRankingAsync(id, CancellationToken.None);
+                    await notifier.NotifyRankingUpdatedAsync(id, rankingAfterPenalty, CancellationToken.None);
+                }
 
                 logger.LogInformation(
-                    "Clue released: SessionId={SessionId}, ClueId={ClueId}, HasContent={HasContent}",
-                    id, request.ClueId, clueContent is not null);
+                    "Clue released: SessionId={SessionId}, ClueId={ClueId}, HasContent={HasContent}, Penalty={Penalty}",
+                    id, clueId, clueContent is not null, cluePenalty);
 
-                return Results.Ok(new { id, clueId = request.ClueId, status = "Released", hasContent = clueContent is not null });
+                return Results.Ok(new { id, clueId, status = "Released", hasContent = clueContent is not null });
             }
             catch (FluentValidation.ValidationException ex)
             {
@@ -89,4 +130,4 @@ public static class ReleaseClueEndpoint
     }
 }
 
-public record ReleaseClueRequest(Guid ClueId, Guid? TeamId = null);
+public record ReleaseClueRequest(Guid? ClueId = null, Guid? TeamId = null, string? Content = null, int? Penalty = null);

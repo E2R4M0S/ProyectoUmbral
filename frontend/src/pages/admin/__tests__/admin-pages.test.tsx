@@ -135,6 +135,7 @@ describe("CrearOperador", () => {
 describe("CrearSesion", () => {
   it("renders session name field and submit button", () => {
     vi.mocked(listMissions).mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 10 } as any);
+    vi.mocked(fetchWithAuth).mockResolvedValue({ ok: true, json: () => Promise.resolve([]) } as Response);
     wrap(<CrearSesion />);
     expect(screen.getByLabelText(/nombre/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /crear sesión/i })).toBeInTheDocument();
@@ -142,6 +143,7 @@ describe("CrearSesion", () => {
 
   it("shows name validation error on empty submit", async () => {
     vi.mocked(listMissions).mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 10 } as any);
+    vi.mocked(fetchWithAuth).mockResolvedValue({ ok: true, json: () => Promise.resolve([]) } as Response);
     wrap(<CrearSesion />);
     fireEvent.click(screen.getByRole("button", { name: /crear sesión/i }));
     await waitFor(() =>

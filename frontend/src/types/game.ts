@@ -39,9 +39,14 @@ export interface GameState {
   participantStageOrder: number;
   totalStages: number;
   stages: SessionStage[];
-  timeLimitSeconds: number;
   currentQuizId: string | null;
+  // Session-wide elapsed seconds since it started (server-synced) — used for "total time
+  // played" stats, not for the mission countdown (see currentMissionElapsedSeconds for that).
   elapsedSeconds: number;
+  // Seconds since the CURRENT mission actually started (server-anchored), server-synced. This
+  // is what both the operator's dashboard and every participant's Timer count down against, so
+  // everyone sees the exact same remaining time regardless of how long prior missions actually took.
+  currentMissionElapsedSeconds: number;
   clues: unknown[];
   score: number;
   connectionState: ConnectionState;
@@ -64,7 +69,7 @@ export type GameAction =
   | { type: "CLUE_RELEASED"; clue: unknown }
   | { type: "CONNECTION_STATE_CHANGED"; state: ConnectionState }
   | { type: "TICK" }
-  | { type: "TIME_UP" }
+  | { type: "ELAPSED_SYNCED"; elapsedSeconds: number; currentMissionElapsedSeconds: number }
   | { type: "SET_SCORE"; score: number }
   | { type: "RANKING_UPDATED"; ranking: RankingEntry[] }
   | { type: "QUESTION_RECEIVED"; question: TriviaQuestion }

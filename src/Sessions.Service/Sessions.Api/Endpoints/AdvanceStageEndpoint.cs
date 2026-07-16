@@ -1,6 +1,7 @@
 using Sessions.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Sessions.Domain.Enums;
+using System.Linq;
 
 namespace Sessions.Api.Endpoints;
 
@@ -43,6 +44,16 @@ public static class AdvanceStageEndpoint
 
                 session.AdvanceStage();
                 await repository.UpdateAsync(session, CancellationToken.None);
+
+                // Catch up any participant still lagging behind (e.g. stuck on a Trivia stage,
+                // which has no QR to scan) so their per-participant stage pointer used for QR
+                // validation stays in sync with the session's now-current stage.
+                foreach (var participant in session.Participants.Where(p => p.CurrentStageOrder < newOrder))
+                {
+                    participant.CatchUpTo(newOrder);
+                    await repository.UpdateParticipantAsync(participant, CancellationToken.None);
+                }
+
                 await facade.NotifyStageAdvanced(id, session.CurrentStageOrder, CancellationToken.None);
 
                 logger.LogInformation(

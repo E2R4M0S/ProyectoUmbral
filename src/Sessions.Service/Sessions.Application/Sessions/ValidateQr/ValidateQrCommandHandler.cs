@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Sessions.Application.Common.Interfaces;
+using Sessions.Domain.Entities;
 using Sessions.Domain.Enums;
 
 namespace Sessions.Application.Sessions.ValidateQr;
@@ -64,50 +65,114 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
         }
 
         bool isLastStage = stageIndex == sortedStages.Count - 1;
+        int newOrder = stageIndex + 1;
+
+        // Team members share progress and points: one scan advances (and scores for) the whole team.
+        var participantTeam = await _repository.GetParticipantTeamInSessionAsync(command.SessionId, command.UserId, ct);
+        var teammates = new List<SessionParticipant>();
+        if (participantTeam is not null)
+        {
+            foreach (var member in participantTeam.Members.Where(m => m.UserId != command.UserId))
+            {
+                var mate = await _repository.GetParticipantAsync(command.SessionId, member.UserId, ct);
+                if (mate is not null && !mate.HasCompleted) teammates.Add(mate);
+            }
+        }
 
         // Award 100 pts for every successfully scanned QR
-        participant.AddScore(100);
+        if (participantTeam is not null)
+            await _repository.AddTeamScoreAsync(participantTeam.Id, 100, ct);
+        else
+            participant.AddScore(100);
+
         participant.AdvanceStage();
+        foreach (var mate in teammates) mate.CatchUpTo(newOrder);
+
+        // Notify team members that one of them scanned and advanced
+        if (participantTeam is not null)
+        {
+            await _notifier.NotifyTeamStageAdvancedAsync(
+                command.SessionId,
+                participantTeam.Id,
+                participant.CurrentStageOrder + 1,
+                sortedStages.Count,
+                ct);
+        }
 
         if (isLastStage)
         {
-            // Podium bonus: 1st=300, 2nd=200, 3rd=100 based on who finishes first
-            int completedBefore = session.Participants.Count(p => p.UserId != command.UserId && p.HasCompleted);
+            // Podium bonus: 1st=300, 2nd=200, 3rd=100 based on which team/individual finishes first
+            var allTeams = await _repository.GetTeamsBySessionIdAsync(command.SessionId, ct);
+            Guid GroupOf(Guid userId) => allTeams.FirstOrDefault(t => t.Members.Any(m => m.UserId == userId))?.Id ?? userId;
+            var myGroup = GroupOf(command.UserId);
+            int completedBefore = session.Participants
+                .Where(p => p.HasCompleted && GroupOf(p.UserId) != myGroup)
+                .Select(p => GroupOf(p.UserId))
+                .Distinct()
+                .Count();
             int bonus = completedBefore switch { 0 => 300, 1 => 200, 2 => 100, _ => 0 };
-            if (bonus > 0) participant.AddScore(bonus);
+            if (bonus > 0)
+            {
+                if (participantTeam is not null)
+                    await _repository.AddTeamScoreAsync(participantTeam.Id, bonus, ct);
+                else
+                    participant.AddScore(bonus);
+            }
 
             participant.Complete();
+            foreach (var mate in teammates) mate.Complete();
+
             await _repository.UpdateParticipantAsync(participant, ct);
+            foreach (var mate in teammates) await _repository.UpdateParticipantAsync(mate, ct);
 
             _logger.LogInformation(
                 "Participant {UserId} completed all stages (position {Position}) in session {SessionId}",
                 command.UserId, completedBefore + 1, command.SessionId);
 
-            await _notifier.NotifyRankingUpdatedAsync(
-                command.SessionId,
-                session.Participants.Select(p => (p.UserId, p.UserAlias, p.Score)),
-                ct);
+            var rankingOnComplete = await _repository.GetSessionRankingAsync(command.SessionId, ct);
+            await _notifier.NotifyRankingUpdatedAsync(command.SessionId, rankingOnComplete, ct);
 
-            bool allDone = session.Participants.All(p => p.UserId == command.UserId || p.HasCompleted);
+            bool allDone = session.Participants.All(p => p.HasCompleted);
             if (allDone && session.Status == SessionStatus.Active)
                 await _facade.TransitionAndNotify(command.SessionId, "Finished", ct);
+            else
+                await AutoAdvanceSessionStageIfEveryoneCaughtUp(session, sortedStages.Count, ct);
 
             return new ValidateQrResult(true, true, participant.CurrentStageOrder,
                 sortedStages.Count, true);
         }
 
         await _repository.UpdateParticipantAsync(participant, ct);
+        foreach (var mate in teammates) await _repository.UpdateParticipantAsync(mate, ct);
 
         _logger.LogInformation(
             "Participant {UserId} advanced to stage {NewOrder} in session {SessionId}",
             command.UserId, participant.CurrentStageOrder, command.SessionId);
 
-        await _notifier.NotifyRankingUpdatedAsync(
-            command.SessionId,
-            session.Participants.Select(p => (p.UserId, p.UserAlias, p.Score)),
-            ct);
+        var rankingEntries = await _repository.GetSessionRankingAsync(command.SessionId, ct);
+        await _notifier.NotifyRankingUpdatedAsync(command.SessionId, rankingEntries, ct);
+
+        await AutoAdvanceSessionStageIfEveryoneCaughtUp(session, sortedStages.Count, ct);
 
         return new ValidateQrResult(true, true, participant.CurrentStageOrder,
             sortedStages.Count, false);
+    }
+
+    // The session's own CurrentStageOrder (what the operator dashboard and its per-mission
+    // timer follow) previously only moved via a manual click or a full mission timeout —
+    // participants racing through QR-gated Treasure stages left it stuck, so the operator had
+    // no idea a stage was already done. Advance it automatically once every participant has
+    // scanned past it, so the dashboard follows real progress instead of lagging behind.
+    private async Task AutoAdvanceSessionStageIfEveryoneCaughtUp(Session session, int totalStages, CancellationToken ct)
+    {
+        while (session.Status == SessionStatus.Active &&
+               session.CurrentStageOrder + 1 < totalStages &&
+               session.Participants.Count > 0 &&
+               session.Participants.All(p => p.CurrentStageOrder > session.CurrentStageOrder))
+        {
+            session.AdvanceStage();
+            await _repository.UpdateAsync(session, ct);
+            await _facade.NotifyStageAdvanced(session.Id, session.CurrentStageOrder, ct);
+        }
     }
 }

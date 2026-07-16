@@ -68,9 +68,9 @@ const defaultState: GameState = {
   participantStageOrder: 1,
   totalStages: 0,
   stages: [],
-  timeLimitSeconds: 0,
   currentQuizId: null,
   elapsedSeconds: 30,
+  currentMissionElapsedSeconds: 30,
   clues: [],
   score: 0,
   connectionState: "Connected",
@@ -212,9 +212,14 @@ describe("ActiveGame", () => {
 // ── GameResults ───────────────────────────────────────────────────────────────
 describe("GameResults", () => {
   it("renders results page with ranking", () => {
+    const rankingState = {
+      ...defaultState,
+      sessionStatus: "Finished" as const,
+      ranking: [{ userId: "u1", teamName: "Team Alpha", position: 1, score: 200 }],
+    };
     render(
       <MemoryRouter initialEntries={["/game/sess-1/results"]}>
-        <GameContext.Provider value={{ state: { ...defaultState, sessionStatus: "Finished", ranking: [{ position: 1, teamName: "Team A", score: 100, userId: "u1" }] }, dispatch: vi.fn() }}>
+        <GameContext.Provider value={{ state: rankingState, dispatch: vi.fn() }}>
           <Routes>
             <Route path="/game/:sessionId/results" element={<GameResults />} />
           </Routes>

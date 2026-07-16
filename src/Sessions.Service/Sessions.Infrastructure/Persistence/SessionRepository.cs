@@ -137,6 +137,15 @@ public class SessionRepository : ISessionRepository
             .ToListAsync(ct);
         foreach (var p in participants)
             p.ResetScore();
+
+        // Team scores accrue alongside member scores (AddTeamScoreAsync) and must be wiped
+        // the same way, or a cancelled session would leave stale team points behind.
+        var teams = await _context.SessionTeams
+            .Where(t => t.SessionId == sessionId)
+            .ToListAsync(ct);
+        foreach (var t in teams)
+            t.ResetScore();
+
         await _context.SaveChangesAsync(ct);
     }
 
@@ -178,13 +187,164 @@ public class SessionRepository : ISessionRepository
 
     public async Task UpdateTeamAsync(SessionTeam team, CancellationToken ct)
     {
-        _context.SessionTeams.Update(team);
+        // EF Core does not automatically detect additions to private List<T> backing fields.
+        // Compare current members with DB members and explicitly Add/Remove.
+        var dbMemberIds = (await _context.Set<SessionTeamMember>()
+            .Where(m => m.SessionTeamId == team.Id)
+            .Select(m => m.Id)
+            .ToListAsync(ct))
+            .ToHashSet();
+
+        foreach (var member in team.Members)
+        {
+            if (!dbMemberIds.Contains(member.Id))
+                _context.Set<SessionTeamMember>().Add(member);
+        }
+
+        foreach (var dbId in dbMemberIds)
+        {
+            if (!team.Members.Any(m => m.Id == dbId))
+            {
+                var orphan = await _context.Set<SessionTeamMember>().FindAsync(new object[] { dbId }, ct);
+                if (orphan is not null)
+                    _context.Set<SessionTeamMember>().Remove(orphan);
+            }
+        }
+
         await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task AddTeamScoreAsync(Guid teamId, int delta, CancellationToken ct = default)
+    {
+        if (delta <= 0) return;
+
+        var team = await _context.SessionTeams
+            .Include(t => t.Members)
+            .FirstOrDefaultAsync(t => t.Id == teamId, ct);
+        if (team is null) return;
+
+        team.AddScore(delta);
+
+        // Distribute the same points to every member's individual score
+        foreach (var member in team.Members)
+        {
+            var participant = await GetParticipantAsync(team.SessionId, member.UserId, ct);
+            if (participant is null) continue;
+            participant.AddScore(delta);
+        }
+
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task ApplyCluePenaltyAsync(Guid sessionId, Guid? teamId, int amount, CancellationToken ct = default)
+    {
+        if (amount <= 0) return;
+
+        if (teamId is { } tid)
+        {
+            var team = await _context.SessionTeams
+                .Include(t => t.Members)
+                .FirstOrDefaultAsync(t => t.Id == tid, ct);
+            if (team is null) return;
+
+            team.ApplyPenalty(amount);
+            foreach (var member in team.Members)
+            {
+                var participant = await GetParticipantAsync(team.SessionId, member.UserId, ct);
+                participant?.ApplyPenalty(amount);
+            }
+
+            await _context.SaveChangesAsync(ct);
+            return;
+        }
+
+        // No specific team: the clue was broadcast to everyone in the session, so every team
+        // and every teamless participant pays the penalty.
+        var teams = await _context.SessionTeams
+            .Include(t => t.Members)
+            .Where(t => t.SessionId == sessionId)
+            .ToListAsync(ct);
+
+        foreach (var team in teams)
+        {
+            team.ApplyPenalty(amount);
+            foreach (var member in team.Members)
+            {
+                var participant = await GetParticipantAsync(sessionId, member.UserId, ct);
+                participant?.ApplyPenalty(amount);
+            }
+        }
+
+        var membersInTeams = teams.SelectMany(t => t.Members).Select(m => m.UserId).ToHashSet();
+        var soloParticipants = await _context.Set<SessionParticipant>()
+            .Where(p => p.SessionId == sessionId && !membersInTeams.Contains(p.UserId))
+            .ToListAsync(ct);
+        foreach (var p in soloParticipants)
+            p.ApplyPenalty(amount);
+
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<SessionRankingEntry>> GetSessionRankingAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        // Live session ranking shows the team's name once for every member sharing it, and each
+        // solo (teamless) participant by their own alias. The persistent/global ranking is a
+        // separate query (GetGlobalParticipantRankingAsync) and always stays per-alias.
+        var teams = await _context.SessionTeams
+            .Include(t => t.Members)
+            .Where(t => t.SessionId == sessionId)
+            .ToListAsync(ct);
+
+        var participants = await _context.Set<SessionParticipant>()
+            .Where(p => p.SessionId == sessionId)
+            .ToListAsync(ct);
+
+        var membersInTeams = teams
+            .SelectMany(t => t.Members)
+            .Select(m => m.UserId)
+            .ToHashSet();
+
+        var entries = new List<SessionRankingEntry>();
+
+        foreach (var team in teams)
+        {
+            entries.Add(new SessionRankingEntry(
+                Type: "team",
+                DisplayName: team.Name,
+                Score: team.Score,
+                MemberCount: team.Members.Count,
+                TeamId: team.Id,
+                UserId: null
+            ));
+        }
+
+        foreach (var p in participants.Where(p => !membersInTeams.Contains(p.UserId)))
+        {
+            entries.Add(new SessionRankingEntry(
+                Type: "individual",
+                DisplayName: p.UserAlias,
+                Score: p.Score,
+                MemberCount: 0,
+                TeamId: null,
+                UserId: p.UserId
+            ));
+        }
+
+        return entries.OrderByDescending(e => e.Score).ToList();
     }
 
     public async Task<List<(Guid UserId, string Alias, int TotalScore)>> GetGlobalParticipantRankingAsync(DateTime? since = null, CancellationToken ct = default)
     {
-        var query = _context.Set<SessionParticipant>().AsQueryable();
+        // Only sessions that actually finished count toward the historical/global ranking — an
+        // Active session's points are still provisional (could still be Cancelled, which wipes
+        // them), so counting them here would let in-progress or later-discarded points leak
+        // into a persistent, cross-session record.
+        var query =
+            from p in _context.Set<SessionParticipant>()
+            join s in _context.Sessions on p.SessionId equals s.Id
+            where s.Status == SessionStatus.Finished
+            select p;
+
         if (since.HasValue)
             query = query.Where(p => p.JoinedAt >= since.Value);
 

@@ -15,7 +15,7 @@ public static class AnsweringEndpoints
             try
             {
                 // Delegate to SubmitAnswerCommand which persists the answer and publishes an integration event
-                var result = await mediator.Send(new SubmitAnswerCommand(req.QuizId, req.TeamId, req.TeamName, req.QuestionId, req.AnswerId, req.Timestamp, req.AskedAt, req.TimeLimitSeconds));
+                var result = await mediator.Send(new SubmitAnswerCommand(req.QuizId, req.TeamId, req.TeamName, req.QuestionId, req.AnswerId, req.Timestamp, req.AskedAt, req.TimeLimitSeconds, req.UserId));
                 return Results.Ok(new { received = true, isCorrect = result.IsCorrect, pointsAwarded = result.PointsAwarded, position = result.Position });
             }
             catch (Exception ex)
@@ -36,7 +36,7 @@ public static class AnsweringEndpoints
                 {
                     try
                     {
-                        var result = await mediator.Send(new SubmitAnswerCommand(req.QuizId, req.TeamId, req.TeamName, req.QuestionId, req.AnswerId, req.Timestamp, req.AskedAt, req.TimeLimitSeconds));
+                        var result = await mediator.Send(new SubmitAnswerCommand(req.QuizId, req.TeamId, req.TeamName, req.QuestionId, req.AnswerId, req.Timestamp, req.AskedAt, req.TimeLimitSeconds, req.UserId));
                         return Results.Ok(new { received = true, test = true, isCorrect = result.IsCorrect, pointsAwarded = result.PointsAwarded });
                     }
                     catch (Exception ex)
@@ -50,5 +50,5 @@ public static class AnsweringEndpoints
         catch { }
     }
 
-    public record ParticipantAnswerRequest(Guid QuizId, Guid TeamId, string TeamName, Guid QuestionId, Guid AnswerId, DateTime Timestamp, DateTime AskedAt, int TimeLimitSeconds);
+    public record ParticipantAnswerRequest(Guid QuizId, Guid TeamId, string TeamName, Guid QuestionId, Guid AnswerId, DateTime Timestamp, DateTime AskedAt, int TimeLimitSeconds, Guid UserId = default);
 }

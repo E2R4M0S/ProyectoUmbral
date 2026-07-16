@@ -5,6 +5,8 @@ public record SessionProgressDto(
     string Name,
     string Status,
     int ElapsedSeconds,
+    int TotalDurationSeconds,
+    int CurrentMissionElapsedSeconds,
     IReadOnlyList<ParticipantProgressDto> Participants);
 
 public record ParticipantProgressDto(
