@@ -353,8 +353,19 @@ export function CrearSesion() {
       setMissions([]);
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 400) setSubmitError("Datos inválidos. Verifica los campos.");
-        else if (err.status === 404) setSubmitError("Misión no encontrada.");
+        if (err.status === 400) {
+          console.error("CreateSession 400:", err.status, err.body);
+          let msg = "Datos inválidos.";
+          try {
+            const parsed = JSON.parse(err.body);
+            if (parsed.details?.length > 0) {
+              msg = parsed.details.map((d: { field?: string; message?: string }) =>
+                d.message || d.field || ""
+              ).filter(Boolean).join("; ");
+            }
+          } catch { /* ignore parse errors */ }
+          setSubmitError(msg);
+        } else if (err.status === 404) setSubmitError("Misión no encontrada.");
         else setSubmitError("Error al crear la sesión. Inténtalo de nuevo.");
       } else {
         setSubmitError("Error de conexión. Verifica tu conexión a internet.");
