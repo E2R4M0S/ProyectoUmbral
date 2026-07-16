@@ -1,0 +1,114 @@
+.treasure-map-wrapper {
+  position: relative;
+  width: 100%;
+  margin: 12px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1a1a2e;
+  border: 1px solid #0f3460;
+  transition: all 0.3s ease;
+}
+
+.treasure-map-wrapper.treasure-map-collapsed {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 24px;
+  background: #16213e;
+}
+
+.treasure-map-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1000;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: #0f3460;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.treasure-map-toggle:hover {
+  background: #e94560;
+}
+
+.treasure-map-collapsed .treasure-map-toggle {
+  position: static;
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+}
+
+.treasure-map-container {
+  width: 100%;
+  height: 280px;
+  border-radius: 0 0 12px 12px;
+}
+
+.treasure-distance-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  background: #0f3460;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.treasure-map-collapsed .treasure-distance-badge {
+  font-size: 13px;
+  padding: 4px 10px;
+}
+
+.treasure-map-collapsed-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.treasure-map-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  color: #aaa;
+  font-size: 14px;
+  background: #16213e;
+  border-radius: 12px;
+  border: 1px solid #0f3460;
+}
+
+.treasure-map-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #0f3460;
+  border-top-color: #e94560;
+  border-radius: 50%;
+  animation: treasure-spin 0.8s linear infinite;
+}
+
+@keyframes treasure-spin {
+  to { transform: rotate(360deg); }
+}
+
+.treasure-map-error {
+  padding: 12px 16px;
+  color: #e94560;
+  font-size: 13px;
+  background: #2d1a1a;
+  border-radius: 12px;
+  border: 1px solid #e94560;
+}

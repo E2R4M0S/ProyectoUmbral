@@ -4,5 +4,7 @@ public record UpdateStageCommandResult(
     Guid Id,
     string Name,
     string Description,
-    int Order
+    int Order,
+    double? Latitude = null,
+    double? Longitude = null
 );

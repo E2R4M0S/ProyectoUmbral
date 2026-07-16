@@ -251,6 +251,8 @@ export function CrearSesion() {
             order: nextOrder++,
             qrToken: s.qrToken,
             timeMinutes: detail.timeMinutes,
+            latitude: s.latitude,
+            longitude: s.longitude,
           }));
           const entry: MissionEntry = {
             missionId: item.id,

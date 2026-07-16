@@ -33,6 +33,8 @@ public static class GetSessionByIdEndpoint
                     s.MissionStageId,
                     s.QrToken,
                     s.TimeMinutes,
+                    s.Latitude,
+                    s.Longitude,
                     QuizId = s.MissionType == "Trivia" ? s.MissionStageId : (Guid?)null,
                 }),
                 Status = session.Status.ToString(),

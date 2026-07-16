@@ -6,6 +6,9 @@ import { ClueCard } from "../../../components/game/ClueCard";
 import { RankingBoard } from "../../../components/game/RankingBoard";
 import { QuestionCard } from "../../../components/game/QuestionCard";
 import { QrScanner } from "../../../components/QrScanner";
+import { TreasureMap } from "../../../components/TreasureMap";
+import "../../../styles/treasure-map.css";
+import { useGeolocation } from "../../../hooks/useGeolocation";
 import { validateQr } from "../../../services/sessionsApi";
 import { getSessionTeams } from "../../../services/sessionTeamsApi";
 import { userManager } from "../../../auth/keycloak";
@@ -209,6 +212,10 @@ export function ActiveGame() {
     setCameraActive(false);
   }
 
+  const currentTreasureStage = isTreasure ? currentStageInfo : null;
+  const geo = useGeolocation();
+  const hasTreasureCoords = currentTreasureStage?.latitude != null && currentTreasureStage?.longitude != null;
+
   const showScanner = !state.isWaiting && isTreasure;
   const stageDisplay = missionStageIndex > 0 ? missionStageIndex : state.participantStageOrder;
   const stageTotal = missionStageTotal > 0 ? missionStageTotal : state.totalStages;
@@ -255,6 +262,21 @@ export function ActiveGame() {
 
       {/* ── Timer ── */}
       <Timer />
+
+      {/* ── Treasure map (Treasure mode only) ── */}
+      {isTreasure && hasTreasureCoords && (
+        <TreasureMap
+          player={geo}
+          treasureLat={currentTreasureStage!.latitude!}
+          treasureLng={currentTreasureStage!.longitude!}
+          treasureName={currentTreasureStage!.stageName}
+        />
+      )}
+      {isTreasure && !hasTreasureCoords && currentTreasureStage && (
+        <div className="treasure-map-error">
+          Esta etapa no tiene coordenadas de ubicación configuradas.
+        </div>
+      )}
 
       {/* ── Gate waiting ── */}
       {state.isWaiting && (

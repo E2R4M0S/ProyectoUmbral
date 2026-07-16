@@ -47,6 +47,8 @@ export interface Stage {
   order: number;
   qrToken: string;
   clues: Clue[];
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface Clue {

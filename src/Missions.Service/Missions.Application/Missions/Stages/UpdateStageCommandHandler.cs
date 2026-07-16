@@ -34,7 +34,7 @@ public class UpdateStageCommandHandler : IRequestHandler<UpdateStageCommand, Upd
             throw new InvalidOperationException($"Mission with id '{command.MissionId}' is in use");
         }
 
-        mission.UpdateStage(command.StageId, command.Name, command.Description, command.Order);
+        mission.UpdateStage(command.StageId, command.Name, command.Description, command.Order, command.Latitude, command.Longitude);
 
         await _repository.UpdateAsync(mission, ct);
 
@@ -48,6 +48,8 @@ public class UpdateStageCommandHandler : IRequestHandler<UpdateStageCommand, Upd
             updatedStage.Id,
             updatedStage.Name,
             updatedStage.Description,
-            updatedStage.Order);
+            updatedStage.Order,
+            updatedStage.Latitude,
+            updatedStage.Longitude);
     }
 }
