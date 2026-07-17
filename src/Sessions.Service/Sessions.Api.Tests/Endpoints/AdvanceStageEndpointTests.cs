@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -20,13 +21,14 @@ public class AdvanceStageEndpointTests
     private readonly ISessionRepository _repository = Substitute.For<ISessionRepository>();
     private readonly IGameSessionFacade _facade = Substitute.For<IGameSessionFacade>();
     private readonly ILogger<Program> _logger = Substitute.For<ILogger<Program>>();
+    private static readonly Guid OperatorId = Guid.NewGuid();
 
-    private static Session CreateActiveSessionWithStages(int stageCount)
+    private static Session CreateActiveSessionWithStages(int stageCount, Guid? operatorId = null)
     {
         var stages = Enumerable.Range(1, stageCount)
             .Select(i => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), $"M{i}", "Stage", "Trivia", i, "test-token"))
             .ToList();
-        var session = Session.Create("Test", "123456", stages);
+        var session = Session.Create("Test", "123456", stages, operatorId ?? OperatorId);
         session.TransitionTo(SessionStatus.Preparing);
         session.TransitionTo(SessionStatus.Active);
         return session;
@@ -41,7 +43,7 @@ public class AdvanceStageEndpointTests
             .Returns(session);
 
         // Act
-        var result = await SimulateEndpoint(session.Id, _repository, _facade, _logger);
+        var result = await SimulateEndpoint(session.Id, OperatorId, _repository, _facade, _logger);
 
         // Assert
         result.Should().BeOfType<OkObjectResult>()
@@ -65,10 +67,27 @@ public class AdvanceStageEndpointTests
             .Returns((Session?)null);
 
         // Act
-        var result = await SimulateEndpoint(id, _repository, _facade, _logger);
+        var result = await SimulateEndpoint(id, OperatorId, _repository, _facade, _logger);
 
         // Assert
         result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task AdvanceStage_CalledByNonOwningOperator_ReturnsForbidden()
+    {
+        // Arrange — RB-10
+        var session = CreateActiveSessionWithStages(3);
+        _repository.GetByIdWithStagesAsync(session.Id, Arg.Any<CancellationToken>())
+            .Returns(session);
+
+        // Act
+        var result = await SimulateEndpoint(session.Id, Guid.NewGuid(), _repository, _facade, _logger);
+
+        // Assert
+        var forbidden = result.Should().BeOfType<ObjectResult>().Subject;
+        forbidden.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        await _facade.DidNotReceive().NotifyStageAdvanced(Arg.Any<Guid>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -80,7 +99,7 @@ public class AdvanceStageEndpointTests
             .Returns(session);
 
         // Act
-        var result = await SimulateEndpoint(session.Id, _repository, _facade, _logger);
+        var result = await SimulateEndpoint(session.Id, OperatorId, _repository, _facade, _logger);
 
         // Assert
         var bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
@@ -100,13 +119,13 @@ public class AdvanceStageEndpointTests
             SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Stage", "Trivia", 1, "test-token"),
             SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Stage", "Treasure", 2, "test-token")
         };
-        var session = Session.Create("Test", "123456", stages);
+        var session = Session.Create("Test", "123456", stages, OperatorId);
         // session is Scheduled (no transitions)
         _repository.GetByIdWithStagesAsync(session.Id, Arg.Any<CancellationToken>())
             .Returns(session);
 
         // Act
-        var result = await SimulateEndpoint(session.Id, _repository, _facade, _logger);
+        var result = await SimulateEndpoint(session.Id, OperatorId, _repository, _facade, _logger);
 
         // Assert
         var bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
@@ -126,13 +145,13 @@ public class AdvanceStageEndpointTests
             SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Stage", "Trivia", 1, "test-token"),
             SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Stage", "Treasure", 2, "test-token")
         };
-        var session = Session.Create("Test", "123456", stages);
+        var session = Session.Create("Test", "123456", stages, OperatorId);
         session.TransitionTo(SessionStatus.Preparing);
         _repository.GetByIdWithStagesAsync(session.Id, Arg.Any<CancellationToken>())
             .Returns(session);
 
         // Act
-        var result = await SimulateEndpoint(session.Id, _repository, _facade, _logger);
+        var result = await SimulateEndpoint(session.Id, OperatorId, _repository, _facade, _logger);
 
         // Assert
         var bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
@@ -148,6 +167,7 @@ public class AdvanceStageEndpointTests
     /// </summary>
     private static async Task<IActionResult> SimulateEndpoint(
         Guid id,
+        Guid? currentUserId,
         ISessionRepository repository,
         IGameSessionFacade facade,
         ILogger<Program> logger)
@@ -158,6 +178,14 @@ public class AdvanceStageEndpointTests
             if (session is null)
             {
                 return new NotFoundObjectResult(new { error = "Not Found", message = $"Session with id '{id}' not found" });
+            }
+
+            if (!session.IsManagedBy(currentUserId))
+            {
+                return new ObjectResult(new { error = "Forbidden", message = "Solo el operador que creó esta sesión puede administrarla" })
+                {
+                    StatusCode = StatusCodes.Status403Forbidden
+                };
             }
 
             if (session.Status != SessionStatus.Active)
@@ -200,4 +228,3 @@ public class AdvanceStageEndpointTests
         }
     }
 }
-

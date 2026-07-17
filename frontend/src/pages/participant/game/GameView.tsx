@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { GameProvider, useGame } from "../../../contexts/GameContext";
-import { getSessionById, getSessionProgress } from "../../../services/sessionsApi";
+import { getSessionById, getSessionProgress, getSessionRanking } from "../../../services/sessionsApi";
 import { getRankingByQuiz } from "../../../services/triviaApi";
 import { getSessionTeams } from "../../../services/sessionTeamsApi";
 import { useSignalR } from "../../../hooks/useSignalR";
@@ -74,11 +74,17 @@ function GameContent() {
   // Sync elapsedSeconds from the server every 5s (same source the operator dashboard polls),
   // so every participant's mission timer counts down from the exact same numbers instead of
   // drifting apart on local per-client clocks.
+  //
+  // Depending on sessionStatus (not just sessionId) matters: on first mount/rejoin, status is
+  // still null for a beat while SESSION_LOADED is in flight, so a fire-once-at-mount sync would
+  // see status===null, bail, and leave currentMissionElapsedSeconds at its initial 0 — showing
+  // the full mission duration — until the next 5s tick caught up. Re-running this effect the
+  // moment status actually becomes Active/Paused fires the correction immediately instead.
   useEffect(() => {
     if (!sessionId) return;
+    const status = state.sessionStatus;
+    if (status !== "Active" && status !== "Paused") return;
     const sync = async () => {
-      const status = sessionStatusRef.current;
-      if (status !== "Active" && status !== "Paused") return;
       try {
         const progress = await getSessionProgress(sessionId);
         dispatch({
@@ -91,7 +97,7 @@ function GameContent() {
     sync();
     const poll = setInterval(sync, 5000);
     return () => clearInterval(poll);
-  }, [sessionId, dispatch]);
+  }, [sessionId, dispatch, state.sessionStatus]);
 
   useSignalR({
     sessionId: sessionId!,
@@ -275,6 +281,31 @@ function GameViewInner() {
               try { sessionStorage.setItem(`myTeam_${sessionId}`, JSON.stringify(teamData)); } catch { /* ignore */ }
             }
             dispatch({ type: "MY_IDENTITY_LOADED", userId, team: teamData });
+
+            // Viewing a past session from "Mis Sesiones" (not just-finished live play):
+            // GameContext/sessionStorage has nothing for it, so pull the real result from
+            // the backend rather than showing a blank/zeroed results screen.
+            const isTerminal = session.status === "Finished" || session.status === "Cancelled";
+            const hasCachedRanking = sessionStorage.getItem(`ranking_${sessionId}`);
+            if (isTerminal && !hasCachedRanking) {
+              try {
+                const entries = await getSessionRanking(sessionId);
+                const ranking = entries.map(e => ({
+                  position: e.position,
+                  teamName: e.displayName,
+                  score: e.score,
+                  userId: e.userId ?? undefined,
+                }));
+                dispatch({ type: "RANKING_UPDATED", ranking });
+                const mine = ranking.find(e => isMyRankingEntry(e, userId ?? null, teamData));
+                if (mine) dispatch({ type: "SET_SCORE", score: mine.score });
+              } catch { /* ignore — results screen still renders with whatever it has */ }
+            }
+            if (isTerminal && session.startedAt) {
+              const end = session.endedAt ? new Date(session.endedAt).getTime() : Date.now();
+              const elapsedSeconds = Math.max(0, Math.round((end - new Date(session.startedAt).getTime()) / 1000));
+              dispatch({ type: "ELAPSED_SYNCED", elapsedSeconds, currentMissionElapsedSeconds: 0 });
+            }
           }
         } catch { /* ignore — team info is optional */ }
       })

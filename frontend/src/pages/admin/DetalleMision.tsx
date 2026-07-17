@@ -101,6 +101,10 @@ export function DetalleMision() {
     if (!id || !stageForm.name.trim() || !mission) return;
     const lat = stageForm.latitude ? parseFloat(stageForm.latitude) : undefined;
     const lng = stageForm.longitude ? parseFloat(stageForm.longitude) : undefined;
+    if (lat === undefined || lng === undefined) {
+      notify("Debes marcar una ubicación en el mapa", "error");
+      return;
+    }
     try {
       await createStage(id, { name: stageForm.name, description: stageForm.description, order: nextOrder(mission.stages), latitude: lat, longitude: lng });
       setShowStageForm(false);
@@ -114,6 +118,10 @@ export function DetalleMision() {
     if (!id) return;
     const lat = editForm.latitude ? parseFloat(editForm.latitude) : undefined;
     const lng = editForm.longitude ? parseFloat(editForm.longitude) : undefined;
+    if (lat === undefined || lng === undefined) {
+      notify("Debes marcar una ubicación en el mapa", "error");
+      return;
+    }
     try {
       await updateStage(id, stageId, { name: editForm.name, description: editForm.description, order: editForm.order, latitude: lat, longitude: lng });
       setEditingStage(null);
@@ -164,6 +172,14 @@ export function DetalleMision() {
     <div style={css.container}>
       <p style={css.msgError}>{error || "Misión no encontrada"}</p>
       <Link to="/admin/misiones" style={css.backLink}>← Volver</Link>
+    </div>
+  );
+  if (mission.status === "Active") return (
+    <div style={css.container}>
+      <Link to="/admin/misiones" style={css.backLink}>← Volver al catálogo</Link>
+      <p style={css.msgError}>
+        No se puede acceder al panel de una misión en estado 'Active'. Desactívela primero desde el catálogo.
+      </p>
     </div>
   );
 
@@ -237,7 +253,11 @@ export function DetalleMision() {
                 />
                 <div style={css.formActions}>
                   <button style={css.btnSecondary} onClick={() => setShowStageForm(false)}>Cancelar</button>
-                  <button style={{ ...css.btnAddStage, padding: "8px 18px", fontSize: "0.82rem" }} onClick={handleCreateStage}>
+                  <button
+                    style={{ ...css.btnAddStage, padding: "8px 18px", fontSize: "0.82rem", opacity: (!stageForm.latitude || !stageForm.longitude) ? 0.5 : 1 }}
+                    disabled={!stageForm.latitude || !stageForm.longitude}
+                    onClick={handleCreateStage}
+                  >
                     Crear Etapa
                   </button>
                 </div>
@@ -307,7 +327,13 @@ export function DetalleMision() {
                   </div>
                   <div style={css.formActions}>
                     <button style={css.btnSecondary} onClick={() => setEditingStage(null)}>Cancelar</button>
-                    <button style={{ ...css.btnAddStage, padding: "8px 18px", fontSize: "0.82rem" }} onClick={() => handleUpdateStage(stage.id)}>Guardar</button>
+                    <button
+                      style={{ ...css.btnAddStage, padding: "8px 18px", fontSize: "0.82rem", opacity: (!editForm.latitude || !editForm.longitude) ? 0.5 : 1 }}
+                      disabled={!editForm.latitude || !editForm.longitude}
+                      onClick={() => handleUpdateStage(stage.id)}
+                    >
+                      Guardar
+                    </button>
                   </div>
                 </div>
               )}

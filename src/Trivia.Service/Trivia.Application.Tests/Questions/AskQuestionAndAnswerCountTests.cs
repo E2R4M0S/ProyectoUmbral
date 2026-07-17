@@ -30,14 +30,19 @@ public class AskQuestionCommandHandlerTests
 public class GetAnswerCountQueryHandlerTests
 {
     [Fact]
-    public async Task Handle_ShouldReturnCount()
+    public async Task Handle_ShouldReturnCountOfTeamsThatAnsweredTheQuestion()
     {
-        var repo = Substitute.For<IParticipantAnswerRepository>();
-        repo.GetCountByQuestionAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(5);
+        // GetAnswerCountQueryHandler counts unique teams from AskQuestionCommandHandler's
+        // in-memory TeamAnswers dictionary — it no longer reads from a repository.
+        var questionId = Guid.NewGuid();
+        var otherQuestionId = Guid.NewGuid();
+        AskQuestionCommandHandler.TeamAnswers[(questionId, Guid.NewGuid())] = 0;
+        AskQuestionCommandHandler.TeamAnswers[(questionId, Guid.NewGuid())] = 1;
+        AskQuestionCommandHandler.TeamAnswers[(otherQuestionId, Guid.NewGuid())] = 0;
 
-        var sut = new GetAnswerCountQueryHandler(repo);
-        var result = await sut.Handle(new GetAnswerCountQuery(Guid.NewGuid()), CancellationToken.None);
+        var sut = new GetAnswerCountQueryHandler();
+        var result = await sut.Handle(new GetAnswerCountQuery(questionId), CancellationToken.None);
 
-        result.Should().Be(5);
+        result.Should().Be(2);
     }
 }

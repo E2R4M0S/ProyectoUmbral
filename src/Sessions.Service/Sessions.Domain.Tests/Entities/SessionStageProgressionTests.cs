@@ -10,7 +10,7 @@ public class SessionStageProgressionTests
     private static Session CreateWithStages(int stageCount)
     {
         var stages = Enumerable.Range(1, stageCount)
-            .Select(i => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), $"Mission {i}", "Trivia", i, "test-token"))
+            .Select(i => SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), $"Mission {i}", "Stage", "Trivia", i, "test-token"))
             .ToList();
         return Session.Create("Test Session", "123456", stages);
     }
@@ -136,8 +136,8 @@ public class SessionStageProgressionTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, "test-token"),
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Treasure", 1, "test-token"), // duplicate order
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Stage", "Trivia", 1, "test-token"),
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Stage", "Treasure", 1, "test-token"), // duplicate order
         };
 
         // Act
@@ -154,8 +154,8 @@ public class SessionStageProgressionTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Trivia", 1, "test-token"),
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Treasure", 3, "test-token"), // missing 2
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M1", "Stage", "Trivia", 1, "test-token"),
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Stage", "Treasure", 3, "test-token"), // missing 2
         };
 
         // Act
@@ -172,7 +172,7 @@ public class SessionStageProgressionTests
         // Arrange
         var stages = new List<SessionStage>
         {
-            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Solo", "Trivia", 1, "test-token")
+            SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Solo", "Stage", "Trivia", 1, "test-token")
         };
 
         // Act

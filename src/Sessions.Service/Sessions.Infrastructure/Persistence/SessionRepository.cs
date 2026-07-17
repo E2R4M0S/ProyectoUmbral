@@ -130,6 +130,15 @@ public class SessionRepository : ISessionRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public async Task<List<Session>> GetSessionsForParticipantAsync(Guid userId, CancellationToken ct = default)
+    {
+        return await _context.Sessions
+            .Include(s => s.Participants)
+            .Where(s => s.Participants.Any(p => p.UserId == userId))
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync(ct);
+    }
+
     public async Task ResetParticipantScoresAsync(Guid sessionId, CancellationToken ct = default)
     {
         var participants = await _context.Set<SessionParticipant>()
@@ -236,9 +245,11 @@ public class SessionRepository : ISessionRepository
         await _context.SaveChangesAsync(ct);
     }
 
-    public async Task ApplyCluePenaltyAsync(Guid sessionId, Guid? teamId, int amount, CancellationToken ct = default)
+    public async Task ApplyCluePenaltyAsync(Guid sessionId, Guid? teamId, int amount, string? reason = null, CancellationToken ct = default)
     {
         if (amount <= 0) return;
+
+        var description = string.IsNullOrWhiteSpace(reason) ? "Penalización por pista liberada" : reason.Trim();
 
         if (teamId is { } tid)
         {
@@ -253,6 +264,9 @@ public class SessionRepository : ISessionRepository
                 var participant = await GetParticipantAsync(team.SessionId, member.UserId, ct);
                 participant?.ApplyPenalty(amount);
             }
+
+            await _context.Set<SessionAuditEvent>().AddAsync(
+                SessionAuditEvent.Create(sessionId, SessionAuditEventTypes.PenaltyApplied, description, teamId: tid, scoreDelta: -amount), ct);
 
             await _context.SaveChangesAsync(ct);
             return;
@@ -282,7 +296,24 @@ public class SessionRepository : ISessionRepository
         foreach (var p in soloParticipants)
             p.ApplyPenalty(amount);
 
+        await _context.Set<SessionAuditEvent>().AddAsync(
+            SessionAuditEvent.Create(sessionId, SessionAuditEventTypes.PenaltyApplied, description, teamId: null, scoreDelta: -amount), ct);
+
         await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task AddAuditEventAsync(SessionAuditEvent auditEvent, CancellationToken ct = default)
+    {
+        await _context.Set<SessionAuditEvent>().AddAsync(auditEvent, ct);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<SessionAuditEvent>> GetAuditTrailAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        return await _context.Set<SessionAuditEvent>()
+            .Where(e => e.SessionId == sessionId)
+            .OrderByDescending(e => e.OccurredAt)
+            .ToListAsync(ct);
     }
 
     public async Task<List<SessionRankingEntry>> GetSessionRankingAsync(Guid sessionId, CancellationToken ct = default)
@@ -314,7 +345,8 @@ public class SessionRepository : ISessionRepository
                 Score: team.Score,
                 MemberCount: team.Members.Count,
                 TeamId: team.Id,
-                UserId: null
+                UserId: null,
+                LastScoreAt: team.LastScoreAt
             ));
         }
 
@@ -326,11 +358,16 @@ public class SessionRepository : ISessionRepository
                 Score: p.Score,
                 MemberCount: 0,
                 TeamId: null,
-                UserId: p.UserId
+                UserId: p.UserId,
+                LastScoreAt: p.LastScoreAt
             ));
         }
 
-        return entries.OrderByDescending(e => e.Score).ToList();
+        // RB-08: descending by score; ties broken by whoever reached that score first.
+        return entries
+            .OrderByDescending(e => e.Score)
+            .ThenBy(e => e.LastScoreAt ?? DateTime.MaxValue)
+            .ToList();
     }
 
     public async Task<List<(Guid UserId, string Alias, int TotalScore)>> GetGlobalParticipantRankingAsync(DateTime? since = null, CancellationToken ct = default)

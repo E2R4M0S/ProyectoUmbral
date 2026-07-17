@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 const FAKE_TOKEN = "header.eyJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiYWRtaW4iXX19.sig";
@@ -46,6 +46,14 @@ vi.mock("../../../services/adminUsuariosApi", () => ({
   },
 }));
 
+vi.mock("../../../services/operadorApi", () => ({
+  activarOperador: vi.fn(),
+  desactivarOperador: vi.fn(),
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, public body: string) { super(body); }
+  },
+}));
+
 vi.mock("../../../services/api", () => ({
   fetchWithAuth: vi.fn(),
 }));
@@ -58,6 +66,7 @@ import { getMissionById } from "../../../services/missionsApi";
 import { getSessionProgress, getSessionById } from "../../../services/sessionsApi";
 import { getTeamById } from "../../../services/teamsApi";
 import { getUserById } from "../../../services/adminUsuariosApi";
+import { activarOperador, desactivarOperador } from "../../../services/operadorApi";
 import { fetchWithAuth } from "../../../services/api";
 
 import { DetalleMision } from "../DetalleMision";
@@ -113,6 +122,73 @@ describe("DetalleUsuario", () => {
     });
     renderWithId(<DetalleUsuario />, "/admin/usuarios/u1", "/admin/usuarios/:id");
     await waitFor(() => expect(screen.getByText("Alice Doe")).toBeInTheDocument());
+  });
+
+  it("shows a deactivate button for an enabled operator and disables them on confirm", async () => {
+    vi.mocked(getUserById).mockResolvedValue({
+      id: "u1", name: "Alice Doe", email: "alice@test.com",
+      roles: ["operator"], emailVerified: true,
+      enabled: true, attributes: {}, createdAt: ""
+    });
+    vi.mocked(desactivarOperador).mockResolvedValue({ message: "ok", wasAlreadyDisabled: false });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderWithId(<DetalleUsuario />, "/admin/usuarios/u1", "/admin/usuarios/:id");
+    await waitFor(() => expect(screen.getByText("Alice Doe")).toBeInTheDocument());
+
+    const btn = screen.getByRole("button", { name: /desactivar usuario/i });
+    fireEvent.click(btn);
+
+    await waitFor(() => expect(desactivarOperador).toHaveBeenCalledWith({ email: "alice@test.com" }));
+  });
+
+  it("shows an activate button for a disabled operator and enables them on confirm", async () => {
+    vi.mocked(getUserById).mockResolvedValue({
+      id: "u1", name: "Bob Roe", email: "bob@test.com",
+      roles: ["operator"], emailVerified: true,
+      enabled: false, attributes: {}, createdAt: ""
+    });
+    vi.mocked(activarOperador).mockResolvedValue({ message: "ok", wasAlreadyEnabled: false });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderWithId(<DetalleUsuario />, "/admin/usuarios/u1", "/admin/usuarios/:id");
+    await waitFor(() => expect(screen.getByText("Bob Roe")).toBeInTheDocument());
+
+    const btn = screen.getByRole("button", { name: /activar usuario/i });
+    fireEvent.click(btn);
+
+    await waitFor(() => expect(activarOperador).toHaveBeenCalledWith({ email: "bob@test.com" }));
+  });
+
+  it("shows the deactivate button for a participant too", async () => {
+    vi.mocked(getUserById).mockResolvedValue({
+      id: "u2", name: "Carol Poe", email: "carol@test.com",
+      roles: ["participant"], emailVerified: true,
+      enabled: true, attributes: {}, createdAt: ""
+    });
+    vi.mocked(desactivarOperador).mockResolvedValue({ message: "ok", wasAlreadyDisabled: false });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderWithId(<DetalleUsuario />, "/admin/usuarios/u2", "/admin/usuarios/:id");
+    await waitFor(() => expect(screen.getByText("Carol Poe")).toBeInTheDocument());
+
+    const btn = screen.getByRole("button", { name: /desactivar usuario/i });
+    fireEvent.click(btn);
+
+    await waitFor(() => expect(desactivarOperador).toHaveBeenCalledWith({ email: "carol@test.com" }));
+  });
+
+  it("does not show the activate/deactivate button for admin users", async () => {
+    vi.mocked(getUserById).mockResolvedValue({
+      id: "u3", name: "Dave Poe", email: "dave@test.com",
+      roles: ["admin"], emailVerified: true,
+      enabled: true, attributes: {}, createdAt: ""
+    });
+    renderWithId(<DetalleUsuario />, "/admin/usuarios/u3", "/admin/usuarios/:id");
+    await waitFor(() => expect(screen.getByText("Dave Poe")).toBeInTheDocument());
+
+    expect(screen.queryByRole("button", { name: /desactivar usuario/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /activar usuario/i })).not.toBeInTheDocument();
   });
 });
 
@@ -189,10 +265,51 @@ describe("PanelSesion", () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "s1", name: "Sesión Live", pin: "111222", status: "Active",
       stages: [{ missionId: "m1", missionTitle: "M1", stageName: "M1", missionType: "Treasure", order: 1 }],
-      currentStageOrder: 0, teamId: null, teamName: null, participants: [], startedAt: null, finishedAt: null, createdAt: ""
+      currentStageOrder: 0, teamId: null, teamName: null, participants: [], startedAt: null, endedAt: null, createdAt: ""
     });
     vi.mocked(fetchWithAuth).mockResolvedValue({ ok: true, json: () => Promise.resolve([]) } as Response);
     renderWithId(<PanelSesion />, "/admin/sesiones/s1", "/admin/sesiones/:id");
     await waitFor(() => expect(screen.getByText("Sesión Live")).toBeInTheDocument());
+  });
+
+  // RB-10: el admin ve el detalle completo pero no puede administrar la sesión.
+  it("hides management controls and shows a read-only badge under /admin", async () => {
+    vi.mocked(getSessionProgress).mockResolvedValue({
+      sessionId: "s1", name: "Sesión Live", status: "Active",
+      elapsedSeconds: 120, totalDurationSeconds: 0, currentMissionElapsedSeconds: 120,
+      participants: [], teamId: null, teamName: null
+    });
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "s1", name: "Sesión Live", pin: "111222", status: "Active",
+      stages: [{ missionId: "m1", missionTitle: "M1", stageName: "M1", missionType: "Treasure", order: 1 }],
+      currentStageOrder: 0, teamId: null, teamName: null, participants: [], startedAt: null, endedAt: null, createdAt: ""
+    });
+    vi.mocked(fetchWithAuth).mockResolvedValue({ ok: true, json: () => Promise.resolve([]) } as Response);
+    renderWithId(<PanelSesion />, "/admin/sesiones/s1", "/admin/sesiones/:id");
+    await waitFor(() => expect(screen.getByText("Sesión Live")).toBeInTheDocument());
+
+    expect(screen.getByText(/solo lectura/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /pausar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /finalizar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /liberar pista/i })).not.toBeInTheDocument();
+  });
+
+  it("shows management controls for the same session under /operator", async () => {
+    vi.mocked(getSessionProgress).mockResolvedValue({
+      sessionId: "s1", name: "Sesión Live", status: "Active",
+      elapsedSeconds: 120, totalDurationSeconds: 0, currentMissionElapsedSeconds: 120,
+      participants: [], teamId: null, teamName: null
+    });
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "s1", name: "Sesión Live", pin: "111222", status: "Active",
+      stages: [{ missionId: "m1", missionTitle: "M1", stageName: "M1", missionType: "Treasure", order: 1 }],
+      currentStageOrder: 0, teamId: null, teamName: null, participants: [], startedAt: null, endedAt: null, createdAt: ""
+    });
+    vi.mocked(fetchWithAuth).mockResolvedValue({ ok: true, json: () => Promise.resolve([]) } as Response);
+    renderWithId(<PanelSesion />, "/operator/sesiones/s1", "/operator/sesiones/:id");
+    await waitFor(() => expect(screen.getByText("Sesión Live")).toBeInTheDocument());
+
+    expect(screen.queryByText(/solo lectura/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /pausar/i })).toBeInTheDocument();
   });
 });

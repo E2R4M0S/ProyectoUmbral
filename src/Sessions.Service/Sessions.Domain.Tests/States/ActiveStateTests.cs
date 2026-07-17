@@ -38,7 +38,7 @@ public class ActiveStateTests
     [Fact]
     public void OnEnter_WhenStartedAtIsNull_ShouldSetStartedAt()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
         session.StartedAt.Should().BeNull();
 
         _state.OnEnter(session);
@@ -50,7 +50,7 @@ public class ActiveStateTests
     [Fact]
     public void OnEnter_WhenStartedAtAlreadySet_ShouldNotOverwrite()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
         SetStartedAt(session, DateTime.UtcNow.AddHours(-1));
         var originalStartedAt = session.StartedAt;
 
@@ -62,7 +62,7 @@ public class ActiveStateTests
     [Fact]
     public void OnExit_ShouldNotModifyContext()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
         SetStartedAt(session, DateTime.UtcNow);
 
         _state.OnExit(session);
@@ -70,8 +70,43 @@ public class ActiveStateTests
         session.StartedAt.Should().NotBeNull();
     }
 
+    [Fact]
+    public void OnEnter_WhenResumingFromPause_ShouldShiftCurrentMissionStartedAtAndClearPausedAt()
+    {
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
+        var missionStart = DateTime.UtcNow.AddMinutes(-10);
+        SetStartedAt(session, missionStart);
+        SetProperty(session, "CurrentMissionStartedAt", missionStart);
+        var pausedAt = DateTime.UtcNow.AddMinutes(-5); // paused 5 minutes ago
+        SetProperty(session, "PausedAt", pausedAt);
+
+        _state.OnEnter(session);
+
+        session.PausedAt.Should().BeNull();
+        // The anchor should have shifted forward by roughly the 5-minute paused duration.
+        session.CurrentMissionStartedAt.Should().BeCloseTo(missionStart.Add(DateTime.UtcNow - pausedAt), TimeSpan.FromSeconds(2));
+        session.TotalPausedSeconds.Should().BeGreaterThan(290); // ~5 minutes, allow test-run slack
+    }
+
+    [Fact]
+    public void OnEnter_WhenNotPaused_ShouldNotChangePausedFields()
+    {
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
+        SetStartedAt(session, DateTime.UtcNow.AddMinutes(-10));
+
+        _state.OnEnter(session);
+
+        session.PausedAt.Should().BeNull();
+        session.TotalPausedSeconds.Should().Be(0);
+    }
+
     private static void SetStartedAt(Session session, DateTime value)
     {
         typeof(Session).GetProperty("StartedAt")!.SetValue(session, value);
+    }
+
+    private static void SetProperty(Session session, string name, object value)
+    {
+        typeof(Session).GetProperty(name)!.SetValue(session, value);
     }
 }

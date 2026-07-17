@@ -29,11 +29,21 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(configuration["Missions:Url"] ?? "http://missions.service:80");
         });
 
+        // Typed client to validate mission status (RB-01) when creating a session
+        services.AddHttpClient<IMissionCatalogService, Services.MissionCatalogService>(client =>
+        {
+            client.BaseAddress = new Uri(configuration["Missions:Url"] ?? "http://missions.service:80");
+        });
+
         // Register a simple event publisher (RabbitMQ implementation placeholder)
         services.AddSingleton<IEventPublisher, Notifications.RabbitMqEventPublisher>();
 
         // Facade Pattern: coordina operaciones de sesion multi-paso
         services.AddScoped<IGameSessionFacade, GameSessionFacade>();
+
+        // RF-02: enforces each mission's declared TimeMinutes server-side instead of leaving
+        // it purely decorative on the client countdown.
+        services.AddHostedService<SessionTimeoutEnforcer>();
 
         return services;
     }

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Missions.Application.Common.Interfaces;
 using Missions.Application.Operators.Create;
 using Missions.Application.Operators.Disable;
+using Missions.Application.Operators.Enable;
 using Missions.Application.Users.GetUsers;
 
 namespace Missions.Infrastructure.Services;
@@ -413,6 +414,62 @@ public class KeycloakAdminService : IKeycloakAdminService
             : "Operador desactivado correctamente.";
 
         return new DisableOperatorResponse(message, wasAlreadyDisabled);
+    }
+
+    public async Task<EnableOperatorResponse> EnableOperatorAsync(string email, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var searchRequest = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users?email={Uri.EscapeDataString(email)}");
+        searchRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var searchResponse = await _httpClient.SendAsync(searchRequest, ct);
+
+        if (!searchResponse.IsSuccessStatusCode)
+        {
+            var errorBody = await searchResponse.Content.ReadAsStringAsync(ct);
+            _logger.LogError(
+                "Keycloak user search failed: {StatusCode} {Error}",
+                searchResponse.StatusCode, errorBody);
+            searchResponse.EnsureSuccessStatusCode();
+        }
+
+        var users = await searchResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var user = users.EnumerateArray().FirstOrDefault();
+
+        if (user.ValueKind == JsonValueKind.Undefined)
+            throw new InvalidOperationException($"No user found with email '{email}'");
+
+        var userId = user.GetProperty("id").GetString()!;
+        var wasAlreadyEnabled = user.GetProperty("enabled").GetBoolean();
+
+        var enablePayload = new { enabled = true };
+        var enableRequest = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}")
+        {
+            Content = JsonContent.Create(enablePayload)
+        };
+        enableRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var enableResponse = await _httpClient.SendAsync(enableRequest, ct);
+
+        if (!enableResponse.IsSuccessStatusCode)
+        {
+            var errorBody = await enableResponse.Content.ReadAsStringAsync(ct);
+            _logger.LogError(
+                "Keycloak enable user failed: {StatusCode} {Error}",
+                enableResponse.StatusCode, errorBody);
+            enableResponse.EnsureSuccessStatusCode();
+        }
+
+        var message = wasAlreadyEnabled
+            ? "El operador ya estaba activo."
+            : "Operador activado correctamente.";
+
+        return new EnableOperatorResponse(message, wasAlreadyEnabled);
     }
 
     private static object BuildUserPayload(string username, string email, string password, string firstName, string lastName, string? alias)

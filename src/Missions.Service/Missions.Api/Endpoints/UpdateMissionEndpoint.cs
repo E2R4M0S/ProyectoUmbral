@@ -51,7 +51,7 @@ public static class UpdateMissionEndpoint
                     message = ex.Message
                 });
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("already exists") || ex.Message.Contains("is in use"))
+            catch (InvalidOperationException ex) when (ex.Message.Contains("already exists") || ex.Message.Contains("is in use") || ex.Message.Contains("Desactívela primero"))
             {
                 logger.LogWarning(
                     "Mission update conflict: {Message}", ex.Message);

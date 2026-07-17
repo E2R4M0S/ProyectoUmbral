@@ -1,4 +1,7 @@
-﻿using FluentAssertions;
+﻿using System.Security.Claims;
+using FluentAssertions;
+using FluentValidation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Sessions.Application.Common.Interfaces;
@@ -11,13 +14,23 @@ namespace Sessions.Application.Tests.Sessions.Create;
 public class CreateSessionCommandHandlerTests
 {
     private readonly ISessionRepository _repository = Substitute.For<ISessionRepository>();
+    private readonly IMissionCatalogService _missionCatalogService = Substitute.For<IMissionCatalogService>();
+    private readonly IHttpContextAccessor _httpContextAccessor = Substitute.For<IHttpContextAccessor>();
     private readonly ILogger<CreateSessionCommandHandler> _logger =
         Substitute.For<ILogger<CreateSessionCommandHandler>>();
     private readonly CreateSessionCommandHandler _sut;
+    private readonly Guid _operatorId = Guid.NewGuid();
 
     public CreateSessionCommandHandlerTests()
     {
-        _sut = new CreateSessionCommandHandler(_repository, _logger);
+        _missionCatalogService
+            .GetMissionAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(ci => new MissionSummary(ci.Arg<Guid>(), "Some Mission", "Active"));
+
+        var identity = new ClaimsIdentity(new[] { new Claim("sub", _operatorId.ToString()) }, "Test");
+        _httpContextAccessor.HttpContext.Returns(new DefaultHttpContext { User = new ClaimsPrincipal(identity) });
+
+        _sut = new CreateSessionCommandHandler(_repository, _missionCatalogService, _httpContextAccessor, _logger);
     }
 
     private static CreateSessionCommand SingleStageCommand(string name = "Test Session")
@@ -74,6 +87,25 @@ public class CreateSessionCommandHandlerTests
         result.Stages[1].Order.Should().Be(2);
         result.Stages[2].Order.Should().Be(3);
         result.Stages.Select(s => s.MissionType).Should().Contain(new[] { "Trivia", "Treasure", "Trivia" });
+    }
+
+    [Fact]
+    public async Task Handle_WithValidCommand_ShouldPropagateMissionDifficultyToStage()
+    {
+        var command = SingleStageCommand();
+        var missionId = command.Stages[0].MissionId;
+        _missionCatalogService
+            .GetMissionAsync(missionId, Arg.Any<CancellationToken>())
+            .Returns(new MissionSummary(missionId, "Some Mission", "Active", "Hard"));
+
+        _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        _repository.AddAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+
+        await _sut.Handle(command, CancellationToken.None);
+
+        await _repository.Received(1).AddAsync(
+            Arg.Is<Session>(s => s.Stages.First().Difficulty == "Hard" && s.Stages.First().BaseScanPoints == 200),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -151,6 +183,65 @@ public class CreateSessionCommandHandlerTests
         captured.Stages[0].MissionType.Should().Be("Trivia");
         captured.Stages[1].MissionId.Should().Be(missionId2);
         captured.Stages[1].MissionType.Should().Be("Treasure");
+    }
+
+    [Fact]
+    public async Task Handle_WhenMissionIsNotActive_ShouldThrowValidationException()
+    {
+        var command = SingleStageCommand("Draft Mission Session");
+        _missionCatalogService
+            .GetMissionAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(ci => new MissionSummary(ci.Arg<Guid>(), "Trivia Facil", "Draft"));
+
+        Func<Task> act = async () => await _sut.Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ValidationException>()
+            .WithMessage("*no está Activa*");
+        await _repository.DidNotReceive().AddAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenMissionDoesNotExist_ShouldThrowValidationException()
+    {
+        var command = SingleStageCommand("Missing Mission Session");
+        _missionCatalogService
+            .GetMissionAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns((MissionSummary?)null);
+
+        Func<Task> act = async () => await _sut.Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ValidationException>()
+            .WithMessage("*no existe*");
+        await _repository.DidNotReceive().AddAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ShouldSetOperatorIdFromToken()
+    {
+        var command = SingleStageCommand("Owned Session");
+        _repository.IsPinUniqueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        Session? captured = null;
+        _repository.AddAsync(Arg.Do<Session>(s => captured = s), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        await _sut.Handle(command, CancellationToken.None);
+
+        captured.Should().NotBeNull();
+        captured!.OperatorId.Should().Be(_operatorId);
+    }
+
+    [Fact]
+    public async Task Handle_WhenNoOperatorClaimInToken_ShouldThrow()
+    {
+        _httpContextAccessor.HttpContext.Returns(new DefaultHttpContext());
+        var command = SingleStageCommand("No Operator Session");
+
+        Func<Task> act = async () => await _sut.Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Operator identifier*");
+        await _repository.DidNotReceive().AddAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>());
     }
 }
 

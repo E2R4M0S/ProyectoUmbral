@@ -14,6 +14,7 @@ public class SessionsDbContext : DbContext
     public DbSet<SessionParticipant> SessionParticipants => Set<SessionParticipant>();
     public DbSet<SessionTeam> SessionTeams => Set<SessionTeam>();
     public DbSet<SessionTeamMember> SessionTeamMembers => Set<SessionTeamMember>();
+    public DbSet<SessionAuditEvent> SessionAuditEvents => Set<SessionAuditEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,5 +22,6 @@ public class SessionsDbContext : DbContext
         modelBuilder.ApplyConfiguration(new SessionParticipantConfiguration());
         modelBuilder.ApplyConfiguration(new SessionTeamConfiguration());
         modelBuilder.ApplyConfiguration(new SessionTeamMemberConfiguration());
+        modelBuilder.ApplyConfiguration(new SessionAuditEventConfiguration());
     }
 }

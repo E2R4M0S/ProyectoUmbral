@@ -10,6 +10,9 @@ public class SessionTeam
     public int MaxMembers { get; private set; }
     public int Score { get; private set; }
     public DateTime CreatedAt { get; private set; }
+    // RB-08: ranking tie-break — when the score last changed, so ties can be broken by
+    // whichever team reached that score first.
+    public DateTime? LastScoreAt { get; private set; }
     public IReadOnlyList<SessionTeamMember> Members => _members.AsReadOnly();
 
     private SessionTeam() { }
@@ -41,11 +44,11 @@ public class SessionTeam
         _members.Add(SessionTeamMember.Create(Id, userId, userAlias));
     }
 
-    public void AddScore(int delta) { if (delta > 0) Score += delta; }
+    public void AddScore(int delta) { if (delta > 0) { Score += delta; LastScoreAt = DateTime.UtcNow; } }
 
-    public void ApplyPenalty(int amount) { if (amount > 0) Score = Math.Max(0, Score - amount); }
+    public void ApplyPenalty(int amount) { if (amount > 0) { Score = Math.Max(0, Score - amount); LastScoreAt = DateTime.UtcNow; } }
 
-    public void ResetScore() => Score = 0;
+    public void ResetScore() { Score = 0; LastScoreAt = null; }
 
     public void RemoveMember(Guid userId)
     {

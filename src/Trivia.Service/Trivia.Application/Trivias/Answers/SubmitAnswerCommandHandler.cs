@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Trivia.Application.Common.Interfaces;
@@ -31,8 +32,46 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
         _leaderboardRepo = leaderboardRepo;
     }
 
+    // RB-03: no answers may be accepted once the (Sessions.Service) session backing this game
+    // is Paused, Finished or Cancelled. Best-effort — quizId doubles as the sessionId (see
+    // QuestionCard.tsx / TriviaAnswerSubmittedConsumer) — if Sessions.Service can't be reached
+    // we fail open rather than blocking live gameplay on a transient network issue.
+    private static readonly HashSet<string> BlockedSessionStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Paused", "Finished", "Cancelled"
+    };
+
+    private async Task<string?> GetBlockedSessionStatusAsync(Guid quizId, CancellationToken ct)
+    {
+        try
+        {
+            var client = _httpClientFactory.CreateClient("sessionsService");
+            var response = await client.GetAsync($"/{quizId}", ct);
+            if (!response.IsSuccessStatusCode) return null;
+
+            var session = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
+            if (!session.TryGetProperty("status", out var statusProp)) return null;
+
+            var status = statusProp.GetString();
+            return status is not null && BlockedSessionStatuses.Contains(status) ? status : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to verify session status for quiz {QuizId}; allowing the answer", quizId);
+            return null;
+        }
+    }
+
     public async Task<AnswerResult> Handle(SubmitAnswerCommand request, CancellationToken ct)
     {
+        var blockedStatus = await GetBlockedSessionStatusAsync(request.QuizId, ct);
+        if (blockedStatus is not null)
+        {
+            _logger.LogInformation(
+                "Rejecting answer for QuizId={QuizId}: session status is {Status}", request.QuizId, blockedStatus);
+            return new AnswerResult(false, 0, 0, Rejected: true, RejectReason: $"Session is {blockedStatus}");
+        }
+
         var correctIndex = AskQuestionCommandHandler.CorrectAnswers.GetValueOrDefault(request.QuestionId, -1);
         var selectedIndex = int.TryParse(request.AnswerId.ToString()?.Last().ToString(), out var idx) ? idx : -1;
         bool isCorrect = correctIndex >= 0 && selectedIndex == correctIndex;

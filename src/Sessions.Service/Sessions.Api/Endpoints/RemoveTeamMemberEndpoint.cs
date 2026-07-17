@@ -42,6 +42,6 @@ public static class RemoveTeamMemberEndpoint
             }
         })
         .WithName("RemoveTeamMember")
-        .RequireAuthorization("operator_or_admin");
+        .RequireAuthorization("operator");
     }
 }

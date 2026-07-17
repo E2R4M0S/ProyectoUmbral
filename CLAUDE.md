@@ -804,7 +804,7 @@ API Gateway → Microservicio: Request interno (confianza de red)
 | RB-07 | El puntaje acumulado tiene trazabilidad de origen (pista usada, tiempo, acierto). |
 | RB-08 | El ranking se ordena por puntaje descendente; el tiempo actúa como desempate. |
 | RB-09 | Los cambios de estado respetan las transiciones válidas (State Pattern). |
-| RB-10 | Un operador solo administra sesiones visibles según política de roles. |
+| RB-10 | Un operador administra únicamente las sesiones que él mismo creó (`Session.OperatorId`). El administrador consulta cualquier sesión en modo solo lectura, pero no la gestiona. |
 
 ---
 

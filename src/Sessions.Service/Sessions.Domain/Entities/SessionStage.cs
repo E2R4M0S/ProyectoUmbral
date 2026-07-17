@@ -12,6 +12,15 @@ public class SessionStage
     public int TimeMinutes { get; private set; }
     public double? Latitude { get; private set; }
     public double? Longitude { get; private set; }
+    public string Difficulty { get; private set; } = "Medium";
+
+    // RF: el puntaje base de cada escaneo QR depende de la dificultad de la misión.
+    public int BaseScanPoints => Difficulty switch
+    {
+        "Easy" => 100,
+        "Hard" => 200,
+        _ => 150 // Medium (y cualquier valor desconocido)
+    };
 
     private SessionStage() { }
 
@@ -25,7 +34,8 @@ public class SessionStage
         string qrToken,
         int timeMinutes = 0,
         double? latitude = null,
-        double? longitude = null)
+        double? longitude = null,
+        string difficulty = "Medium")
     {
         if (missionId == Guid.Empty)
             throw new InvalidOperationException("SessionStage MissionId cannot be empty");
@@ -53,7 +63,8 @@ public class SessionStage
             QrToken = qrToken,
             TimeMinutes = timeMinutes,
             Latitude = latitude,
-            Longitude = longitude
+            Longitude = longitude,
+            Difficulty = string.IsNullOrWhiteSpace(difficulty) ? "Medium" : difficulty
         };
     }
 

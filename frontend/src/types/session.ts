@@ -24,7 +24,7 @@ export interface SessionResponse {
   currentStageOrder: number;
   stages: SessionStage[];
   startedAt: string | null;
-  finishedAt: string | null;
+  endedAt: string | null;
   createdAt: string;
 }
 
@@ -52,7 +52,7 @@ export interface SessionDetail {
   teamName: string | null;
   participants: SessionParticipant[];
   startedAt: string | null;
-  finishedAt: string | null;
+  endedAt: string | null;
   createdAt: string;
 }
 
@@ -121,4 +121,25 @@ export interface GetSessionsResponse {
   totalCount: number;
   page: number;
   pageSize: number;
+}
+
+export interface MySessionItem {
+  id: string;
+  name: string;
+  status: SessionStatus;
+  missionTitles: string[];
+  myScore: number;
+  startedAt: string | null;
+  endedAt: string | null;
+  joinedAt: string;
+}
+
+export interface SessionRankingItem {
+  position: number;
+  type: "team" | "individual" | string;
+  displayName: string;
+  score: number;
+  memberCount: number;
+  teamId: string | null;
+  userId: string | null;
 }

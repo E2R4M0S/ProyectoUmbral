@@ -67,7 +67,6 @@ import { CatalogoMisiones } from "../CatalogoMisiones";
 import { CrearMision } from "../CrearMision";
 import { CrearOperador } from "../CrearOperador";
 import { CrearSesion } from "../CrearSesion";
-import { DesactivarOperador } from "../DesactivarOperador";
 import { ListadoEquipos } from "../ListadoEquipos";
 import { ListadoSesiones } from "../ListadoSesiones";
 import { ListadoUsuarios } from "../ListadoUsuarios";
@@ -152,23 +151,6 @@ describe("CrearSesion", () => {
   });
 });
 
-// ── DesactivarOperador ──────────────────────────────────────────────────────
-describe("DesactivarOperador", () => {
-  it("renders the deactivation form", () => {
-    wrap(<DesactivarOperador />);
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /desactivar/i })).toBeInTheDocument();
-  });
-
-  it("shows error when email is empty", async () => {
-    wrap(<DesactivarOperador />);
-    fireEvent.click(screen.getByRole("button", { name: /desactivar/i }));
-    await waitFor(() =>
-      expect(screen.getByText(/email es obligatorio/i)).toBeInTheDocument()
-    );
-  });
-});
-
 // ── ListadoEquipos ──────────────────────────────────────────────────────────
 describe("ListadoEquipos", () => {
   it("renders and loads teams", async () => {
@@ -188,6 +170,23 @@ describe("ListadoSesiones", () => {
     wrap(<ListadoSesiones />);
     await waitFor(() => expect(listSessions).toHaveBeenCalled());
     expect(screen.getByRole("heading")).toBeInTheDocument();
+  });
+
+  // RB-10: el admin ya no gestiona sesiones — solo las consulta.
+  it("hides create button and per-card transition actions for admin (read-only)", async () => {
+    vi.mocked(listSessions).mockResolvedValue({
+      items: [{
+        id: "s1", name: "Sesión de prueba", missionTitle: "Misión", missionType: "Trivia",
+        currentStageOrder: 0, stageCount: 1, status: "Preparing", pin: "111222",
+        participantCount: 2, createdAt: "2026-07-01T10:00:00Z",
+      }],
+      totalCount: 1, page: 1, pageSize: 10,
+    } as any);
+    wrap(<ListadoSesiones />);
+    await waitFor(() => expect(listSessions).toHaveBeenCalled());
+
+    expect(screen.queryByText(/nueva sesión/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /iniciar|pausar|finalizar|cancelar|preparar/i })).not.toBeInTheDocument();
   });
 });
 

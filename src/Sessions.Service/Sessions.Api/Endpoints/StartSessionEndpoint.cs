@@ -28,6 +28,11 @@ public static class StartSessionEndpoint
                 logger.LogWarning("Session not found: Id={SessionId}", id);
                 return Results.NotFound(new { error = "Not Found", message = ex.Message });
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning("Session start forbidden: {Message}", ex.Message);
+                return Results.Json(new { error = "Forbidden", message = ex.Message }, statusCode: StatusCodes.Status403Forbidden);
+            }
             catch (InvalidOperationException ex)
             {
                 logger.LogWarning("Session start failed: {Message}", ex.Message);
@@ -40,6 +45,6 @@ public static class StartSessionEndpoint
             }
         })
         .WithName("StartSession")
-        .RequireAuthorization("operator_or_admin");
+        .RequireAuthorization("operator");
     }
 }

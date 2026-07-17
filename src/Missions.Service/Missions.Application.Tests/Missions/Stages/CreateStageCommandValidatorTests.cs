@@ -13,7 +13,7 @@ public class CreateStageCommandValidatorTests
     public void Validate_ValidCommand_ShouldPass()
     {
         // Arrange
-        var command = new CreateStageCommand(Guid.NewGuid(), "Stage Name", "Stage Description", 1);
+        var command = new CreateStageCommand(Guid.NewGuid(), "Stage Name", "Stage Description", 1, 10.5, -66.9);
 
         // Act
         var result = _sut.TestValidate(command);
@@ -23,10 +23,38 @@ public class CreateStageCommandValidatorTests
     }
 
     [Fact]
+    public void Validate_MissingLatitude_ShouldFail()
+    {
+        // Arrange
+        var command = new CreateStageCommand(Guid.NewGuid(), "Stage Name", "Stage Description", 1, null, -66.9);
+
+        // Act
+        var result = _sut.TestValidate(command);
+
+        // Assert
+        result.ShouldHaveValidationErrorFor(x => x.Latitude)
+            .WithErrorMessage("Debe marcar una ubicación en el mapa");
+    }
+
+    [Fact]
+    public void Validate_MissingLongitude_ShouldFail()
+    {
+        // Arrange
+        var command = new CreateStageCommand(Guid.NewGuid(), "Stage Name", "Stage Description", 1, 10.5, null);
+
+        // Act
+        var result = _sut.TestValidate(command);
+
+        // Assert
+        result.ShouldHaveValidationErrorFor(x => x.Longitude)
+            .WithErrorMessage("Debe marcar una ubicación en el mapa");
+    }
+
+    [Fact]
     public void Validate_EmptyName_ShouldFail()
     {
         // Arrange
-        var command = new CreateStageCommand(Guid.NewGuid(), "", "Stage Description", 1);
+        var command = new CreateStageCommand(Guid.NewGuid(), "", "Stage Description", 1, 10.5, -66.9);
 
         // Act
         var result = _sut.TestValidate(command);

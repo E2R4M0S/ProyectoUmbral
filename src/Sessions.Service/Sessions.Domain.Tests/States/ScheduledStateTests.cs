@@ -37,7 +37,7 @@ public class ScheduledStateTests
     [Fact]
     public void OnEnter_ShouldNotModifyContext()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
         var originalStartedAt = session.StartedAt;
         var originalEndedAt = session.EndedAt;
 
@@ -50,7 +50,7 @@ public class ScheduledStateTests
     [Fact]
     public void OnExit_ShouldNotModifyContext()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
 
         _state.OnExit(session);
 

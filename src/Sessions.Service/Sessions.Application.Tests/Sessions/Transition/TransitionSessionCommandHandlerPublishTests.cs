@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Sessions.Application.Common.Interfaces;
@@ -13,6 +14,7 @@ namespace Sessions.Application.Tests.Sessions.Transition;
 public class TransitionSessionCommandHandlerPublishTests
 {
     private readonly ISessionRepository _repository = Substitute.For<ISessionRepository>();
+    private readonly IHttpContextAccessor _httpContextAccessor = Substitute.For<IHttpContextAccessor>();
     private readonly ILogger<TransitionSessionCommandHandler> _logger =
         Substitute.For<ILogger<TransitionSessionCommandHandler>>();
     private readonly IEventPublisher _publisher = Substitute.For<IEventPublisher>();
@@ -20,7 +22,8 @@ public class TransitionSessionCommandHandlerPublishTests
 
     public TransitionSessionCommandHandlerPublishTests()
     {
-        _sut = new TransitionSessionCommandHandler(_repository, _logger, _publisher);
+        _httpContextAccessor.HttpContext.Returns((HttpContext?)null);
+        _sut = new TransitionSessionCommandHandler(_repository, _httpContextAccessor, _logger, _publisher);
     }
 
     [Fact]

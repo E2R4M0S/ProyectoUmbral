@@ -110,6 +110,7 @@ export function EditarMision() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
     async function loadMission() {
@@ -122,6 +123,7 @@ export function EditarMision() {
         setDifficulty(mission.difficulty);
         setTimeMinutes(String(mission.timeMinutes));
         setMissionType(mission.type);
+        setIsActive(mission.status === "Active");
       } catch {
         setSubmitError("No se pudo cargar la misión.");
       } finally {
@@ -160,6 +162,8 @@ export function EditarMision() {
       if (err instanceof ApiError) {
         if (err.status === 400) {
           setSubmitError("Datos inválidos. Verifica los campos.");
+        } else if (err.status === 409) {
+          setSubmitError(err.body || "No se pudo actualizar la misión por un conflicto de estado.");
         } else {
           setSubmitError("Error al actualizar la misión. Inténtalo de nuevo.");
         }
@@ -173,6 +177,33 @@ export function EditarMision() {
 
   if (loading) {
     return <div style={{ ...containerStyle, color: "#aaa" }}>Cargando...</div>;
+  }
+
+  if (isActive) {
+    return (
+      <div style={containerStyle}>
+        <h2 style={{ marginBottom: "1rem" }}>Editar Misión</h2>
+        <div style={errorMsgStyle}>
+          No se puede modificar una misión en estado 'Active'. Desactívela primero desde el catálogo.
+        </div>
+        <button
+          onClick={() => navigate("/admin/misiones")}
+          style={{
+            width: "100%",
+            marginTop: 8,
+            padding: 10,
+            backgroundColor: "transparent",
+            color: "#aaa",
+            border: "1px solid #666",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 16,
+          }}
+        >
+          Volver al catálogo
+        </button>
+      </div>
+    );
   }
 
   return (

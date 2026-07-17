@@ -38,7 +38,7 @@ public class PausedStateTests
     [Fact]
     public void OnEnter_ShouldNotModifyContext()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
         SetStartedAt(session, DateTime.UtcNow);
         var originalStartedAt = session.StartedAt;
         var originalEndedAt = session.EndedAt;
@@ -50,9 +50,21 @@ public class PausedStateTests
     }
 
     [Fact]
+    public void OnEnter_ShouldSetPausedAt()
+    {
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
+        session.PausedAt.Should().BeNull();
+
+        _state.OnEnter(session);
+
+        session.PausedAt.Should().NotBeNull();
+        session.PausedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
     public void OnExit_ShouldNotModifyContext()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
         SetStartedAt(session, DateTime.UtcNow);
 
         _state.OnExit(session);

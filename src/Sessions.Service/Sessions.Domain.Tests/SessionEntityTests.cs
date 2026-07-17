@@ -10,7 +10,7 @@ public class SessionEntityTests
     [Fact]
     public void Create_ShouldInitializeCorrectly()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
 
         session.Name.Should().Be("Test");
         session.Pin.Should().Be("123456");
@@ -21,7 +21,7 @@ public class SessionEntityTests
     [Fact]
     public void TransitionTo_ValidTransition_ShouldSucceed()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
         session.TransitionTo(SessionStatus.Preparing);
         session.Status.Should().Be(SessionStatus.Preparing);
     }
@@ -29,7 +29,7 @@ public class SessionEntityTests
     [Fact]
     public void TransitionTo_SameStatus_ShouldThrow()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
         var act = () => session.TransitionTo(SessionStatus.Scheduled);
         act.Should().Throw<InvalidOperationException>().WithMessage("*already in*");
     }
@@ -37,7 +37,7 @@ public class SessionEntityTests
     [Fact]
     public void AddParticipant_WhenPreparing_ShouldAdd()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
         session.TransitionTo(SessionStatus.Preparing);
         var userId = Guid.NewGuid();
         session.AddParticipant(userId);
@@ -48,7 +48,7 @@ public class SessionEntityTests
     [Fact]
     public void AddParticipant_WhenScheduled_ShouldThrow()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
         var act = () => session.AddParticipant(Guid.NewGuid());
         act.Should().Throw<InvalidOperationException>();
     }
@@ -56,7 +56,7 @@ public class SessionEntityTests
     [Fact]
     public void AddParticipant_Duplicate_ShouldThrow()
     {
-        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Trivia", 1, "test-token") });
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
         session.TransitionTo(SessionStatus.Preparing);
         var userId = Guid.NewGuid();
         session.AddParticipant(userId);
@@ -81,6 +81,48 @@ public class SessionEntityTests
     {
         var participant = SessionParticipant.Create(Guid.NewGuid(), Guid.NewGuid(), "erosd");
         participant.UserAlias.Should().Be("erosd");
+    }
+
+    [Fact]
+    public void Create_WithOperatorId_ShouldSetOperatorId()
+    {
+        var operatorId = Guid.NewGuid();
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") }, operatorId);
+
+        session.OperatorId.Should().Be(operatorId);
+    }
+
+    [Fact]
+    public void Create_WithoutOperatorId_ShouldLeaveOperatorIdNull()
+    {
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
+
+        session.OperatorId.Should().BeNull();
+    }
+
+    [Fact]
+    public void IsManagedBy_WhenUserIsTheOperator_ShouldReturnTrue()
+    {
+        var operatorId = Guid.NewGuid();
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") }, operatorId);
+
+        session.IsManagedBy(operatorId).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsManagedBy_WhenUserIsNotTheOperator_ShouldReturnFalse()
+    {
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") }, Guid.NewGuid());
+
+        session.IsManagedBy(Guid.NewGuid()).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsManagedBy_WhenSessionHasNoOperator_ShouldReturnFalseEvenForNullUser()
+    {
+        var session = Session.Create("Test", "123456", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Mission", "Stage", "Trivia", 1, "test-token") });
+
+        session.IsManagedBy(null).Should().BeFalse();
     }
 }
 

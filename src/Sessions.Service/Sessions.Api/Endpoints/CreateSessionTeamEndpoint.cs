@@ -47,7 +47,7 @@ public static class CreateSessionTeamEndpoint
             }
         })
         .WithName("CreateSessionTeam")
-        .RequireAuthorization("operator_or_admin");
+        .RequireAuthorization("operator");
     }
 
     public record CreateTeamBody(string Name);

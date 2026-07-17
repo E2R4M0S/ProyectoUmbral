@@ -1,3 +1,4 @@
+using Sessions.Application.Common;
 using Sessions.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Sessions.Domain.Enums;
@@ -11,6 +12,7 @@ public static class AdvanceStageEndpoint
     {
         app.MapPatch("/{id:guid}/advance-stage", async (
             [FromRoute] Guid id,
+            HttpContext httpContext,
             ISessionRepository repository,
             IGameSessionFacade facade,
             ILogger<Program> logger) =>
@@ -21,6 +23,15 @@ public static class AdvanceStageEndpoint
                 if (session is null)
                 {
                     return Results.NotFound(new { error = "Not Found", message = $"Session with id '{id}' not found" });
+                }
+
+                // RB-10: only the operator who created this session may advance it.
+                var currentUserId = CurrentUserClaims.GetUserId(httpContext.User);
+                if (!session.IsManagedBy(currentUserId))
+                {
+                    return Results.Json(
+                        new { error = "Forbidden", message = "Solo el operador que creó esta sesión puede administrarla" },
+                        statusCode: StatusCodes.Status403Forbidden);
                 }
 
                 if (session.Status != SessionStatus.Active)
@@ -83,6 +94,6 @@ public static class AdvanceStageEndpoint
             }
         })
         .WithName("AdvanceStage")
-        .RequireAuthorization("operator_or_admin");
+        .RequireAuthorization("operator");
     }
 }

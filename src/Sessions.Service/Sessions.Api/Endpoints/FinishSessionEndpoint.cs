@@ -28,6 +28,11 @@ public static class FinishSessionEndpoint
                 logger.LogWarning("Session not found: Id={SessionId}", id);
                 return Results.NotFound(new { error = "Not Found", message = ex.Message });
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning("Session finish forbidden: {Message}", ex.Message);
+                return Results.Json(new { error = "Forbidden", message = ex.Message }, statusCode: StatusCodes.Status403Forbidden);
+            }
             catch (InvalidOperationException ex)
             {
                 logger.LogWarning("Session finish failed: {Message}", ex.Message);
@@ -40,6 +45,6 @@ public static class FinishSessionEndpoint
             }
         })
         .WithName("FinishSession")
-        .RequireAuthorization("operator_or_admin");
+        .RequireAuthorization("operator");
     }
 }

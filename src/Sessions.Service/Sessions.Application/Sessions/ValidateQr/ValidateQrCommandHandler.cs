@@ -11,18 +11,46 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
     private readonly ISessionRepository _repository;
     private readonly IGameSessionFacade _facade;
     private readonly IGameNotifier _notifier;
+    private readonly IEventPublisher _eventPublisher;
     private readonly ILogger<ValidateQrCommandHandler> _logger;
 
     public ValidateQrCommandHandler(
         ISessionRepository repository,
         IGameSessionFacade facade,
         IGameNotifier notifier,
+        IEventPublisher eventPublisher,
         ILogger<ValidateQrCommandHandler> logger)
     {
         _repository = repository;
         _facade = facade;
         _notifier = notifier;
+        _eventPublisher = eventPublisher;
         _logger = logger;
+    }
+
+    // RF-14: publish a domain event to RabbitMQ whenever evidence is registered, mirroring the
+    // pattern already used for session status changes. Best-effort — a broker outage must not
+    // block the participant's QR scan.
+    private async Task PublishEvidenceSubmittedAsync(
+        Guid sessionId, Guid userId, Guid? teamId, Guid stageId, bool isValid, int? scoreDelta, CancellationToken ct)
+    {
+        try
+        {
+            await _eventPublisher.PublishAsync("evidence.submitted", new
+            {
+                SessionId = sessionId,
+                UserId = userId,
+                TeamId = teamId,
+                StageId = stageId,
+                IsValid = isValid,
+                ScoreDelta = scoreDelta,
+                OccurredAt = DateTime.UtcNow
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to publish evidence.submitted event for session {SessionId}", sessionId);
+        }
     }
 
     public async Task<ValidateQrResult> Handle(ValidateQrCommand command, CancellationToken ct)
@@ -60,6 +88,18 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
             _logger.LogWarning(
                 "QR validation failed: SessionId={SessionId}, UserId={UserId}, StageIndex={StageIndex}",
                 command.SessionId, command.UserId, stageIndex);
+
+            // RF-09: persist the rejected evidence attempt so operators can audit it later.
+            await _repository.AddAuditEventAsync(SessionAuditEvent.Create(
+                command.SessionId,
+                SessionAuditEventTypes.EvidenceRejected,
+                $"QR inválido para la etapa '{currentStage.StageName}'",
+                userId: command.UserId), ct);
+
+            await PublishEvidenceSubmittedAsync(
+                command.SessionId, command.UserId, teamId: null, stageId: currentStage.MissionStageId,
+                isValid: false, scoreDelta: null, ct);
+
             return new ValidateQrResult(false, false, participant.CurrentStageOrder,
                 sortedStages.Count, false, ErrorMessage: "Invalid QR code for current stage");
         }
@@ -79,11 +119,26 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
             }
         }
 
-        // Award 100 pts for every successfully scanned QR
+        // Award points for every successfully scanned QR — scaled by the mission's difficulty.
+        int scanPoints = currentStage.BaseScanPoints;
         if (participantTeam is not null)
-            await _repository.AddTeamScoreAsync(participantTeam.Id, 100, ct);
+            await _repository.AddTeamScoreAsync(participantTeam.Id, scanPoints, ct);
         else
-            participant.AddScore(100);
+            participant.AddScore(scanPoints);
+
+        // RF-09: evidence with validation status — record the successful QR scan.
+        await _repository.AddAuditEventAsync(SessionAuditEvent.Create(
+            command.SessionId,
+            SessionAuditEventTypes.EvidenceValidated,
+            $"QR válido para la etapa '{currentStage.StageName}'",
+            teamId: participantTeam?.Id,
+            userId: command.UserId,
+            scoreDelta: scanPoints), ct);
+
+        // RF-14: publish the domain event to RabbitMQ.
+        await PublishEvidenceSubmittedAsync(
+            command.SessionId, command.UserId, participantTeam?.Id, currentStage.MissionStageId,
+            isValid: true, scoreDelta: scanPoints, ct);
 
         participant.AdvanceStage();
         foreach (var mate in teammates) mate.CatchUpTo(newOrder);
@@ -117,6 +172,15 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
                     await _repository.AddTeamScoreAsync(participantTeam.Id, bonus, ct);
                 else
                     participant.AddScore(bonus);
+
+                // RB-07: podium bonus must be traceable to its origin, same as any other score change.
+                await _repository.AddAuditEventAsync(SessionAuditEvent.Create(
+                    command.SessionId,
+                    SessionAuditEventTypes.EvidenceValidated,
+                    $"Bono de podio (posición {completedBefore + 1}) por completar la misión",
+                    teamId: participantTeam?.Id,
+                    userId: command.UserId,
+                    scoreDelta: bonus), ct);
             }
 
             participant.Complete();

@@ -16,6 +16,10 @@ public class PausedState : ISessionState
 
     public bool CanTransitionTo(SessionStatus target) => Allowed.Contains(target);
 
-    public void OnEnter(Session context) { }
+    public void OnEnter(Session context)
+    {
+        context.PausedAt = DateTime.UtcNow;
+    }
+
     public void OnExit(Session context) { }
 }

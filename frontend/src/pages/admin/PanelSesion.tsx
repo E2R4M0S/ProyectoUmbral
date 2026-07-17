@@ -90,6 +90,8 @@ export function PanelSesion() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const basePath = location.pathname.includes("/admin/") ? "/admin" : "/operator";
+  // RB-10: el admin puede ver el detalle completo de cualquier sesión, pero no administrarla.
+  const readOnly = basePath === "/admin";
 
   const [progress, setProgress] = useState<SessionProgress | null>(null);
   const [pin, setPin] = useState<string>("");
@@ -187,9 +189,11 @@ export function PanelSesion() {
     if (progress) setLocalMissionSeconds(progress.currentMissionElapsedSeconds);
   }, [progress?.currentMissionElapsedSeconds]);
 
-  // Auto-finish when remaining time reaches 0
+  // Auto-finish when remaining time reaches 0 (RF-02 already enforces this server-side too —
+  // this is just for a snappier UI update on the operator's own screen, so it's pointless
+  // for a read-only admin viewer, and the ownership check would reject it anyway).
   useEffect(() => {
-    if (!id || progress?.status !== "Active" || autoFinishedRef.current) return;
+    if (readOnly || !id || progress?.status !== "Active" || autoFinishedRef.current) return;
     const totalSeconds = progress?.totalDurationSeconds ?? 0;
     if (totalSeconds <= 0 || localSeconds < totalSeconds) return;
     autoFinishedRef.current = true;
@@ -288,7 +292,7 @@ export function PanelSesion() {
   // stays 0 for every remaining stage of that mission) until reaching the next mission.
   const treasureAdvancingRef = useRef(false);
   useEffect(() => {
-    if (treasureRemaining !== 0 || !currentStage?.missionId || progress?.status !== "Active") return;
+    if (readOnly || treasureRemaining !== 0 || !currentStage?.missionId || progress?.status !== "Active") return;
     if (isLastStage || advancing || treasureAdvancingRef.current) return;
     treasureAdvancingRef.current = true;
     handleAdvanceStage().finally(() => { treasureAdvancingRef.current = false; });
@@ -367,6 +371,11 @@ export function PanelSesion() {
               {stages.length} {stages.length === 1 ? "etapa" : "etapas"}
             </span>
           )}
+          {readOnly && (
+            <span style={css.chip("#555")} title="El admin consulta el detalle de la sesión pero no puede administrarla">
+              👁 Solo lectura
+            </span>
+          )}
           <span style={css.chip("#1a2a3a")}>
             {progress.participants?.length || 0} participantes
           </span>
@@ -408,7 +417,7 @@ export function PanelSesion() {
       })()}
 
       {/* Transition buttons */}
-      {!isTerminal && getTransitions(progress.status as SessionStatus).length > 0 && (
+      {!readOnly && !isTerminal && getTransitions(progress.status as SessionStatus).length > 0 && (
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1.25rem" }}>
           {getTransitions(progress.status as SessionStatus).map(t => (
             <button key={t} onClick={() => handleTransition(t)} style={
@@ -440,7 +449,7 @@ export function PanelSesion() {
                   {currentStage?.missionType === "Treasure" ? "🗺 Búsqueda del Tesoro" : "❓ Trivia"}
                 </span>
               </div>
-              {!isTerminal && (
+              {!readOnly && !isTerminal && (
                 <button
                   onClick={handleAdvanceStage}
                   disabled={!canAdvance || advancing}
@@ -465,6 +474,7 @@ export function PanelSesion() {
         sessionId={id!}
         teams={teams}
         sessionStatus={progress.status}
+        readOnly={readOnly}
         onTeamsChanged={() => id && getSessionTeams(id).then(setTeams).catch(() => {})}
       />
 
@@ -501,7 +511,29 @@ export function PanelSesion() {
       )}
 
       {/* Clues — only for Treasure, and only for the current stage */}
-      {isTreasure && !isTerminal && (
+      {isTreasure && !isTerminal && readOnly && (
+        <>
+          <div style={css.sectionTitle}>Pistas de esta etapa</div>
+          <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "1rem" }}>
+            {stageClues.length === 0 ? (
+              <p style={{ color: "#555", fontSize: "0.875rem" }}>Esta etapa no tiene pistas predefinidas.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                {stageClues.map(clue => (
+                  <div key={clue.id} style={{ padding: "0.75rem", backgroundColor: "#0d1b35", borderRadius: 6, fontSize: "0.875rem", color: "#ccc", lineHeight: 1.5 }}>
+                    {clue.content}
+                    {clue.penalty != null && (
+                      <span style={{ color: "#e94560", marginLeft: 8, fontSize: "0.78rem" }}>−{clue.penalty} pts</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {isTreasure && !isTerminal && !readOnly && (
         <>
           <div style={css.sectionTitle}>Pistas de esta etapa</div>
           <div style={{ backgroundColor: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "1rem" }}>
@@ -633,12 +665,16 @@ export function PanelSesion() {
       {/* Trivia controls */}
       {!isTreasure && !isTerminal && progress.status === "Active" && (
         <>
-          <div style={css.sectionTitle}>Quiz de Trivia</div>
-          {!isQuizPreset && <QuizSelector selectedQuizId={selectedQuizId} onSelect={setSelectedQuizId} />}
-          {selectedQuizId && (
+          {!readOnly && (
             <>
-              <div style={{ ...css.sectionTitle, marginTop: "1.25rem" }}>Enviar Preguntas</div>
-              <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} totalParticipants={expectedResponders} questionResults={questionResults} onClearResults={() => setQuestionResults([])} onTimerUpdate={(s) => setQuestionTimer(s)} onQuizComplete={() => { if (!isLastStage) handleAdvanceStage(); }} />
+              <div style={css.sectionTitle}>Quiz de Trivia</div>
+              {!isQuizPreset && <QuizSelector selectedQuizId={selectedQuizId} onSelect={setSelectedQuizId} />}
+              {selectedQuizId && (
+                <>
+                  <div style={{ ...css.sectionTitle, marginTop: "1.25rem" }}>Enviar Preguntas</div>
+                  <QuizQuestionSender sessionId={id!} quizId={selectedQuizId} totalParticipants={expectedResponders} questionResults={questionResults} onClearResults={() => setQuestionResults([])} onTimerUpdate={(s) => setQuestionTimer(s)} onQuizComplete={() => { if (!isLastStage) handleAdvanceStage(); }} />
+                </>
+              )}
             </>
           )}
           {ranking.length > 0 && (
@@ -924,16 +960,17 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants, questionResu
 
 // ── Teams Manager ─────────────────────────────────────────────────────────────
 
-function TeamsManager({ sessionId, teams, sessionStatus, onTeamsChanged }: {
+function TeamsManager({ sessionId, teams, sessionStatus, readOnly, onTeamsChanged }: {
   sessionId: string;
   teams: SessionTeam[];
   sessionStatus: string;
+  readOnly: boolean;
   onTeamsChanged: () => void;
 }) {
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [createMsg, setCreateMsg] = useState("");
-  const canCreate = sessionStatus === "Scheduled" || sessionStatus === "Preparing";
+  const canCreate = !readOnly && (sessionStatus === "Scheduled" || sessionStatus === "Preparing");
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
