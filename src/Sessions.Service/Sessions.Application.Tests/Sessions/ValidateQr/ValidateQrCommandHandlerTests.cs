@@ -14,13 +14,16 @@ public class ValidateQrCommandHandlerTests
     private readonly ISessionRepository _repository = Substitute.For<ISessionRepository>();
     private readonly IGameSessionFacade _facade = Substitute.For<IGameSessionFacade>();
     private readonly IGameNotifier _notifier = Substitute.For<IGameNotifier>();
+    private readonly IEventPublisher _eventPublisher = Substitute.For<IEventPublisher>();
     private readonly ILogger<ValidateQrCommandHandler> _logger =
         Substitute.For<ILogger<ValidateQrCommandHandler>>();
     private readonly ValidateQrCommandHandler _sut;
 
     public ValidateQrCommandHandlerTests()
     {
-        _sut = new ValidateQrCommandHandler(_repository, _facade, _notifier, _logger);
+        _repository.GetTeamsBySessionIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(new List<SessionTeam>());
+        _sut = new ValidateQrCommandHandler(_repository, _facade, _notifier, _eventPublisher, _logger);
     }
 
     private static Session BuildActiveSession(IReadOnlyList<SessionStage> stages)
@@ -76,6 +79,11 @@ public class ValidateQrCommandHandlerTests
 
         result.IsValid.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Invalid QR");
+        await _repository.Received(1).AddAuditEventAsync(
+            Arg.Is<SessionAuditEvent>(e => e.SessionId == sessionId && e.EventType == SessionAuditEventTypes.EvidenceRejected && e.UserId == userId),
+            Arg.Any<CancellationToken>());
+        await _eventPublisher.Received(1).PublishAsync(
+            "evidence.submitted", Arg.Any<object>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -96,8 +104,14 @@ public class ValidateQrCommandHandlerTests
         result.Advanced.Should().BeTrue();
         result.IsLastStage.Should().BeTrue();
         await _repository.Received(1).UpdateParticipantAsync(Arg.Any<SessionParticipant>(), Arg.Any<CancellationToken>());
-        await _notifier.Received(1).NotifyRankingUpdatedAsync(sessionId, Arg.Any<IEnumerable<(Guid, string, int)>>(), Arg.Any<CancellationToken>());
+        await _notifier.Received(1).NotifyRankingUpdatedAsync(sessionId, Arg.Any<IEnumerable<SessionRankingEntry>>(), Arg.Any<CancellationToken>());
         await _facade.Received(1).TransitionAndNotify(sessionId, "Finished", Arg.Any<CancellationToken>());
+        await _eventPublisher.Received(1).PublishAsync(
+            "evidence.submitted", Arg.Any<object>(), Arg.Any<CancellationToken>());
+        // RB-07: the podium bonus (1st place = 300, since this participant is the only one to finish) must be traceable.
+        await _repository.Received(1).AddAuditEventAsync(
+            Arg.Is<SessionAuditEvent>(e => e.SessionId == sessionId && e.UserId == userId && e.ScoreDelta == 300 && e.Description.Contains("Bono de podio")),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -120,7 +134,53 @@ public class ValidateQrCommandHandlerTests
         result.Advanced.Should().BeTrue();
         result.IsLastStage.Should().BeFalse();
         await _repository.Received(1).UpdateParticipantAsync(Arg.Any<SessionParticipant>(), Arg.Any<CancellationToken>());
-        await _notifier.Received(1).NotifyRankingUpdatedAsync(sessionId, Arg.Any<IEnumerable<(Guid, string, int)>>(), Arg.Any<CancellationToken>());
+        await _notifier.Received(1).NotifyRankingUpdatedAsync(sessionId, Arg.Any<IEnumerable<SessionRankingEntry>>(), Arg.Any<CancellationToken>());
+        await _repository.Received(1).AddAuditEventAsync(
+            // Stage difficulty defaults to "Medium" (150 pts) when not specified.
+            Arg.Is<SessionAuditEvent>(e => e.SessionId == sessionId && e.EventType == SessionAuditEventTypes.EvidenceValidated && e.UserId == userId && e.ScoreDelta == 150),
+            Arg.Any<CancellationToken>());
+        await _eventPublisher.Received(1).PublishAsync(
+            "evidence.submitted", Arg.Any<object>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ValidQrDifficultyEasy_ShouldAward100Points()
+    {
+        var sessionId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var stageId = Guid.NewGuid();
+        var stage = SessionStage.Create(Guid.NewGuid(), stageId, "M1", "Stage", "Treasure", 1, "tok", difficulty: "Easy");
+        var stage2 = SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Stage2", "Treasure", 2, "tok2", difficulty: "Easy");
+        var session = BuildActiveSession(new[] { stage, stage2 });
+        _repository.GetByIdWithStagesAsync(Arg.Any<Guid>(), default).Returns(session);
+        _repository.GetParticipantAsync(Arg.Any<Guid>(), userId, default)
+            .Returns(BuildParticipant(sessionId, userId));
+
+        await _sut.Handle(new ValidateQrCommand(sessionId, userId, stageId, "tok"), default);
+
+        await _repository.Received(1).AddAuditEventAsync(
+            Arg.Is<SessionAuditEvent>(e => e.SessionId == sessionId && e.EventType == SessionAuditEventTypes.EvidenceValidated && e.UserId == userId && e.ScoreDelta == 100),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ValidQrDifficultyHard_ShouldAward200Points()
+    {
+        var sessionId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var stageId = Guid.NewGuid();
+        var stage = SessionStage.Create(Guid.NewGuid(), stageId, "M1", "Stage", "Treasure", 1, "tok", difficulty: "Hard");
+        var stage2 = SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "M2", "Stage2", "Treasure", 2, "tok2", difficulty: "Hard");
+        var session = BuildActiveSession(new[] { stage, stage2 });
+        _repository.GetByIdWithStagesAsync(Arg.Any<Guid>(), default).Returns(session);
+        _repository.GetParticipantAsync(Arg.Any<Guid>(), userId, default)
+            .Returns(BuildParticipant(sessionId, userId));
+
+        await _sut.Handle(new ValidateQrCommand(sessionId, userId, stageId, "tok"), default);
+
+        await _repository.Received(1).AddAuditEventAsync(
+            Arg.Is<SessionAuditEvent>(e => e.SessionId == sessionId && e.EventType == SessionAuditEventTypes.EvidenceValidated && e.UserId == userId && e.ScoreDelta == 200),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

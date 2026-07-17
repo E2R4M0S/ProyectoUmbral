@@ -71,6 +71,11 @@ public static class CreateSessionEndpoint
                     }
                 });
             }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Operator identifier"))
+            {
+                logger.LogWarning("Session creation failed: {Message}", ex.Message);
+                return Results.Unauthorized();
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Session creation failed due to an unexpected error");
@@ -91,6 +96,6 @@ public static class CreateSessionEndpoint
             }
         })
         .WithName("CreateSession")
-        .RequireAuthorization("operator_or_admin");
+        .RequireAuthorization("operator");
     }
 }

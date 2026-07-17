@@ -47,3 +47,6 @@ Thumbs.db
 .atl/
 coverage*.info
 coverage*.json
+coverage-out/
+*.cobertura.xml
+run-coverage.sh

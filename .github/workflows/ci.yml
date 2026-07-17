@@ -110,3 +110,65 @@ jobs:
         working-directory: frontend
       - run: npm test
         working-directory: frontend
+
+  # E2E solo corre en push a develop/main (no en cada PR) porque requiere
+  # levantar todo el stack con Docker Compose (Keycloak tarda ~20s en arrancar).
+  e2e:
+    name: E2E (Playwright)
+    if: github.event_name == 'push'
+    needs: [backend-missions, backend-sessions, backend-trivia, backend-gateway, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start full stack (Docker Compose)
+        run: docker compose up -d --build
+
+      - name: Wait for API Gateway
+        run: |
+          for i in $(seq 1 40); do
+            if curl -sf http://localhost:5000/health > /dev/null; then
+              echo "API Gateway up"; exit 0
+            fi
+            echo "Waiting for API Gateway... ($i)"; sleep 5
+          done
+          echo "API Gateway never became healthy"; docker compose logs; exit 1
+
+      - name: Wait for Frontend
+        run: |
+          for i in $(seq 1 40); do
+            if curl -sf http://localhost:5173 > /dev/null; then
+              echo "Frontend up"; exit 0
+            fi
+            echo "Waiting for Frontend... ($i)"; sleep 5
+          done
+          echo "Frontend never became healthy"; docker compose logs frontend; exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - run: npm ci
+        working-directory: tests/e2e
+
+      - run: npx playwright install --with-deps chromium
+        working-directory: tests/e2e
+
+      - run: npx playwright test
+        working-directory: tests/e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report/
+          retention-days: 7
+
+      - name: Docker Compose logs (on failure)
+        if: failure()
+        run: docker compose logs --tail=300
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose down -v

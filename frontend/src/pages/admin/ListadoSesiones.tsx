@@ -64,7 +64,7 @@ function timeAgo(dateStr: string): string {
   return `hace ${d} día${d !== 1 ? "s" : ""}`;
 }
 
-function SessionCard({ item, basePath, onReload }: { item: SessionListItem; basePath: string; onReload: () => void }) {
+function SessionCard({ item, basePath, onReload, readOnly }: { item: SessionListItem; basePath: string; onReload: () => void; readOnly: boolean }) {
   const navigate    = useNavigate();
   const transitions = getTransitions(item.status as SessionStatus);
   const panelUrl    = `${basePath}/sesiones/${item.id}/panel`;
@@ -103,26 +103,28 @@ function SessionCard({ item, basePath, onReload }: { item: SessionListItem; base
         <span className="session-card-stat">🕐 {timeAgo(item.createdAt)}</span>
       </div>
 
-      <div className="session-card-footer" onClick={(e) => e.stopPropagation()}>
-        <div className="session-card-actions">
-          {transitions.map(t => {
-            const noParticipants = t === "Active" && (item.participantCount ?? 0) === 0;
-            return (
-              <button
-                key={t}
-                className={transitionClass(t)}
-                disabled={noParticipants}
-                title={noParticipants ? "No hay participantes en la sesión" : undefined}
-                onClick={async () => {
-                  try { await transitionSession(item.id, t); onReload(); } catch { /* ignore */ }
-                }}
-              >
-                {TRANSITION_LABELS[t] ?? t}
-              </button>
-            );
-          })}
+      {!readOnly && (
+        <div className="session-card-footer" onClick={(e) => e.stopPropagation()}>
+          <div className="session-card-actions">
+            {transitions.map(t => {
+              const noParticipants = t === "Active" && (item.participantCount ?? 0) === 0;
+              return (
+                <button
+                  key={t}
+                  className={transitionClass(t)}
+                  disabled={noParticipants}
+                  title={noParticipants ? "No hay participantes en la sesión" : undefined}
+                  onClick={async () => {
+                    try { await transitionSession(item.id, t); onReload(); } catch { /* ignore */ }
+                  }}
+                >
+                  {TRANSITION_LABELS[t] ?? t}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -130,6 +132,8 @@ function SessionCard({ item, basePath, onReload }: { item: SessionListItem; base
 export function ListadoSesiones() {
   const location = useLocation();
   const basePath = location.pathname.startsWith("/admin") ? "/admin" : "/operator";
+  // RB-10: el admin ya no gestiona sesiones — solo puede consultarlas.
+  const readOnly = basePath === "/admin";
 
   const [items, setItems]      = useState<SessionListItem[]>([]);
   const [totalCount, setTotal] = useState(0);
@@ -171,9 +175,11 @@ export function ListadoSesiones() {
             {totalCount} sesión{totalCount !== 1 ? "es" : ""} registrada{totalCount !== 1 ? "s" : ""}
           </p>
         </div>
-        <Link to={`${basePath}/sesiones/crear`} className="btn btn-primary">
-          + Nueva Sesión
-        </Link>
+        {!readOnly && (
+          <Link to={`${basePath}/sesiones/crear`} className="btn btn-primary">
+            + Nueva Sesión
+          </Link>
+        )}
       </div>
 
       <form onSubmit={(e) => { e.preventDefault(); setPage(1); loadSessions(); }}>
@@ -229,6 +235,7 @@ export function ListadoSesiones() {
                 item={item}
                 basePath={basePath}
                 onReload={loadSessions}
+                readOnly={readOnly}
               />
             ))}
           </div>

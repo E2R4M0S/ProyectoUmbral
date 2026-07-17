@@ -7,6 +7,8 @@ import type {
   GetSessionsParams,
   GetSessionsResponse,
   AdvanceStageResponse,
+  MySessionItem,
+  SessionRankingItem,
 } from "../types/session";
 import type { JoinSessionResponse } from "../types/game";
 
@@ -178,6 +180,25 @@ export interface UnifiedRankingEntry {
 export async function getUnifiedRanking(period: "all" | "monthly"): Promise<UnifiedRankingEntry[]> {
   const response = await fetchWithAuth(`/api/sessions/participants/ranking?period=${period}`);
   if (!response.ok) return [];
+  return response.json();
+}
+
+// Catálogo del participante — sesiones en las que se ha unido.
+export async function getMySessions(): Promise<MySessionItem[]> {
+  const response = await fetchWithAuth("/api/sessions/participants/me/sessions");
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new ApiError(response.status, errorBody);
+  }
+  return response.json();
+}
+
+export async function getSessionRanking(id: string): Promise<SessionRankingItem[]> {
+  const response = await fetchWithAuth(`/api/sessions/${id}/ranking`);
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new ApiError(response.status, errorBody);
+  }
   return response.json();
 }
 

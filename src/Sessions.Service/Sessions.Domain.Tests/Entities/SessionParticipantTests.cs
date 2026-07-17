@@ -88,4 +88,41 @@ public class SessionParticipantTests
         participants.Should().OnlyContain(p => p.SessionId == sessionId);
         participants.Select(p => p.Id).Distinct().Should().HaveCount(5);
     }
+
+    [Fact]
+    public void AddScore_ShouldIncreaseScoreAndSetLastScoreAt()
+    {
+        var participant = SessionParticipant.Create(Guid.NewGuid(), Guid.NewGuid());
+        var before = DateTime.UtcNow;
+
+        participant.AddScore(100);
+
+        participant.Score.Should().Be(100);
+        participant.LastScoreAt.Should().NotBeNull();
+        participant.LastScoreAt!.Value.Should().BeOnOrAfter(before);
+    }
+
+    [Fact]
+    public void ApplyPenalty_ShouldDecreaseScoreAndSetLastScoreAt()
+    {
+        var participant = SessionParticipant.Create(Guid.NewGuid(), Guid.NewGuid());
+        participant.AddScore(100);
+
+        participant.ApplyPenalty(30);
+
+        participant.Score.Should().Be(70);
+        participant.LastScoreAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void ResetScore_ShouldClearScoreAndLastScoreAt()
+    {
+        var participant = SessionParticipant.Create(Guid.NewGuid(), Guid.NewGuid());
+        participant.AddScore(100);
+
+        participant.ResetScore();
+
+        participant.Score.Should().Be(0);
+        participant.LastScoreAt.Should().BeNull();
+    }
 }

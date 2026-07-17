@@ -101,6 +101,7 @@ try
     // Operator management
     app.MapCreateOperatorEndpoint();
     app.MapDisableOperatorEndpoint();
+    app.MapEnableOperatorEndpoint();
 
     // User listing
     app.MapGetUsersEndpoint();

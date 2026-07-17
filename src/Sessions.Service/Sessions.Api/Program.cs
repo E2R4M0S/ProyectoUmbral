@@ -55,6 +55,11 @@ try
         options.AddPolicy("operator_or_admin", policy =>
             policy.RequireAssertion(ctx =>
                 ctx.User.IsInRole("admin") || ctx.User.IsInRole("operator")));
+
+        // RB-10: admins no longer manage sessions — only operators (and only the ones they
+        // created, enforced per-session inside the relevant handlers/endpoints).
+        options.AddPolicy("operator", policy =>
+            policy.RequireRole("operator"));
     });
 
     builder.Services.AddHealthChecks();
@@ -94,6 +99,8 @@ try
     app.MapStartSessionEndpoint();
     app.MapFinishSessionEndpoint();
     app.MapGetSessionProgressEndpoint();
+    app.MapGetAuditLogEndpoint();
+    app.MapGetMySessionsEndpoint();
     app.MapReleaseClueEndpoint();
     app.MapValidateQrEndpoint();
     app.MapParticipantScoreEndpoints();

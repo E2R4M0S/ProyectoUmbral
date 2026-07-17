@@ -345,5 +345,150 @@ public class SessionRepositoryTests
         saved.Should().NotBeNull();
         saved!.SessionId.Should().Be(session.Id);
     }
+
+    [Fact]
+    public async Task ApplyCluePenaltyAsync_WithReason_ShouldPersistAuditEventWithReasonAndNegativeScoreDelta()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var session = Session.Create("Penalty Session", "000002", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Stage", "Treasure", 1, "test-token") });
+        dbContext.Sessions.Add(session);
+
+        var team = SessionTeam.Create(session.Id, "Team A");
+        dbContext.SessionTeams.Add(team);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new SessionRepository(dbContext);
+
+        // Act
+        await repo.ApplyCluePenaltyAsync(session.Id, team.Id, 25, "Pista revelada antes de tiempo", CancellationToken.None);
+
+        // Assert
+        var events = await dbContext.Set<SessionAuditEvent>()
+            .Where(e => e.SessionId == session.Id)
+            .ToListAsync();
+
+        events.Should().ContainSingle();
+        var evt = events[0];
+        evt.EventType.Should().Be(SessionAuditEventTypes.PenaltyApplied);
+        evt.Description.Should().Be("Pista revelada antes de tiempo");
+        evt.TeamId.Should().Be(team.Id);
+        evt.ScoreDelta.Should().Be(-25);
+    }
+
+    [Fact]
+    public async Task ApplyCluePenaltyAsync_WithoutReason_ShouldPersistAuditEventWithDefaultDescription()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var session = Session.Create("Penalty Session 2", "000003", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Stage", "Treasure", 1, "test-token") });
+        dbContext.Sessions.Add(session);
+
+        var team = SessionTeam.Create(session.Id, "Team B");
+        dbContext.SessionTeams.Add(team);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new SessionRepository(dbContext);
+
+        // Act
+        await repo.ApplyCluePenaltyAsync(session.Id, team.Id, 10, ct: CancellationToken.None);
+
+        // Assert
+        var evt = await dbContext.Set<SessionAuditEvent>().FirstOrDefaultAsync(e => e.SessionId == session.Id);
+        evt.Should().NotBeNull();
+        evt!.Description.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task GetAuditTrailAsync_ShouldReturnEventsForSessionOrderedByMostRecentFirst()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+        var sessionId = Guid.NewGuid();
+        var otherSessionId = Guid.NewGuid();
+
+        var older = SessionAuditEvent.Create(sessionId, SessionAuditEventTypes.StatusChanged, "Sesión transicionó de 'Scheduled' a 'Preparing'");
+        await Task.Delay(5);
+        var newer = SessionAuditEvent.Create(sessionId, SessionAuditEventTypes.StatusChanged, "Sesión transicionó de 'Preparing' a 'Active'");
+        var unrelated = SessionAuditEvent.Create(otherSessionId, SessionAuditEventTypes.StatusChanged, "Otra sesión");
+
+        dbContext.Set<SessionAuditEvent>().AddRange(older, newer, unrelated);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new SessionRepository(dbContext);
+
+        // Act
+        var result = await repo.GetAuditTrailAsync(sessionId, CancellationToken.None);
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Select(e => e.Id).Should().NotContain(unrelated.Id);
+        result[0].Id.Should().Be(newer.Id);
+        result[1].Id.Should().Be(older.Id);
+    }
+
+    [Fact]
+    public async Task GetSessionRankingAsync_WhenTeamsAreTied_ShouldBreakTieByWhoScoredFirst()
+    {
+        // Arrange — RB-08: ranking ordered by score descending, time as tie-break.
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var session = Session.Create("Ranking Session", "000004", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Stage", "Treasure", 1, "test-token") });
+        dbContext.Sessions.Add(session);
+
+        var firstTeam = SessionTeam.Create(session.Id, "First To Score");
+        var secondTeam = SessionTeam.Create(session.Id, "Second To Score");
+        dbContext.SessionTeams.AddRange(firstTeam, secondTeam);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new SessionRepository(dbContext);
+        await repo.AddTeamScoreAsync(firstTeam.Id, 100, CancellationToken.None);
+        await Task.Delay(15);
+        await repo.AddTeamScoreAsync(secondTeam.Id, 100, CancellationToken.None);
+
+        // Act
+        var ranking = await repo.GetSessionRankingAsync(session.Id, CancellationToken.None);
+
+        // Assert
+        ranking.Should().HaveCount(2);
+        ranking[0].Score.Should().Be(ranking[1].Score);
+        ranking[0].TeamId.Should().Be(firstTeam.Id);
+        ranking[1].TeamId.Should().Be(secondTeam.Id);
+    }
+
+    [Fact]
+    public async Task GetSessionsForParticipantAsync_ShouldReturnOnlySessionsTheUserJoined()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+        var userId = Guid.NewGuid();
+
+        var joinedSession = Session.Create("Joined", "555001", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Stage", "Trivia", 1, "test-token") });
+        joinedSession.TransitionTo(SessionStatus.Preparing);
+        joinedSession.AddParticipant(userId);
+
+        var otherSession = Session.Create("Not Joined", "555002", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Stage", "Trivia", 1, "test-token") });
+        otherSession.TransitionTo(SessionStatus.Preparing);
+        otherSession.AddParticipant(Guid.NewGuid());
+
+        dbContext.Sessions.AddRange(joinedSession, otherSession);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new SessionRepository(dbContext);
+
+        // Act
+        var result = await repo.GetSessionsForParticipantAsync(userId, CancellationToken.None);
+
+        // Assert
+        result.Should().ContainSingle();
+        result[0].Id.Should().Be(joinedSession.Id);
+    }
 }
 

@@ -16,6 +16,12 @@ public static class AnsweringEndpoints
             {
                 // Delegate to SubmitAnswerCommand which persists the answer and publishes an integration event
                 var result = await mediator.Send(new SubmitAnswerCommand(req.QuizId, req.TeamId, req.TeamName, req.QuestionId, req.AnswerId, req.Timestamp, req.AskedAt, req.TimeLimitSeconds, req.UserId));
+
+                if (result.Rejected)
+                {
+                    return Results.BadRequest(new { received = false, error = "Answer rejected", message = result.RejectReason });
+                }
+
                 return Results.Ok(new { received = true, isCorrect = result.IsCorrect, pointsAwarded = result.PointsAwarded, position = result.Position });
             }
             catch (Exception ex)

@@ -28,6 +28,12 @@ public class Session
     public DateTime? EndedAt { get; internal set; }
     public DateTime CreatedAt { get; private set; }
 
+    // RB-10: the operator who created this session is the only one who may manage it (start,
+    // pause, finish, release clues, advance stages). Null means the session predates this rule
+    // (created before OperatorId existed) — per team decision, those sessions cannot be managed
+    // by anyone rather than defaulting open.
+    public Guid? OperatorId { get; private set; }
+
     // When the CURRENT mission actually started (real wall-clock time), not a running sum of
     // each prior mission's declared/estimated duration. Missions routinely finish earlier or
     // later than their declared TimeMinutes (Trivia rounds are operator-paced; Treasure missions
@@ -36,10 +42,21 @@ public class Session
     // however long the previous mission's real time diverged from its estimate.
     public DateTime? CurrentMissionStartedAt { get; internal set; }
 
+    // When the CURRENT pause began (real wall-clock time). Null while not paused. Used to
+    // freeze elapsed-time math live while paused, and to compute how long to shift
+    // CurrentMissionStartedAt forward (and add to TotalPausedSeconds) once resumed — otherwise
+    // pausing has no actual effect on the mission/session clock, which keeps ticking underneath.
+    public DateTime? PausedAt { get; internal set; }
+
+    // Cumulative seconds spent paused across the whole session (all completed pause intervals).
+    // Subtracted from the session-level elapsed-time calculation so total playtime excludes
+    // time spent paused.
+    public double TotalPausedSeconds { get; internal set; }
+
     private readonly List<SessionParticipant> _participants = new();
     public IReadOnlyList<SessionParticipant> Participants => _participants.AsReadOnly();
 
-    public static Session Create(string name, string pin, List<SessionStage> stages)
+    public static Session Create(string name, string pin, List<SessionStage> stages, Guid? operatorId = null)
     {
         if (stages is null || stages.Count == 0)
             throw new InvalidOperationException("Session must have at least one stage");
@@ -65,7 +82,8 @@ public class Session
             Pin = pin,
             CurrentStageOrder = 0,
             Status = SessionStatus.Scheduled,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            OperatorId = operatorId
         };
         session._stages.AddRange(ordered);
         return session;
@@ -89,6 +107,9 @@ public class Session
         Status = newStatus;
         _state.OnEnter(this);
     }
+
+    // RB-10: sessions without a recorded creator (OperatorId null) cannot be managed by anyone.
+    public bool IsManagedBy(Guid? userId) => OperatorId is not null && OperatorId == userId;
 
     public void AddParticipant(Guid userId)
     {

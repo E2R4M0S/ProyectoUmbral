@@ -17,7 +17,7 @@ public class GetSessionProgressEndpointTests
     public async Task GetProgress_ExistingSession_ReturnsOk()
     {
         var id = Guid.NewGuid();
-        var progress = new SessionProgressDto(id, "Test", "Active", 120, new List<ParticipantProgressDto>());
+        var progress = new SessionProgressDto(id, "Test", "Active", 120, 0, 0, new List<ParticipantProgressDto>());
         _mediator.Send(Arg.Is<GetSessionProgressQuery>(q => q.SessionId == id), Arg.Any<CancellationToken>())
             .Returns(progress);
 

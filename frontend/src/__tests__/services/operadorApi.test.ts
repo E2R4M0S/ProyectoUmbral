@@ -6,7 +6,7 @@ vi.mock("../../services/api", () => ({
 }));
 
 import { fetchWithAuth } from "../../services/api";
-import { crearOperador, desactivarOperador } from "../../services/operadorApi";
+import { crearOperador, desactivarOperador, activarOperador } from "../../services/operadorApi";
 
 const mockFetch = vi.mocked(fetchWithAuth);
 
@@ -56,5 +56,23 @@ describe("operadorApi", () => {
   it("desactivarOperador throws ApiError on failure", async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 404, text: () => Promise.resolve("Not found") } as Response);
     await expect(desactivarOperador({ email: "ghost@test.com" })).rejects.toThrow(ApiError);
+  });
+
+  it("activarOperador posts to /api/admin/operators/enable", async () => {
+    const mock = { message: "Operador activado", wasAlreadyEnabled: false };
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(mock) } as Response);
+
+    const result = await activarOperador({ email: "op@test.com" });
+
+    expect(result.wasAlreadyEnabled).toBe(false);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/admin/operators/enable",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  it("activarOperador throws ApiError on failure", async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 404, text: () => Promise.resolve("Not found") } as Response);
+    await expect(activarOperador({ email: "ghost@test.com" })).rejects.toThrow(ApiError);
   });
 });

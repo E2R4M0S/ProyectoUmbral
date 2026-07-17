@@ -3,6 +3,7 @@ import { useAuth } from "react-oidc-context";
 import { useNavigate } from "react-router-dom";
 import { getUsers, ApiError } from "../../services/adminUsuariosApi";
 import type { UserListItem, GetUsersParams } from "../../types/usuario";
+import { filterKnownRoles, roleClass, roleLabel } from "../../utils/roles";
 
 const ROLE_OPTIONS = [
   { value: "", label: "Todos los roles" },
@@ -19,20 +20,6 @@ function getRoles(token: string): string[] {
 function formatDate(d: string) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function roleClass(r: string) {
-  if (r === "admin")       return "badge badge-admin";
-  if (r === "operator")    return "badge badge-operator";
-  if (r === "participant") return "badge badge-participant";
-  return "badge badge-muted";
-}
-
-function roleLabel(r: string) {
-  if (r === "admin")       return "Admin";
-  if (r === "operator")    return "Operador";
-  if (r === "participant") return "Participante";
-  return r;
 }
 
 export function ListadoUsuarios() {
@@ -166,7 +153,7 @@ export function ListadoUsuarios() {
 
                 <div className="user-card-footer">
                   <div className="user-card-roles">
-                    {item.roles.map(r => (
+                    {filterKnownRoles(item.roles).map(r => (
                       <span key={r} className={roleClass(r)}>{roleLabel(r)}</span>
                     ))}
                   </div>

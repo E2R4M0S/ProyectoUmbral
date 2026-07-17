@@ -22,6 +22,8 @@ public interface ISessionRepository
     Task<SessionParticipant?> GetParticipantAsync(Guid sessionId, Guid userId, CancellationToken ct);
     Task UpdateParticipantAsync(SessionParticipant participant, CancellationToken ct);
     Task AddParticipantScoreAsync(Guid sessionId, Guid userId, int delta, CancellationToken ct = default);
+    // Catalog of sessions a participant has joined (HU: "Mis Sesiones").
+    Task<List<Session>> GetSessionsForParticipantAsync(Guid userId, CancellationToken ct = default);
     Task<List<(Guid UserId, string Alias, int TotalScore)>> GetGlobalParticipantRankingAsync(DateTime? since = null, CancellationToken ct = default);
     Task ResetParticipantScoresAsync(Guid sessionId, CancellationToken ct = default);
 
@@ -38,7 +40,13 @@ public interface ISessionRepository
     // Clue penalties
     // teamId null = the clue was broadcast to the whole session (current UI behavior): every
     // team and every teamless participant currently in the session is penalized.
-    Task ApplyCluePenaltyAsync(Guid sessionId, Guid? teamId, int amount, CancellationToken ct = default);
+    // RB-06: every penalty must record its reason — persisted as a SessionAuditEvent.
+    Task ApplyCluePenaltyAsync(Guid sessionId, Guid? teamId, int amount, string? reason = null, CancellationToken ct = default);
+
+    // Audit trail (RF-09 / RF-15): persisted history of session events (penalties, evidence
+    // validation, status transitions) with reason/motivo and timestamp.
+    Task AddAuditEventAsync(SessionAuditEvent auditEvent, CancellationToken ct = default);
+    Task<List<SessionAuditEvent>> GetAuditTrailAsync(Guid sessionId, CancellationToken ct = default);
 }
 
 public record SessionRankingEntry(
@@ -47,5 +55,6 @@ public record SessionRankingEntry(
     int Score,
     int MemberCount,    // 0 for individual
     Guid? TeamId,
-    Guid? UserId
+    Guid? UserId,
+    DateTime? LastScoreAt = null // RB-08: tie-break — earlier wins when scores are equal
 );

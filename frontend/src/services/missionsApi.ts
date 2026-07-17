@@ -174,8 +174,10 @@ export async function updateMission(
   });
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => "");
-    throw new ApiError(response.status, errorBody);
+    const body = await response.text().catch(() => "");
+    let msg = body;
+    try { const j = JSON.parse(body); msg = j.detail || j.message || j.title || body; } catch {}
+    throw new ApiError(response.status, msg);
   }
 
   if (response.status === 204) {

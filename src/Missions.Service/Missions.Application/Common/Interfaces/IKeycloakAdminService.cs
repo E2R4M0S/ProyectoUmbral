@@ -1,5 +1,6 @@
 using Missions.Application.Operators.Create;
 using Missions.Application.Operators.Disable;
+using Missions.Application.Operators.Enable;
 using Missions.Application.Users.GetUsers;
 
 namespace Missions.Application.Common.Interfaces;
@@ -13,6 +14,8 @@ public interface IKeycloakAdminService
     Task ExecuteActionsEmailAsync(string userId, List<string> actions, CancellationToken ct);
 
     Task<DisableOperatorResponse> DisableOperatorAsync(string email, CancellationToken ct);
+
+    Task<EnableOperatorResponse> EnableOperatorAsync(string email, CancellationToken ct);
 
     Task DeleteUserAsync(string userId, CancellationToken ct);
 

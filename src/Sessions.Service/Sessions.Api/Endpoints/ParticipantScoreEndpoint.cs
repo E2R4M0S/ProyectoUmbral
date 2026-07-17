@@ -1,4 +1,5 @@
 using Sessions.Application.Common.Interfaces;
+using Sessions.Domain.Entities;
 
 namespace Sessions.Api.Endpoints;
 
@@ -6,7 +7,8 @@ public static class ParticipantScoreEndpoint
 {
     public static void MapParticipantScoreEndpoints(this WebApplication app)
     {
-        // Internal endpoint — called by other services on the Docker network (no auth required)
+        // Internal endpoint — called by Trivia.Service (on the Docker network, no auth required)
+        // whenever a participant's trivia answer is scored.
         app.MapPost("/internal/participants/score", async (
             ParticipantScoreRequest req,
             ISessionRepository repository,
@@ -14,13 +16,23 @@ public static class ParticipantScoreEndpoint
         {
             if (req.Delta <= 0) return Results.Ok();
             await repository.AddParticipantScoreAsync(req.SessionId, req.UserId, req.Delta);
+
+            // RB-07: trivia scoring must be traceable to its origin, same as Treasure evidence.
+            await repository.AddAuditEventAsync(SessionAuditEvent.Create(
+                req.SessionId,
+                SessionAuditEventTypes.TriviaAnswerScored,
+                "Puntaje otorgado por respuesta de trivia",
+                userId: req.UserId,
+                scoreDelta: req.Delta));
+
             logger.LogInformation("Added {Delta} pts to participant {UserId} in session {SessionId}", req.Delta, req.UserId, req.SessionId);
             return Results.Ok();
         })
         .WithName("UpdateParticipantScore")
         .AllowAnonymous();
 
-        // Internal endpoint — called by other services to award points to an entire team
+        // Internal endpoint — called by Trivia.Service to award points to an entire team
+        // when one of its members answers a trivia question correctly.
         app.MapPost("/internal/teams/score", async (
             TeamScoreRequest req,
             ISessionRepository repository,
@@ -28,6 +40,19 @@ public static class ParticipantScoreEndpoint
         {
             if (req.Delta <= 0) return Results.Ok();
             await repository.AddTeamScoreAsync(req.TeamId, req.Delta);
+
+            // RB-07: same traceability as the solo-participant path above.
+            var team = await repository.GetTeamByIdAsync(req.TeamId, CancellationToken.None);
+            if (team is not null)
+            {
+                await repository.AddAuditEventAsync(SessionAuditEvent.Create(
+                    team.SessionId,
+                    SessionAuditEventTypes.TriviaAnswerScored,
+                    "Puntaje otorgado al equipo por respuesta de trivia",
+                    teamId: req.TeamId,
+                    scoreDelta: req.Delta));
+            }
+
             logger.LogInformation("Added {Delta} pts to team {TeamId}", req.Delta, req.TeamId);
             return Results.Ok();
         })

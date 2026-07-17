@@ -7,13 +7,13 @@ import { ServerSetup } from "./pages/public/ServerSetup";
 import { needsServerSetup, getServerHost, isProductionApk } from "./config/serverConfig";
 import { MiPerfil } from "./pages/participant/MiPerfil";
 import { RankingGlobal } from "./pages/participant/RankingGlobal";
+import { MisSesiones } from "./pages/participant/MisSesiones";
 import { QuizBank } from "./pages/admin/QuizBank";
 import { UnirseSesion } from "./pages/participant/UnirseSesion";
 import { GameView } from "./pages/participant/game/GameView";
 import { EscanearQr } from "./pages/participant/game/EscanearQr";
 import { MisionCompletada } from "./pages/participant/game/MisionCompletada";
 import { CrearOperador } from "./pages/admin/CrearOperador";
-import { DesactivarOperador } from "./pages/admin/DesactivarOperador";
 import { ListadoUsuarios } from "./pages/admin/ListadoUsuarios";
 import { DetalleUsuario } from "./pages/admin/DetalleUsuario";
 import { CrearMision } from "./pages/admin/CrearMision";
@@ -180,12 +180,10 @@ function AdminPanel() {
       <div className="sidebar-section">Trivia</div>
       <Link to="/admin/quiz" className="sidebar-link">📝 Banco de Preguntas</Link>
       <div className="sidebar-section">Sesiones</div>
-      <Link to="/admin/sesiones" className="sidebar-link">📋 Listado</Link>
-      <Link to="/admin/sesiones/crear" className="sidebar-link">➕ Crear Sesión</Link>
+      <Link to="/admin/sesiones" className="sidebar-link">📋 Listado (solo lectura)</Link>
       <div className="sidebar-section">Usuarios</div>
       <Link to="/admin/usuarios" className="sidebar-link">📋 Listado</Link>
       <Link to="/admin/operadores/nuevo" className="sidebar-link">➕ Crear Operador</Link>
-      <Link to="/admin/operadores/desactivar" className="sidebar-link">🚫 Desactivar Operador</Link>
     </Sidebar>
   );
 }
@@ -213,6 +211,7 @@ function ParticipantPanel() {
       <Link to="/participant/perfil" className="sidebar-link">👤 Mi Perfil</Link>
       <div className="sidebar-section">Juego</div>
       <Link to="/participant/sessions/join" className="sidebar-link">🎮 Unirse a Sesión</Link>
+      <Link to="/participant/sessions/mine" className="sidebar-link">📋 Mis Sesiones</Link>
       <Link to="/participant/ranking" className="sidebar-link">🏆 Ranking Global</Link>
     </Sidebar>
   );
@@ -310,9 +309,10 @@ function App() {
             <Route path="usuarios" element={<ListadoUsuarios />} />
             <Route path="usuarios/:id" element={<DetalleUsuario />} />
             <Route path="operadores/nuevo" element={<CrearOperador />} />
-            <Route path="operadores/desactivar" element={<DesactivarOperador />} />
+            {/* RB-10: el admin consulta sesiones (listado + detalle completo) pero no las
+                crea ni las administra — PanelSesion detecta la ruta /admin y se pone en
+                modo solo lectura, ocultando los controles de operación. */}
             <Route path="sesiones" element={<ListadoSesiones />} />
-            <Route path="sesiones/crear" element={<CrearSesion />} />
             <Route path="sesiones/:id/panel" element={<PanelSesion />} />
           </Route>
         </Route>
@@ -337,6 +337,7 @@ function App() {
             <Route index element={<h2>Panel de Participante</h2>} />
             <Route path="perfil" element={<MiPerfil />} />
             <Route path="sessions/join" element={<UnirseSesion />} />
+            <Route path="sessions/mine" element={<MisSesiones />} />
             <Route path="ranking" element={<RankingGlobal />} />
           </Route>
         </Route>

@@ -4,4 +4,4 @@ namespace Trivia.Application.Trivias.Answers;
 
 public record SubmitAnswerCommand(Guid QuizId, Guid TeamId, string TeamName, Guid QuestionId, Guid AnswerId, DateTime Timestamp, DateTime AskedAt, int TimeLimitSeconds, Guid UserId = default) : IRequest<AnswerResult>;
 
-public record AnswerResult(bool IsCorrect, int PointsAwarded, int Position);
+public record AnswerResult(bool IsCorrect, int PointsAwarded, int Position, bool Rejected = false, string? RejectReason = null);

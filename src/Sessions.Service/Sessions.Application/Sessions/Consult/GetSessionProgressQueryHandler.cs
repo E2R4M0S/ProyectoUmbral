@@ -1,6 +1,7 @@
 using MediatR;
 using Sessions.Application.Common.Interfaces;
 using Sessions.Application.Sessions.Consult;
+using Sessions.Domain.Enums;
 
 namespace Sessions.Application.Sessions.Consult;
 
@@ -23,8 +24,16 @@ public class GetSessionProgressQueryHandler : IRequestHandler<GetSessionProgress
             return null;
         }
 
+        // While Paused, freeze elapsed-time math at the moment the pause began instead of
+        // letting it keep ticking against real wall-clock time — otherwise the operator/
+        // participant see the timer keep moving even though the session is "paused".
+        var referenceTime = session.EndedAt
+            ?? (session.Status == SessionStatus.Paused && session.PausedAt.HasValue
+                ? session.PausedAt.Value
+                : DateTime.UtcNow);
+
         var elapsed = session.StartedAt.HasValue
-            ? (int)((session.EndedAt ?? DateTime.UtcNow) - session.StartedAt.Value).TotalSeconds
+            ? (int)((referenceTime - session.StartedAt.Value).TotalSeconds - session.TotalPausedSeconds)
             : 0;
 
         // Each stage within a mission carries that mission's full TimeMinutes (not a per-stage
@@ -34,7 +43,7 @@ public class GetSessionProgressQueryHandler : IRequestHandler<GetSessionProgress
             .Sum(g => g.First().TimeMinutes == -1 ? 10 : Math.Max(0, g.First().TimeMinutes) * 60);
 
         var missionElapsed = session.CurrentMissionStartedAt.HasValue
-            ? (int)((session.EndedAt ?? DateTime.UtcNow) - session.CurrentMissionStartedAt.Value).TotalSeconds
+            ? (int)(referenceTime - session.CurrentMissionStartedAt.Value).TotalSeconds
             : 0;
 
         return new SessionProgressDto(

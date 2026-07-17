@@ -51,7 +51,7 @@ export function LocationPicker({
         display: "block", fontSize: "0.78rem", fontWeight: 600,
         color: "#aaa", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5,
       }}>
-        Ubicación en el mapa
+        Ubicación en el mapa *
       </label>
 
       <div style={{

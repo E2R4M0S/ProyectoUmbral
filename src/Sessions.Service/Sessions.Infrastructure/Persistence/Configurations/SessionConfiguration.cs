@@ -32,6 +32,12 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
 
         builder.Property(s => s.EndedAt);
 
+        builder.Property(s => s.PausedAt);
+
+        builder.Property(s => s.TotalPausedSeconds)
+            .IsRequired()
+            .HasDefaultValue(0);
+
         builder.Property(s => s.CurrentStageOrder)
             .IsRequired()
             .HasDefaultValue(0);
@@ -51,6 +57,8 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
             stage.Property(st => st.TimeMinutes);
             stage.Property(st => st.Latitude);
             stage.Property(st => st.Longitude);
+            stage.Property(st => st.Difficulty).HasMaxLength(20);
+            stage.Ignore(st => st.BaseScanPoints);
         });
 
         builder.HasIndex(s => s.Pin).IsUnique();

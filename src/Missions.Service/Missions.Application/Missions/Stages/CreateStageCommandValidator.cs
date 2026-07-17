@@ -15,5 +15,11 @@ public class CreateStageCommandValidator : AbstractValidator<CreateStageCommand>
 
         RuleFor(x => x.Order)
             .GreaterThan(0).WithMessage("Order must be greater than 0");
+
+        RuleFor(x => x.Latitude)
+            .NotNull().WithMessage("Debe marcar una ubicación en el mapa");
+
+        RuleFor(x => x.Longitude)
+            .NotNull().WithMessage("Debe marcar una ubicación en el mapa");
     }
 }

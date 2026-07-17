@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using Sessions.Application.Common;
 using Sessions.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,6 +13,7 @@ public static class ReleaseClueEndpoint
         app.MapPost("/{id:guid}/clues/release", async (
             [FromRoute] Guid id,
             [FromBody] ReleaseClueRequest request,
+            HttpContext httpContext,
             IGameSessionFacade facade,
             ISessionRepository sessionRepo,
             IGameNotifier notifier,
@@ -24,6 +26,15 @@ public static class ReleaseClueEndpoint
                 var session = await sessionRepo.GetByIdWithStagesAsync(id, CancellationToken.None);
                 if (session is null)
                     return Results.NotFound(new { error = "Session not found" });
+
+                // RB-10: only the operator who created this session may release its clues.
+                var currentUserId = CurrentUserClaims.GetUserId(httpContext.User);
+                if (!session.IsManagedBy(currentUserId))
+                {
+                    return Results.Json(
+                        new { error = "Forbidden", message = "Solo el operador que creó esta sesión puede administrarla" },
+                        statusCode: StatusCodes.Status403Forbidden);
+                }
 
                 var currentStage = session.GetCurrentStage();
                 if (currentStage is null)
@@ -99,7 +110,10 @@ public static class ReleaseClueEndpoint
                 // 4. Apply the penalty (if any) and let everyone see the updated score right away.
                 if (cluePenalty is { } penaltyAmount && penaltyAmount > 0)
                 {
-                    await sessionRepo.ApplyCluePenaltyAsync(id, request.TeamId, penaltyAmount, CancellationToken.None);
+                    var penaltyReason = string.IsNullOrWhiteSpace(request.Reason)
+                        ? $"Pista liberada: {clueContent}"
+                        : request.Reason.Trim();
+                    await sessionRepo.ApplyCluePenaltyAsync(id, request.TeamId, penaltyAmount, penaltyReason, CancellationToken.None);
                     var rankingAfterPenalty = await sessionRepo.GetSessionRankingAsync(id, CancellationToken.None);
                     await notifier.NotifyRankingUpdatedAsync(id, rankingAfterPenalty, CancellationToken.None);
                 }
@@ -126,8 +140,8 @@ public static class ReleaseClueEndpoint
             }
         })
         .WithName("ReleaseClue")
-        .RequireAuthorization("operator_or_admin");
+        .RequireAuthorization("operator");
     }
 }
 
-public record ReleaseClueRequest(Guid? ClueId = null, Guid? TeamId = null, string? Content = null, int? Penalty = null);
+public record ReleaseClueRequest(Guid? ClueId = null, Guid? TeamId = null, string? Content = null, int? Penalty = null, string? Reason = null);

@@ -186,12 +186,16 @@ export function CatalogoMisiones() {
 
                 {isAdmin && (
                   <div className="mission-card-footer">
-                    <Link to={`/admin/misiones/${item.id}`} className="btn btn-ghost btn-sm">
-                      Ver
-                    </Link>
-                    <Link to={`/admin/misiones/${item.id}/editar`} className="btn btn-secondary btn-sm">
-                      Editar
-                    </Link>
+                    {item.type !== "Trivia" && item.status !== "Active" && (
+                      <Link to={`/admin/misiones/${item.id}`} className="btn btn-ghost btn-sm">
+                        Panel
+                      </Link>
+                    )}
+                    {item.status !== "Active" && (
+                      <Link to={`/admin/misiones/${item.id}/editar`} className="btn btn-secondary btn-sm">
+                        Editar
+                      </Link>
+                    )}
                     <button
                       className={`btn btn-sm ${item.status === "Active" ? "btn-danger" : "btn-success"}`}
                       onClick={() => toggleStatus(item)}

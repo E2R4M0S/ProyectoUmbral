@@ -20,22 +20,22 @@
 ## Estado Actual (Julio 2026)
 
 ### Completado ✅
-- **Módulo 1 (HU-01 a HU-06):** Login, registro, gestión de usuarios vía Keycloak
+- **Módulo 1 (HU-01 a HU-06):** Login, registro, gestión de usuarios vía Keycloak (todo alojado en Missions.Service — ver nota de arquitectura abajo)
 - **Módulo 2 (HU-07 a HU-14):** CRUD completo de misiones, etapas y pistas
-- **Módulo 3 (HU-15 a HU-19):** CRUD de equipos, unirse con código
+- **Módulo 3 (HU-15 a HU-19):** Equipos como sub-agregado de Sessions.Service (`SessionTeam`), unirse sin código
 - **Módulo 4 (HU-20 a HU-27):** Sesiones en vivo con ciclo completo de estados, PIN, monitoreo, pistas
 - **Feature multi-mission-session:** Sesiones con múltiples misiones (SessionStage, JSONB) — 248 tests pasando
 - **Trivia Service:** CRUD de quizzes/preguntas/respuestas (HU-28 a HU-35, pendiente de merge)
+- **CI/CD:** `.github/workflows/ci.yml` — build+test por servicio (Missions, Sessions, Trivia, Gateway+RealTimeHub, Frontend), más job de E2E en push a `develop`/`main`
+- **Tests E2E:** `tests/e2e/` con Playwright (`admin-flow.spec.ts`), contra el stack completo vía Docker Compose
 
 ### Pendiente 🔲
 - **HU-36 a HU-47:** Ejecución de trivia en vivo completa — comandos base existen (`StartTrivia`, `AskQuestion`, `CloseQuestion`, `EndTriviaGame`) pero el flujo end-to-end frontend↔backend no está integrado
 - **SignalR frontend:** `useSignalR.ts` existe y el `GameHub` está implementado, pero el cableado con las vistas del participante en vivo (WaitingRoom→ActiveGame) necesita completarse
-- **CI/CD:** No hay `.github/workflows/`
-- **Tests E2E:** `tests/` vacío
 
 ### Rama actual
-- Branch: `feature/multi-mission-session` (mergeado a develop via PR #16)
-- Último commit: `e5563a9 feat(Sessions): composiciones multi-mision`
+- Branch: `feature/bug-fixes-rf-gaps`
+- Último commit: `4a23dea fix(sessions): bugs varios de sesion en vivo y mejoras de operador/mision`
 
 ---
 
@@ -59,18 +59,24 @@
 
 ## Arquitectura del Sistema
 
+> **Nota de arquitectura (corregida Julio 2026):** el diseño original contemplaba un **Teams.Service** independiente (con su propia DB y un VO `JoinCode`). En la implementación real ese servicio **nunca llegó a existir como tal / fue absorbido**: los equipos ahora son un sub-agregado de `Sessions.Service` (`SessionTeam`/`SessionTeamMember`, sin JoinCode — se crean dentro de una sesión ya creada), y toda la gestión de usuarios/operadores/participantes vía Keycloak Admin API quedó dentro de `Missions.Service`. La arquitectura real tiene **3 microservicios de dominio** (no 4), más el Gateway y el RealTimeHub.
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        API Gateway (:5000)                       │
 │                    YARP + Validación JWT Keycloak                │
-└──────────────┬──────────────┬──────────────┬────────────────────┘
-               │              │              │
-    ┌──────────▼──┐  ┌────────▼───┐  ┌──────▼──────┐  ┌──────────────┐
-    │  Missions   │  │  Sessions  │  │    Teams    │  │    Trivia    │
-    │  Service    │  │  Service   │  │   Service   │  │   Service    │
-    │  (:5001)    │  │  (:5002)   │  │   (:5003)   │  │   (:5004)    │
-    │  missions-db│  │ sessions-db│  │  teams-db   │  │  trivia-db   │
-    └─────────────┘  └─────────── ┘  └─────────────┘  └──────────────┘
+└──────────────┬──────────────────────┬─────────────────────────┬──┘
+               │                      │                          │
+    ┌──────────▼──────────┐  ┌────────▼───────────┐   ┌──────────▼───┐
+    │   Missions.Service  │  │  Sessions.Service   │   │Trivia.Service│
+    │      (:5001)        │  │      (:5002)        │   │   (:5004)    │
+    │  missions-db        │  │  sessions-db        │   │  trivia-db   │
+    │  ─ misiones/etapas  │  │  ─ ciclo de vida     │   │  ─ quizzes   │
+    │  ─ pistas           │  │  ─ SessionTeam(s)    │   │  ─ trivia    │
+    │  ─ operadores       │  │  ─ SessionParticipant│   │    en vivo   │
+    │  ─ participantes     │  │  ─ auditoría         │   │  ─ ranking   │
+    │  ─ Keycloak Admin API│  └─────────────────────┘   └──────────────┘
+    └──────────────────────┘                                     │
                                                                 │
     ┌────────────────────────────────────┐   ┌─────────────────▼────┐
     │         RabbitMQ (:5672)           │   │   RealTimeHub (:5005) │
@@ -153,7 +159,7 @@ API Gateway → Microservicio: Request interno (confianza de red)
 
 **Criterios de Aceptación:**
 1. El Administrador accede a un formulario con: nombre, email, contraseña.
-2. El Teams Service llama a la Admin API de Keycloak para crear el usuario.
+2. `POST /api/admin/operators` (Missions.Service) llama a la Admin API de Keycloak para crear el usuario.
 3. El usuario se crea en Keycloak con rol `operator` y atributo personalizado `name`.
 4. El email debe ser único en Keycloak.
 5. La cuenta se crea habilitada (`enabled = true`).
@@ -320,6 +326,8 @@ API Gateway → Microservicio: Request interno (confianza de red)
 
 ### MÓDULO 3: Gestión de Equipos
 
+> **Nota de arquitectura del Módulo 3:** el diseño original de HU-15 a HU-19 asumía un `Teams.Service` independiente con equipos preformados (VO `JoinCode`) antes de existir una sesión. Esa decisión fue reemplazada: los equipos ahora se crean **dentro de** `Sessions.Service`, como sub-agregado de una sesión concreta (`SessionTeam`/`SessionTeamMember`). No hay `JoinCode` — el participante se une directamente a un equipo de la sesión en la que ya está autenticado. Las HUs de abajo describen el requerimiento original y su "Nota de implementación" documenta el comportamiento real.
+
 #### HU-15: Crear equipo participante
 **Actor:** Operador o Administrador  
 **Prioridad:** Alta  
@@ -331,6 +339,8 @@ API Gateway → Microservicio: Request interno (confianza de red)
 3. El líder debe ser un Participante registrado en Keycloak.
 4. Al crear, se genera automáticamente un `JoinCode` alfanumérico de 6 caracteres.
 5. Retorna HTTP 201 Created con el JoinCode.
+
+**Nota de implementación:** `POST /api/sessions/{sessionId}/teams` (rol `operator`) — solo `Name` (máx. 100 caracteres, único por sesión). No hay concepto de líder ni `JoinCode`; `MaxMembers` es fijo en 5. Retorna HTTP 201 con el equipo creado.
 
 ---
 
@@ -344,6 +354,8 @@ API Gateway → Microservicio: Request interno (confianza de red)
 2. Búsqueda por nombre.
 3. Requiere autenticación (operador o admin).
 
+**Nota de implementación:** `GET /api/sessions/{sessionId}/teams` (autenticado) — lista los equipos de una sesión concreta, no un catálogo global de equipos.
+
 ---
 
 #### HU-17: Ver detalle de equipo
@@ -355,6 +367,8 @@ API Gateway → Microservicio: Request interno (confianza de red)
 1. `GET /api/teams/{id}` — Datos del equipo + lista de miembros (IDs de Keycloak).
 2. HTTP 404 si el equipo no existe.
 3. Requiere autenticación.
+
+**Nota de implementación:** no existe un endpoint de detalle por equipo individual; el detalle (incluyendo miembros) viaja dentro de la respuesta de `GET /api/sessions/{sessionId}/teams`.
 
 ---
 
@@ -369,6 +383,8 @@ API Gateway → Microservicio: Request interno (confianza de red)
 3. No se puede agregar un miembro que ya está en el equipo (HTTP 409 Conflict).
 4. Retorna HTTP 204 No Content.
 
+**Nota de implementación:** no hay edición de nombre/descripción. La única operación de gestión de miembros implementada es `DELETE /api/sessions/{sessionId}/teams/{teamId}/members/{userId}` (rol `operator`); agregar miembros ocurre vía el join del propio participante (HU-19), no por acción del operador.
+
 ---
 
 #### HU-19: Unirse a un equipo con código
@@ -382,6 +398,8 @@ API Gateway → Microservicio: Request interno (confianza de red)
 3. Ya es miembro → HTTP 409 Conflict.
 4. Equipo no existe → HTTP 404 Not Found.
 5. Éxito → HTTP 204 No Content.
+
+**Nota de implementación:** `POST /api/sessions/{sessionId}/teams/{teamId}/join` (autenticado, sin código) — el participante se une directamente porque ya está autenticado y (normalmente) ya se unió a la sesión vía PIN (HU-23). Bloquea si el equipo alcanzó `MaxMembers` (5) o si el usuario ya es miembro.
 
 ---
 
@@ -804,7 +822,7 @@ API Gateway → Microservicio: Request interno (confianza de red)
 | RB-07 | El puntaje acumulado tiene trazabilidad de origen (pista usada, tiempo, acierto). |
 | RB-08 | El ranking se ordena por puntaje descendente; el tiempo actúa como desempate. |
 | RB-09 | Los cambios de estado respetan las transiciones válidas (State Pattern). |
-| RB-10 | Un operador solo administra sesiones visibles según política de roles. |
+| RB-10 | Un operador administra únicamente las sesiones que él mismo creó (`Session.OperatorId`). El administrador consulta cualquier sesión en modo solo lectura, pero no la gestiona. |
 
 ---
 
@@ -888,6 +906,36 @@ Enums:
 │ + UserAlias: string             │
 │ + JoinedAt: DateTime            │
 └─────────────────────────────────┘
+                │ 1
+                │ has many
+                │ *
+┌───────────────▼─────────────────┐
+│           SessionTeam           │  ← reemplaza al "Teams Service" original
+├─────────────────────────────────┤
+│ + Id: Guid (PK)                 │
+│ + SessionId: Guid (FK)          │
+│ + Name: string                  │
+│ + MaxMembers: int (fijo en 5)   │
+│ + Score: int                    │
+│ + LastScoreAt: DateTime?        │  ← RB-08: desempate de ranking
+│ + CreatedAt: DateTime           │
+└───────────────┬─────────────────┘
+                │ 1
+                │ has many
+                │ *
+┌───────────────▼─────────────────┐
+│        SessionTeamMember        │
+├─────────────────────────────────┤
+│ + Id: Guid (PK)                 │
+│ + SessionTeamId: Guid (FK)      │
+│ + UserId: Guid (ref Keycloak)   │
+│ + UserAlias: string             │
+│ + JoinedAt: DateTime            │
+└─────────────────────────────────┘
+
+Nota: no existe VO JoinCode. Un equipo se crea dentro de una sesión
+(POST /{sessionId}/teams, rol operator) y el participante se une
+directamente (POST /{sessionId}/teams/{teamId}/join, autenticado).
 
 Value Object (serializado como JSONB):
 ┌─────────────────────────────────┐
@@ -914,36 +962,7 @@ Endpoints adicionales (multi-mission):
   GET  /{sessionId}/progress                  ← dashboard del operador
 ```
 
-### Bounded Context 3: Teams Service
-
-```
-┌─────────────────────────────────┐
-│             Team                │
-├─────────────────────────────────┤
-│ + Id: Guid (PK)                 │
-│ + Name: string                  │
-│ + Description: string           │
-│ + LeaderId: string (Keycloak ID)│
-│ + JoinCode: string (6 chars)    │
-│ + CreatedAt: DateTime           │
-└───────────────┬─────────────────┘
-                │ 1
-                │ has many
-                │ *
-┌───────────────▼─────────────────┐
-│          TeamMember             │
-├─────────────────────────────────┤
-│ + TeamId: Guid (FK)             │
-│ + UserId: string (Keycloak ID)  │
-│ + JoinedAt: DateTime            │
-└─────────────────────────────────┘
-
-Nota: Usuarios administrados en Keycloak.
-Teams Service solo guarda referencia al ID del usuario (string UUID de Keycloak).
-Keycloak attributes: { name: string, alias: string (participants only) }
-```
-
-### Bounded Context 4: Trivia Service
+### Bounded Context 3: Trivia Service
 
 ```
 ┌─────────────────────────────────┐
@@ -1008,7 +1027,7 @@ Flujo de scoring (implementado):
               → SignalR RankingUpdated
 ```
 
-### Bounded Context 5: RealTimeHub (Sin persistencia)
+### Bounded Context 4: RealTimeHub (Sin persistencia)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -1053,13 +1072,14 @@ Flujo de scoring (implementado):
 ### Relaciones entre Bounded Contexts (Referencias Externas)
 
 ```
-Sessions.Session.MissionId ─── ref ──→ Missions.Mission.Id
-Sessions.SessionTeam.TeamId ─── ref ──→ Teams.Team.Id
 Trivia.QuizSession.SessionId ─── ref ──→ Sessions.Session.Id
-Trivia.ParticipantAnswer.TeamId ─── ref ──→ Teams.Team.Id
-Teams.Team.LeaderId ─── ref ──→ Keycloak User.Id
-Teams.TeamMember.UserId ─── ref ──→ Keycloak User.Id
+Trivia.ParticipantAnswer.TeamId ─── ref ──→ Sessions.SessionTeam.Id
+Sessions.SessionTeamMember.UserId ─── ref ──→ Keycloak User.Id
+Sessions.SessionParticipant.UserId ─── ref ──→ Keycloak User.Id
+Missions.Operator/Participant records ─── ref ──→ Keycloak User.Id
 ```
+
+> `SessionTeam` ya no es una referencia externa: vive dentro del propio bounded context de Sessions.Service (ver diagrama arriba).
 
 **Nota LucidChart:** Las referencias entre servicios son foreign keys lógicas (sin constraint de BD). En el diagrama, se representan con líneas punteadas entre los bounded contexts.
 
@@ -1075,8 +1095,8 @@ Teams.TeamMember.UserId ─── ref ──→ Keycloak User.Id
 | **Strategy** | Cálculo de puntaje por tipo de misión (`TreasureScoreStrategy`, `TriviaScoreStrategy`) |
 | **Facade** | `GameSessionFacade` coordina múltiples servicios durante la sesión en vivo |
 | **Proxy** | `MissionAccessProxy` — control de acceso por rol antes de delegar al servicio real |
-| **Chain of Responsibility** | Validaciones de cambio de estado de sesión |
-| **Template Method** | Flujo base de procesamiento de evidencias con pasos definidos y variantes |
+| **Chain of Responsibility** | Validaciones de cambio de estado de sesión y de misión (`IMissionStatusHandler`) |
+| **Composite** | `IMissionComponent` — `Mission`/`MissionStage`/`MissionClue` comparten `Validate()`, `GetTotalPenalty()`, `GetLeafCount()` |
 | **Saga (Coreográfica)** | Coordinación de transacciones entre servicios vía RabbitMQ |
 | **Outbox Pattern** | Garantiza consistencia eventual para eventos publicados en RabbitMQ |
 | **API Gateway** | YARP — punto único de entrada con autenticación centralizada |
@@ -1091,34 +1111,33 @@ Teams.TeamMember.UserId ─── ref ──→ Keycloak User.Id
 - **Archivo clave:** `src/ApiGateway/Program.cs`, `KeycloakRolesTransformer.cs`
 - **Políticas por ruta:**
 
-| Ruta | Política |
-|------|---------|
-| `POST /api/teams/register` | anonymous |
-| `/hub/game/**` | anonymous (WebSocket) |
-| `/health` | anonymous |
-| `/api/missions/**` | `operator_or_admin` |
-| `/api/sessions/**` | `authenticated` |
-| `/api/teams/**` | `authenticated` |
-| `/api/trivia/**` | `authenticated` |
-| `/api/quizzes/**` | `operator_or_admin` |
-| `/api/admin/operators/**` | `admin` |
-| `/api/admin/users/**` | `operator_or_admin` |
-| `/api/admin/missions/**` | `admin` |
+| Ruta | Política | Destino |
+|------|---------|---------|
+| `POST /api/register` | anonymous | Missions.Service |
+| `GET/PUT /api/profile` | `authenticated` | Missions.Service |
+| `/hub/game/**` | anonymous (WebSocket) | RealTimeHub |
+| `/health` | anonymous | — |
+| `/api/missions/**` | `operator_or_admin` | Missions.Service |
+| `/api/sessions/**` (incluye `/api/sessions/{id}/teams/**`) | `authenticated` | Sessions.Service |
+| `/api/trivia/**` | `authenticated` | Trivia.Service |
+| `/api/quizzes/**` | `operator_or_admin` | Trivia.Service |
+| `/api/admin/operators/**` | `admin` | Missions.Service |
+| `/api/admin/users/**` | `operator_or_admin` | Missions.Service |
+| `/api/admin/missions/**` | `admin` | Missions.Service |
+
+> No existe ruta `/api/teams/**` — la gestión de equipos vive bajo `/api/sessions/{sessionId}/teams/**`, ya enrutada por la regla `sessions`.
 
 ### Missions.Service (`:5001`)
 - **DB:** `missions-db` (usuario: `missions`, pass: `missions123`)
+- **Responsabilidad ampliada:** además del catálogo de misiones/etapas/pistas, aloja todo lo que habla con la **Keycloak Admin API** — registro de participantes, perfil, alta/baja de operadores, listado de usuarios (`POST /api/register`, `GET/PUT /api/profile`, `/api/admin/operators/**`, `/api/admin/users/**`)
 - **Solución:** `src/Missions.Service/Missions.Service.slnx`
 
 ### Sessions.Service (`:5002`)
 - **DB:** `sessions-db` (usuario: `sessions`, pass: `sessions123`)
+- **Responsabilidad ampliada:** además del ciclo de vida de sesiones, aloja los equipos como sub-agregado (`SessionTeam`/`SessionTeamMember`) — `POST /{sessionId}/teams`, `GET /{sessionId}/teams`, `POST /{sessionId}/teams/{teamId}/join`, `DELETE /{sessionId}/teams/{teamId}/members/{userId}`
 - **Variables Docker:** `RabbitMq__Host=rabbitmq`, `Missions__Url=http://missions.service:80`
 - **Eventos publicados:** `session.status.changed` → `trivia.exchange` (topic)
 - **Solución:** `src/Sessions.Service/Sessions.Service.slnx`
-
-### Teams.Service (`:5003`)
-- **DB:** `teams-db` (usuario: `teams`, pass: `teams123`)
-- **Keycloak Admin:** `http://keycloak:8080/admin/realms/umbral/users`
-- **Solución:** `src/Teams.Service/Teams.Service.slnx`
 
 ### Trivia.Service (`:5004`)
 - **DB:** `trivia-db` (usuario: `trivia`, pass: `trivia123`, **puerto host: 5432**)
@@ -1141,7 +1160,6 @@ Teams.TeamMember.UserId ─── ref ──→ Keycloak User.Id
 |------|-----------|---------|----------|-------------|
 | `missions` | `missions-db` | `missions` | `missions123` | — |
 | `sessions` | `sessions-db` | `sessions` | `sessions123` | — |
-| `teams` | `teams-db` | `teams` | `teams123` | — |
 | `trivia` | `trivia-db` | `trivia` | `trivia123` | `5432` |
 | `keycloak` | `keycloak-db` | `keycloak` | `keycloak123` | — |
 
@@ -1166,7 +1184,6 @@ Teams.TeamMember.UserId ─── ref ──→ Keycloak User.Id
 | API Gateway | `5000` |
 | Missions | `5001` |
 | Sessions | `5002` |
-| Teams | `5003` |
 | Trivia | `5004` |
 | RealTimeHub | `5005` |
 | Frontend | `5173` |
@@ -1222,7 +1239,7 @@ cd frontend && npm ci && npm run dev
 
 ### Solo infraestructura (desarrollo de un servicio desde IDE)
 ```bash
-docker compose up -d missions-db sessions-db teams-db trivia-db keycloak rabbitmq
+docker compose up -d missions-db sessions-db trivia-db keycloak rabbitmq
 cd src/Sessions.Service && dotnet run --project Sessions.Api
 ```
 
@@ -1230,7 +1247,6 @@ cd src/Sessions.Service && dotnet run --project Sessions.Api
 ```bash
 dotnet test src/Missions.Service/Missions.Service.slnx
 dotnet test src/Sessions.Service/Sessions.Service.slnx
-dotnet test src/Teams.Service/Teams.Service.slnx
 dotnet test src/Trivia.Service/Trivia.Service.slnx
 dotnet test src/ApiGateway.Tests/ApiGateway.Tests.csproj
 dotnet test src/RealTimeHub.Tests/RealTimeHub.Tests.csproj
@@ -1287,8 +1303,7 @@ main         ── Producción. Solo recibe merges de release/ y hotfix/
 1. **Implementar trivias en vivo (HU-36 a HU-45)** — mayor funcionalidad pendiente
 2. **Integrar SignalR en el frontend** — cablear `GameHub` a vistas de operador y participante
 3. **Mergear ramas `hu-28` a `hu-35`** del remote a develop
-4. **Pipeline CI/CD** con GitHub Actions (build, test, coverage)
-5. **Documentación OpenAPI/Swagger** accesible desde el Gateway
+4. **Documentación OpenAPI/Swagger** accesible desde el Gateway
 
 ---
 

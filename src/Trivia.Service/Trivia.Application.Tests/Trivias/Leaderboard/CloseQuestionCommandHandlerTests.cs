@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Trivia.Application.Trivias.Leaderboard;
@@ -26,7 +27,8 @@ public class CloseQuestionCommandHandlerTests
         var factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("RealTimeHub").Returns(client);
 
-        var handler = new CloseQuestionCommandHandler(handlerLogger, factory);
+        var mediator = Substitute.For<IMediator>();
+        var handler = new CloseQuestionCommandHandler(handlerLogger, factory, mediator);
         var cmd = new CloseQuestionCommand(SessionId: Guid.NewGuid(), QuestionId: Guid.NewGuid());
 
         await handler.Handle(cmd, CancellationToken.None);
@@ -43,7 +45,8 @@ public class CloseQuestionCommandHandlerTests
         var factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("RealTimeHub").Returns(client);
 
-        var handler = new CloseQuestionCommandHandler(handlerLogger, factory);
+        var mediator = Substitute.For<IMediator>();
+        var handler = new CloseQuestionCommandHandler(handlerLogger, factory, mediator);
         var cmd = new CloseQuestionCommand(SessionId: Guid.NewGuid(), QuestionId: Guid.NewGuid());
 
         await handler.Handle(cmd, CancellationToken.None);

@@ -46,9 +46,13 @@ public class SessionParticipant
 
     public int Score { get; private set; }
 
-    public void AddScore(int delta) { if (delta > 0) Score += delta; }
+    // RB-08: ranking tie-break — when the score last changed, so ties can be broken by
+    // whichever participant reached that score first.
+    public DateTime? LastScoreAt { get; private set; }
 
-    public void ApplyPenalty(int amount) { if (amount > 0) Score = Math.Max(0, Score - amount); }
+    public void AddScore(int delta) { if (delta > 0) { Score += delta; LastScoreAt = DateTime.UtcNow; } }
 
-    public void ResetScore() => Score = 0;
+    public void ApplyPenalty(int amount) { if (amount > 0) { Score = Math.Max(0, Score - amount); LastScoreAt = DateTime.UtcNow; } }
+
+    public void ResetScore() { Score = 0; LastScoreAt = null; }
 }

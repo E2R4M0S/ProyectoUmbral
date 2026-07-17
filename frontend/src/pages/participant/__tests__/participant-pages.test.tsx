@@ -14,6 +14,7 @@ vi.mock("../../../services/sessionsApi", () => ({
   joinSession: vi.fn(),
   getSessionById: vi.fn(),
   startSession: vi.fn(),
+  getMySessions: vi.fn(),
   ApiError: class ApiError extends Error {
     constructor(public status: number, public body: string) { super(body); }
   },
@@ -45,7 +46,7 @@ vi.mock("../../../components/game/RankingBoard", () => ({ RankingBoard: () => <d
 vi.mock("../../../components/game/QuestionCard", () => ({ QuestionCard: () => <div>Question</div> }));
 
 // ── Imports ──────────────────────────────────────────────────────────────────
-import { joinSession } from "../../../services/sessionsApi";
+import { joinSession, getMySessions } from "../../../services/sessionsApi";
 import { joinTeam } from "../../../services/teamsApi";
 import { getProfile } from "../../../services/perfilApi";
 
@@ -53,6 +54,7 @@ import { UnirseSesion } from "../UnirseSesion";
 import { UnirseEquipo } from "../UnirseEquipo";
 import { MiPerfil } from "../MiPerfil";
 import { NextStageRedirect } from "../NextStageRedirect";
+import { MisSesiones } from "../MisSesiones";
 import { WaitingRoom } from "../game/WaitingRoom";
 import { ActiveGame } from "../game/ActiveGame";
 import { GameResults } from "../game/GameResults";
@@ -227,5 +229,42 @@ describe("GameResults", () => {
       </MemoryRouter>
     );
     expect(screen.getByText("Ranking Final")).toBeInTheDocument();
+  });
+});
+
+// ── MisSesiones ──────────────────────────────────────────────────────────────
+describe("MisSesiones", () => {
+  it("shows the empty state when the participant has not joined any session", async () => {
+    vi.mocked(getMySessions).mockResolvedValue([]);
+    withRouter(<MisSesiones />);
+    expect(await screen.findByText(/todavía no te has unido/i)).toBeInTheDocument();
+  });
+
+  it("renders each session's name, status and score", async () => {
+    vi.mocked(getMySessions).mockResolvedValue([
+      {
+        id: "sess-1", name: "Escape del Laboratorio", status: "Finished",
+        missionTitles: ["Laboratorio Secreto"], myScore: 250,
+        startedAt: "2026-07-01T10:00:00Z", endedAt: "2026-07-01T10:45:00Z", joinedAt: "2026-07-01T09:55:00Z",
+      },
+    ]);
+    withRouter(<MisSesiones />);
+    expect(await screen.findByText("Escape del Laboratorio")).toBeInTheDocument();
+    expect(screen.getByText(/250 pts/)).toBeInTheDocument();
+    expect(screen.getByText("Finalizada")).toBeInTheDocument();
+  });
+
+  it("marks the session as joined and navigates when a card is clicked", async () => {
+    vi.mocked(getMySessions).mockResolvedValue([
+      {
+        id: "sess-2", name: "Trivia Rápida", status: "Active",
+        missionTitles: ["Trivia General"], myScore: 40,
+        startedAt: "2026-07-10T10:00:00Z", endedAt: null, joinedAt: "2026-07-10T09:58:00Z",
+      },
+    ]);
+    withRouter(<MisSesiones />);
+    const card = await screen.findByText("Trivia Rápida");
+    fireEvent.click(card);
+    expect(sessionStorage.getItem("joined_sess-2")).toBe("1");
   });
 });
