@@ -22,6 +22,8 @@ UMBRAL permite a un operador crear sesiones de juego con misiones de tipo **Bús
 
 ## Arquitectura
 
+> **Nota:** el `Teams.Service` planeado originalmente nunca quedó como microservicio independiente — fue absorbido: los equipos viven dentro de `Sessions.Service` (`SessionTeam`, sin JoinCode) y el registro/perfil/operadores/usuarios (Keycloak Admin API) quedaron en `Missions.Service`. Son **3 microservicios de dominio**, no 4.
+
 ```
                          Internet
                              │
@@ -29,19 +31,21 @@ UMBRAL permite a un operador crear sesiones de juego con misiones de tipo **Bús
             │         API Gateway :5000        │
             │     YARP + Validación JWT        │
             │         (Keycloak JWKS)          │
-            └──┬──────────┬──────────┬─────────┘
-               │          │          │
-   ┌───────────▼──┐  ┌────▼────┐  ┌──▼────────────┐  ┌──────────────┐
-   │  Missions    │  │Sessions │  │    Teams      │  │    Trivia    │
-   │  :5001       │  │:5002    │  │    :5003      │  │    :5004     │
-   │  missions-db │  │sessions │  │    teams-db   │  │    trivia-db │
-   └──────────────┘  └──┬──────┘  └───────────────┘  └──────┬───────┘
-                        │                                    │
-              ┌─────────▼────────────────────────────────────▼──────┐
-              │              RabbitMQ :5672                          │
-              │   exchange: trivia.exchange (topic)                  │
-              │   cola: trivia.answer.submitted                      │
-              └─────────────────────┬────────────────────────────────┘
+            └──┬──────────────┬─────────────┬──┘
+               │              │             │
+   ┌───────────▼──────┐  ┌────▼────────┐  ┌─▼─────────────┐
+   │  Missions :5001   │  │Sessions:5002│  │  Trivia :5004 │
+   │  missions-db      │  │sessions-db  │  │  trivia-db    │
+   │  ├ misiones/pistas│  │ ├ ciclo vida│  │  ├ quizzes    │
+   │  ├ operadores      │  │ ├ SessionTeam│ │  └ ranking    │
+   │  └ Keycloak Admin  │  │ └ auditoría │  └───────┬───────┘
+   └────────────────────┘  └──┬──────────┘          │
+                              │                      │
+              ┌───────────────▼──────────────────────▼──────┐
+              │              RabbitMQ :5672                  │
+              │   exchange: trivia.exchange (topic)          │
+              │   cola: trivia.answer.submitted              │
+              └─────────────────────┬────────────────────────┘
                                     │
               ┌─────────────────────▼───────────────────────────────┐
               │         RealTimeHub :5005  (SignalR /hub/game)       │
@@ -138,9 +142,8 @@ Abrir [http://localhost:5173](http://localhost:5173)
 |----------|-----------|-------------|
 | Frontend | http://localhost:5173 | SPA React |
 | API Gateway | http://localhost:5000 | Punto único de entrada |
-| Missions Service | http://localhost:5001 | CRUD de misiones |
-| Sessions Service | http://localhost:5002 | Ciclo de vida de sesiones |
-| Teams Service | http://localhost:5003 | Equipos y usuarios |
+| Missions Service | http://localhost:5001 | CRUD de misiones + usuarios/operadores (Keycloak Admin API) |
+| Sessions Service | http://localhost:5002 | Ciclo de vida de sesiones + equipos (`SessionTeam`) |
 | Trivia Service | http://localhost:5004 | Quizzes y juego en vivo |
 | RealTimeHub | http://localhost:5005 | SignalR WebSocket hub |
 | Keycloak | http://localhost:8080 | Identity Provider |
@@ -202,9 +205,8 @@ Participante → Ve preguntas en su teléfono → responde → ve si acertó →
 - Activación/desactivación con validaciones de negocio
 
 ### Módulo 3: Equipos (HU-15 a HU-19) — Completo
-- Creación y edición de equipos con JoinCode alfanumérico de 6 caracteres
-- Gestión de miembros (agregar/quitar)
-- Unirse a equipo con código desde el teléfono
+- Equipos como sub-agregado de `Sessions.Service` (`SessionTeam`), creados dentro de una sesión ya existente — **sin JoinCode** (el requerimiento original de un VO `JoinCode` fue reemplazado por esta decisión de diseño)
+- Gestión de miembros (el operador quita miembros; el participante se une directamente estando autenticado, máx. 5 por equipo)
 
 ### Módulo 4: Sesiones en Vivo (HU-20 a HU-27) — Completo
 - Sesiones **multi-misión** (composición de varias misiones en secuencia)
@@ -238,28 +240,20 @@ ProyectoUmbral/
 │   ├── ApiGateway.Tests/
 │   │
 │   ├── Missions.Service/              # Clean Architecture
-│   │   ├── Missions.Api/              # Minimal API endpoints
+│   │   ├── Missions.Api/              # Minimal API endpoints (misiones + register/profile/operators/users)
 │   │   ├── Missions.Application/      # Commands, Queries, Handlers
-│   │   ├── Missions.Domain/           # Mission, MissionStage, MissionClue
-│   │   ├── Missions.Infrastructure/   # EF Core, Repositories
+│   │   ├── Missions.Domain/           # Mission, MissionStage, MissionClue, Participant
+│   │   ├── Missions.Infrastructure/   # EF Core, Repositories, KeycloakAdminService
 │   │   ├── Missions.Domain.Tests/
 │   │   └── Missions.Service.slnx
 │   │
 │   ├── Sessions.Service/
 │   │   ├── Sessions.Api/
 │   │   ├── Sessions.Application/
-│   │   ├── Sessions.Domain/           # Session, SessionStage (JSONB), SessionParticipant
+│   │   ├── Sessions.Domain/           # Session, SessionStage (JSONB), SessionParticipant, SessionTeam(Member)
 │   │   ├── Sessions.Infrastructure/   # EF Core, RabbitMQ publisher, GameSessionFacade
 │   │   ├── Sessions.Domain.Tests/
 │   │   └── Sessions.Service.slnx
-│   │
-│   ├── Teams.Service/
-│   │   ├── Teams.Api/
-│   │   ├── Teams.Application/
-│   │   ├── Teams.Domain/              # Team, TeamMember, Participant
-│   │   ├── Teams.Infrastructure/      # EF Core, Keycloak Admin API client
-│   │   ├── Teams.Domain.Tests/
-│   │   └── Teams.Service.slnx
 │   │
 │   ├── Trivia.Service/
 │   │   ├── Trivia.Api/
@@ -290,6 +284,8 @@ ProyectoUmbral/
 ├── keycloak/
 │   └── realm-export.json              # Realm "umbral" pre-configurado
 │
+├── tests/e2e/                         # Playwright E2E (admin-flow.spec.ts)
+├── .github/workflows/ci.yml           # Build+test por servicio, E2E en push a develop/main
 ├── docker-compose.yml
 ├── CLAUDE.md                          # Contexto completo para IA
 └── README.md                          # Este archivo
@@ -302,7 +298,7 @@ ProyectoUmbral/
 ### Solo infraestructura (para correr servicios desde el IDE)
 
 ```bash
-docker compose up -d missions-db sessions-db teams-db trivia-db keycloak rabbitmq
+docker compose up -d missions-db sessions-db trivia-db keycloak rabbitmq
 ```
 
 ### Correr un servicio individualmente
@@ -325,16 +321,18 @@ dotnet run --project Sessions.Api
 # Backend — por solución de cada servicio
 dotnet test src/Missions.Service/Missions.Service.slnx
 dotnet test src/Sessions.Service/Sessions.Service.slnx
-dotnet test src/Teams.Service/Teams.Service.slnx
 dotnet test src/Trivia.Service/Trivia.Service.slnx
 dotnet test src/ApiGateway.Tests/ApiGateway.Tests.csproj
 dotnet test src/RealTimeHub.Tests/RealTimeHub.Tests.csproj
 
 # Frontend
 cd frontend && npm test
+
+# E2E (requiere docker compose up -d completo)
+cd tests/e2e && npm ci && npx playwright test
 ```
 
-Estado de cobertura: **248 tests pasando** (backend), objetivo >= 90%.
+CI (`.github/workflows/ci.yml`) corre build+test por servicio en cada push/PR a `develop`/`main`, más un job de E2E con Playwright solo en push (levanta el stack completo con Docker Compose). Objetivo de cobertura backend: RNF-09, >= 90%.
 
 ---
 
@@ -348,8 +346,8 @@ Estado de cobertura: **248 tests pasando** (backend), objetivo >= 90%.
 | **Strategy** | `TimeBasedScoringStrategy` para puntuación de trivia |
 | **Facade** | `GameSessionFacade` coordina transiciones y notificaciones |
 | **Proxy** | `MissionAccessProxy` — control de acceso por rol |
-| **Chain of Responsibility** | Validaciones de cambio de estado (`BaseMissionStatusHandler` → ...) |
-| **Template Method** | Flujo base de procesamiento de evidencias |
+| **Chain of Responsibility** | Validaciones de cambio de estado (`BaseMissionStatusHandler`, `ValidStatusHandler`/`NotTerminalHandler`) |
+| **Composite** | `IMissionComponent` — `Mission`/`MissionStage`/`MissionClue` comparten `Validate()`/`GetTotalPenalty()`/`GetLeafCount()` |
 | **Saga** | Coordinación asíncrona entre servicios vía RabbitMQ |
 | **Outbox** | Consistencia eventual para eventos publicados |
 
@@ -358,6 +356,8 @@ Estado de cobertura: **248 tests pasando** (backend), objetivo >= 90%.
 ## API Reference
 
 ### Missions Service (vía Gateway → `:5001`)
+
+Catálogo de misiones **y** todo lo que habla con la Keycloak Admin API (registro, perfil, operadores, usuarios) — ver nota de arquitectura al inicio de este README.
 
 | Método | Ruta | Descripción | Rol |
 |--------|------|-------------|-----|
@@ -372,8 +372,17 @@ Estado de cobertura: **248 tests pasando** (backend), objetivo >= 90%.
 | `DELETE` | `/api/missions/{id}/stages/{sid}` | Eliminar etapa | admin |
 | `POST` | `/api/missions/{id}/stages/{sid}/clues` | Agregar pista | admin |
 | `DELETE` | `/api/missions/{id}/stages/{sid}/clues/{cid}` | Eliminar pista | admin |
+| `POST` | `/api/register` | Registrar participante | anonymous |
+| `GET` | `/api/profile` | Mi perfil | authenticated |
+| `PUT` | `/api/profile` | Actualizar perfil | authenticated |
+| `POST` | `/api/admin/operators` | Crear operador | admin |
+| `PATCH` | `/api/admin/operators/{id}/disable` | Desactivar operador | admin |
+| `GET` | `/api/admin/users` | Listado de usuarios | operator/admin |
+| `GET` | `/api/admin/users/{id}` | Detalle de usuario | operator/admin |
 
 ### Sessions Service (vía Gateway → `:5002`)
+
+Ciclo de vida de sesiones **y** equipos como sub-agregado de sesión (sin JoinCode).
 
 | Método | Ruta | Descripción | Rol |
 |--------|------|-------------|-----|
@@ -385,23 +394,10 @@ Estado de cobertura: **248 tests pasando** (backend), objetivo >= 90%.
 | `GET` | `/api/sessions/{id}/progress` | Dashboard del operador | operator/admin |
 | `POST` | `/api/sessions/{id}/stages/{sid}/advance` | Avanzar de etapa | operator/admin |
 | `POST` | `/api/sessions/{id}/stages/{sid}/clues` | Liberar pista | operator/admin |
-
-### Teams Service (vía Gateway → `:5003`)
-
-| Método | Ruta | Descripción | Rol |
-|--------|------|-------------|-----|
-| `POST` | `/api/teams/register` | Registrar participante | anonymous |
-| `POST` | `/api/teams` | Crear equipo | operator/admin |
-| `GET` | `/api/teams` | Listado de equipos | operator/admin |
-| `GET` | `/api/teams/{id}` | Detalle de equipo | operator/admin |
-| `PUT` | `/api/teams/{id}` | Editar equipo | operator/admin |
-| `POST` | `/api/teams/{id}/members` | Unirse con JoinCode | authenticated |
-| `POST` | `/api/teams/operators` | Crear operador | admin |
-| `PATCH` | `/api/teams/operators/{id}/disable` | Desactivar operador | admin |
-| `GET` | `/api/users` | Listado de usuarios | operator/admin |
-| `GET` | `/api/users/{id}` | Detalle de usuario | operator/admin |
-| `GET` | `/api/profile` | Mi perfil | authenticated |
-| `PUT` | `/api/profile` | Actualizar perfil | authenticated |
+| `POST` | `/api/sessions/{id}/teams` | Crear equipo dentro de la sesión | operator |
+| `GET` | `/api/sessions/{id}/teams` | Listar equipos de la sesión | authenticated |
+| `POST` | `/api/sessions/{id}/teams/{tid}/join` | Unirse a un equipo (sin código) | authenticated |
+| `DELETE` | `/api/sessions/{id}/teams/{tid}/members/{uid}` | Quitar miembro | operator |
 
 ### Trivia Service (vía Gateway → `:5004`)
 
@@ -440,17 +436,19 @@ connection.on("RankingUpdated",        (leaderboard) => { ... });
 ## Modelo de Dominio
 
 ```
-Missions Service          Sessions Service         Teams Service
-─────────────────         ────────────────         ─────────────
-Mission                   Session                  Team
-  ├── MissionStage    ←ref─  └── SessionStage[]      ├── TeamMember (userId)
-  │   └── MissionClue         └── SessionParticipant  └── Participant
-  ├── MissionType               (userId + alias)
-  │   Treasure / Trivia
-  └── MissionStatus           SessionStatus:
-      Draft / Active /         Scheduled → Preparing
-      Inactive                 → Active ⇄ Paused
-                               → Finished / Cancelled
+Missions Service          Sessions Service
+─────────────────         ────────────────
+Mission                   Session
+  ├── MissionStage    ←ref─  ├── SessionStage[]
+  │   └── MissionClue        ├── SessionParticipant (userId + alias)
+  ├── MissionType            └── SessionTeam
+  │   Treasure / Trivia          └── SessionTeamMember (userId)
+  └── MissionStatus
+      Draft / Active /       SessionStatus:
+      Inactive                 Scheduled → Preparing
+                                → Active ⇄ Paused
+Participant / Operator          → Finished / Cancelled
+  (Keycloak Admin API)
 
 Trivia Service                              RealTimeHub
 ──────────────                              ───────────
@@ -502,8 +500,7 @@ chore: configurar Docker Compose con Keycloak
 1. Completar integración frontend de trivia en vivo (HU-36 a HU-45)
 2. Mergear ramas `hu-28` a `hu-35` del remote a `develop`
 3. Cablear SignalR en vistas del participante (`WaitingRoom` → `ActiveGame`)
-4. Pipeline CI/CD con GitHub Actions (build, test, coverage)
-5. Documentación OpenAPI/Swagger accesible desde el Gateway
+4. Documentación OpenAPI/Swagger accesible desde el Gateway
 
 ---
 
