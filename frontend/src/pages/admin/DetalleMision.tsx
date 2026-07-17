@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getMissionById, createStage, updateStage, deleteStage, createClue, deleteClue, ApiError } from "../../services/missionsApi";
 import { fetchWithAuth } from "../../services/api";
+import { LocationPicker } from "../../components/LocationPicker";
 import type { MissionDetail } from "../../types/mission";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -228,30 +229,12 @@ export function DetalleMision() {
                     />
                   </div>
                 </div>
-                <div style={{ ...css.formRow, marginBottom: "0.75rem" }}>
-                  <div>
-                    <label style={css.label}>Latitud (opcional)</label>
-                    <input
-                      style={css.input}
-                      type="number"
-                      step="any"
-                      placeholder="Ej: 10.492"
-                      value={stageForm.latitude}
-                      onChange={e => setStageForm(f => ({ ...f, latitude: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label style={css.label}>Longitud (opcional)</label>
-                    <input
-                      style={css.input}
-                      type="number"
-                      step="any"
-                      placeholder="Ej: -66.902"
-                      value={stageForm.longitude}
-                      onChange={e => setStageForm(f => ({ ...f, longitude: e.target.value }))}
-                    />
-                  </div>
-                </div>
+                <LocationPicker
+                  latitude={stageForm.latitude}
+                  longitude={stageForm.longitude}
+                  onLatChange={(v) => setStageForm(f => ({ ...f, latitude: v }))}
+                  onLngChange={(v) => setStageForm(f => ({ ...f, longitude: v }))}
+                />
                 <div style={css.formActions}>
                   <button style={css.btnSecondary} onClick={() => setShowStageForm(false)}>Cancelar</button>
                   <button style={{ ...css.btnAddStage, padding: "8px 18px", fontSize: "0.82rem" }} onClick={handleCreateStage}>
@@ -312,16 +295,12 @@ export function DetalleMision() {
                       <input style={css.input} value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
                     </div>
                   </div>
-                  <div style={{ ...css.formRow, marginBottom: "0.75rem" }}>
-                    <div>
-                      <label style={css.label}>Latitud (opcional)</label>
-                      <input style={css.input} type="number" step="any" value={editForm.latitude} onChange={e => setEditForm(f => ({ ...f, latitude: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label style={css.label}>Longitud (opcional)</label>
-                      <input style={css.input} type="number" step="any" value={editForm.longitude} onChange={e => setEditForm(f => ({ ...f, longitude: e.target.value }))} />
-                    </div>
-                  </div>
+                  <LocationPicker
+                    latitude={editForm.latitude}
+                    longitude={editForm.longitude}
+                    onLatChange={(v) => setEditForm(f => ({ ...f, latitude: v }))}
+                    onLngChange={(v) => setEditForm(f => ({ ...f, longitude: v }))}
+                  />
                   <div style={{ marginBottom: "0.75rem", maxWidth: 120 }}>
                     <label style={css.label}>Orden</label>
                     <input style={css.input} type="number" min="1" value={editForm.order} onChange={e => setEditForm(f => ({ ...f, order: Number(e.target.value) }))} />
