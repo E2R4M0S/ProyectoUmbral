@@ -4,6 +4,12 @@ Documentacion/
 docs/
 GUIA_DE_ESTUDIO_UMBRAL.md
 
+# ─── Herramientas de asistencia de IA (contexto local, no se versiona) ──
+CLAUDE.md
+CONTEXTO_ERS_MODELO_DOMINIO.md
+.claude/
+.cursor/
+
 # ─── Builds locales de la APK (no se versionan, se generan con gradlew) ──
 *.apk
 
