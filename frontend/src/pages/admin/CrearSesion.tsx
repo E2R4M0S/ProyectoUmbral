@@ -343,9 +343,11 @@ export function CrearSesion() {
 
     setIsSubmitting(true);
     try {
+      const flatStages = buildFlatStages();
+      console.log("CreateSession payload:", JSON.stringify({ name: name.trim(), stages: flatStages }, null, 2));
       const result = await createSession({
         name: name.trim(),
-        stages: buildFlatStages(),
+        stages: flatStages,
       });
       setSuccess(true);
       setCreatedSession({ id: result.id, pin: result.pin });

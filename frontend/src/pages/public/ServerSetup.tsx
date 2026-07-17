@@ -1,7 +1,10 @@
 ﻿import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { setServerHost, getServerHost, clearServerHost } from "../../config/serverConfig";
+import { reinitUserManager } from "../../auth/keycloak";
 
 export function ServerSetup() {
+  const navigate = useNavigate();
   const [host, setHost] = useState(getServerHost());
   const [error, setError] = useState("");
 
@@ -12,7 +15,8 @@ export function ServerSetup() {
       return;
     }
     setServerHost(value);
-    window.location.href = "/";
+    reinitUserManager();
+    navigate("/", { replace: true });
   }
 
   function handleReset() {
