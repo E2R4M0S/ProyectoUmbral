@@ -61,15 +61,6 @@ public class RegisterParticipantCommandHandler : IRequestHandler<RegisterPartici
             throw;
         }
 
-        try
-        {
-            await _keycloakAdminService.ExecuteActionsEmailAsync(keycloakUserId, ["VERIFY_EMAIL"], ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to send verification email to Keycloak user {KeycloakUserId}", keycloakUserId);
-        }
-
         Participant participant;
         try
         {
