@@ -1,5 +1,6 @@
 ﻿import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Outlet, Link, Navigate } from "react-router-dom";
+import { App as CapacitorApp } from "@capacitor/app";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Registro } from "./pages/public/Registro";
 import { ServerSetup } from "./pages/public/ServerSetup";
@@ -24,6 +25,7 @@ import { ListadoSesiones } from "./pages/admin/ListadoSesiones";
 import { DetalleMision } from "./pages/admin/DetalleMision";
 
 import { useAuth } from "react-oidc-context";
+import { buildApiBase, buildKeycloakBase } from "./config/serverConfig";
 
 function getRoles(accessToken: string): string[] {
   try {
@@ -71,10 +73,15 @@ function Home() {
         <Link to="/registro">Registrate</Link>
       </p>
       {isProductionApk && (
-        <p style={{ marginTop: "1rem", fontSize: "0.75rem", color: "#555" }}>
-          Servidor: {getServerHost() || "no configurado"}{" "}
-          <Link to="/setup" style={{ color: "#e94560" }}>cambiar</Link>
-        </p>
+        <>
+          <p style={{ marginTop: "1rem", fontSize: "0.75rem", color: "#555" }}>
+            Servidor: {getServerHost() || "no configurado"}{" "}
+            <Link to="/setup" style={{ color: "#e94560" }}>cambiar</Link>
+          </p>
+          <p style={{ fontSize: "0.7rem", color: "#444", maxWidth: 360, wordBreak: "break-all" }}>
+            API: {buildApiBase() || "(relativa)"} | Keycloak: {buildKeycloakBase()}
+          </p>
+        </>
       )}
     </div>
   );
@@ -249,9 +256,40 @@ function Callback() {
 }
 
 
+function DeepLinkHandler() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      CapacitorApp.addListener("appUrlOpen", (data: { url: string }) => {
+        const rawUrl = data.url;
+        if (!rawUrl.includes("callback") && !rawUrl.startsWith("umbral://callback")) return;
+
+        let params: URLSearchParams | null = null;
+        try {
+          params = new URL(rawUrl).searchParams;
+        } catch {
+          const qIndex = rawUrl.indexOf("?");
+          if (qIndex !== -1) {
+            params = new URLSearchParams(rawUrl.substring(qIndex));
+          }
+        }
+        if (!params || !params.get("code")) return;
+
+        navigate(`/callback?${params.toString()}`, { replace: true });
+      });
+    } catch {
+      // Not running in Capacitor (browser) — ignore
+    }
+  }, [navigate]);
+
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <DeepLinkHandler />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/setup" element={<ServerSetup />} />
