@@ -127,7 +127,7 @@ public class SessionTimeoutEnforcementServiceTests
 
         await _sut.EnforceSessionTimeoutAsync(session.Id, CancellationToken.None);
 
-        await _facade.Received(1).TransitionAndNotify(session.Id, "Finished", Arg.Any<CancellationToken>());
+        await _facade.Received(1).TransitionAndNotify(session.Id, "Finished", Arg.Any<CancellationToken>(), skipOwnershipCheck: true);
         await _repository.Received(1).AddAuditEventAsync(
             Arg.Is<SessionAuditEvent>(e => e.SessionId == session.Id && e.EventType == SessionAuditEventTypes.StatusChanged),
             Arg.Any<CancellationToken>());
@@ -147,7 +147,7 @@ public class SessionTimeoutEnforcementServiceTests
 
         await _sut.EnforceActiveSessionsAsync(CancellationToken.None);
 
-        await _facade.Received(1).TransitionAndNotify(session1.Id, "Finished", Arg.Any<CancellationToken>());
+        await _facade.Received(1).TransitionAndNotify(session1.Id, "Finished", Arg.Any<CancellationToken>(), skipOwnershipCheck: true);
         await _facade.Received(1).NotifyStageAdvanced(session2.Id, Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
@@ -165,7 +165,7 @@ public class SessionTimeoutEnforcementServiceTests
 
         await _sut.EnforceActiveSessionsAsync(CancellationToken.None);
 
-        await _facade.Received(1).TransitionAndNotify(healthySession.Id, "Finished", Arg.Any<CancellationToken>());
+        await _facade.Received(1).TransitionAndNotify(healthySession.Id, "Finished", Arg.Any<CancellationToken>(), skipOwnershipCheck: true);
     }
 
     private static Session BuildActiveTreasureSession(
@@ -270,7 +270,7 @@ public class SessionTimeoutEnforcementServiceTests
 
         await _repository.Received(1).ApplyCluePenaltyAsync(
             session.Id, null, null, 20, Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _notifier.Received(1).NotifyRankingUpdatedAsync(
+        await _notifier.Received(1).NotifySessionRankingUpdatedAsync(
             session.Id, Arg.Any<IEnumerable<SessionRankingEntry>>(), Arg.Any<CancellationToken>());
     }
 

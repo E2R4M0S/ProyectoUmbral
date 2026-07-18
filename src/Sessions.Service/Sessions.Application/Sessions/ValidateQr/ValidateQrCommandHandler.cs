@@ -194,11 +194,14 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
                 command.UserId, completedBefore + 1, command.SessionId);
 
             var rankingOnComplete = await _repository.GetSessionRankingAsync(command.SessionId, ct);
-            await _notifier.NotifyRankingUpdatedAsync(command.SessionId, rankingOnComplete, ct);
+            await _notifier.NotifySessionRankingUpdatedAsync(command.SessionId, rankingOnComplete, ct);
 
             bool allDone = session.Participants.All(p => p.HasCompleted);
             if (allDone && session.Status == SessionStatus.Active)
-                await _facade.TransitionAndNotify(command.SessionId, "Finished", ct);
+                // This runs inline inside the completing PARTICIPANT's own HTTP request, not the
+                // operator's — skip the RB-10 ownership check, which would otherwise reject the
+                // transition because the participant isn't the session's OperatorId.
+                await _facade.TransitionAndNotify(command.SessionId, "Finished", ct, skipOwnershipCheck: true);
             else
                 await AutoAdvanceSessionStageIfEveryoneCaughtUp(session, sortedStages.Count, ct);
 
@@ -214,7 +217,7 @@ public class ValidateQrCommandHandler : IRequestHandler<ValidateQrCommand, Valid
             command.UserId, participant.CurrentStageOrder, command.SessionId);
 
         var rankingEntries = await _repository.GetSessionRankingAsync(command.SessionId, ct);
-        await _notifier.NotifyRankingUpdatedAsync(command.SessionId, rankingEntries, ct);
+        await _notifier.NotifySessionRankingUpdatedAsync(command.SessionId, rankingEntries, ct);
 
         await AutoAdvanceSessionStageIfEveryoneCaughtUp(session, sortedStages.Count, ct);
 

@@ -19,9 +19,9 @@ public class GameSessionFacade : IGameSessionFacade
         _notifier = notifier;
     }
 
-    public async Task TransitionAndNotify(Guid sessionId, string newStatus, CancellationToken ct = default)
+    public async Task TransitionAndNotify(Guid sessionId, string newStatus, CancellationToken ct = default, bool skipOwnershipCheck = false)
     {
-        var command = new TransitionSessionCommand(sessionId, newStatus);
+        var command = new TransitionSessionCommand(sessionId, newStatus, skipOwnershipCheck);
         await _mediator.Send(command, ct);
         await _notifier.NotifySessionStatusChanged(sessionId, newStatus, ct);
     }

@@ -154,7 +154,7 @@ public static class ReleaseClueEndpoint
                         : request.Reason.Trim();
                     await sessionRepo.ApplyCluePenaltyAsync(id, request.TeamId, request.UserId, penaltyAmount, penaltyReason, CancellationToken.None);
                     var rankingAfterPenalty = await sessionRepo.GetSessionRankingAsync(id, CancellationToken.None);
-                    await notifier.NotifyRankingUpdatedAsync(id, rankingAfterPenalty, CancellationToken.None);
+                    await notifier.NotifySessionRankingUpdatedAsync(id, rankingAfterPenalty, CancellationToken.None);
                 }
 
                 logger.LogInformation(

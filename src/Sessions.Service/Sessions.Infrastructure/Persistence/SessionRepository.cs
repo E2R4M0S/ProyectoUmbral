@@ -362,7 +362,7 @@ public class SessionRepository : ISessionRepository
 
         var entries = new List<SessionRankingEntry>();
 
-        foreach (var team in teams)
+        foreach (var team in teams.Where(t => t.Members.Count > 0))
         {
             entries.Add(new SessionRankingEntry(
                 Type: "team",

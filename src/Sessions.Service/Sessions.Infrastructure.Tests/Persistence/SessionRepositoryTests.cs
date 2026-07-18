@@ -478,7 +478,9 @@ public class SessionRepositoryTests
         dbContext.Sessions.Add(session);
 
         var firstTeam = SessionTeam.Create(session.Id, "First To Score");
+        firstTeam.AddMember(Guid.NewGuid(), "Player A");
         var secondTeam = SessionTeam.Create(session.Id, "Second To Score");
+        secondTeam.AddMember(Guid.NewGuid(), "Player B");
         dbContext.SessionTeams.AddRange(firstTeam, secondTeam);
         await dbContext.SaveChangesAsync();
 
@@ -495,6 +497,33 @@ public class SessionRepositoryTests
         ranking[0].Score.Should().Be(ranking[1].Score);
         ranking[0].TeamId.Should().Be(firstTeam.Id);
         ranking[1].TeamId.Should().Be(secondTeam.Id);
+    }
+
+    [Fact]
+    public async Task GetSessionRankingAsync_WithEmptyTeam_ShouldExcludeItFromTheRanking()
+    {
+        // Arrange — a team with no members (e.g. created by the operator but never joined)
+        // must not clutter the ranking with a phantom zero-score row.
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var session = Session.Create("Ranking Session", "000005", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Stage", "Treasure", 1, "test-token") });
+        dbContext.Sessions.Add(session);
+
+        var emptyTeam = SessionTeam.Create(session.Id, "Empty Team");
+        var teamWithMembers = SessionTeam.Create(session.Id, "Real Team");
+        teamWithMembers.AddMember(Guid.NewGuid(), "Player A");
+        dbContext.SessionTeams.AddRange(emptyTeam, teamWithMembers);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new SessionRepository(dbContext);
+
+        // Act
+        var ranking = await repo.GetSessionRankingAsync(session.Id, CancellationToken.None);
+
+        // Assert
+        ranking.Should().HaveCount(1);
+        ranking[0].TeamId.Should().Be(teamWithMembers.Id);
     }
 
     [Fact]

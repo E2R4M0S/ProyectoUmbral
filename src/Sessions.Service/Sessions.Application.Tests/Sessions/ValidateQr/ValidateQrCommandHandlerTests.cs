@@ -104,8 +104,8 @@ public class ValidateQrCommandHandlerTests
         result.Advanced.Should().BeTrue();
         result.IsLastStage.Should().BeTrue();
         await _repository.Received(1).UpdateParticipantAsync(Arg.Any<SessionParticipant>(), Arg.Any<CancellationToken>());
-        await _notifier.Received(1).NotifyRankingUpdatedAsync(sessionId, Arg.Any<IEnumerable<SessionRankingEntry>>(), Arg.Any<CancellationToken>());
-        await _facade.Received(1).TransitionAndNotify(sessionId, "Finished", Arg.Any<CancellationToken>());
+        await _notifier.Received(1).NotifySessionRankingUpdatedAsync(sessionId, Arg.Any<IEnumerable<SessionRankingEntry>>(), Arg.Any<CancellationToken>());
+        await _facade.Received(1).TransitionAndNotify(sessionId, "Finished", Arg.Any<CancellationToken>(), skipOwnershipCheck: true);
         await _eventPublisher.Received(1).PublishAsync(
             "evidence.submitted", Arg.Any<object>(), Arg.Any<CancellationToken>());
         // RB-07: the podium bonus (1st place = 300, since this participant is the only one to finish) must be traceable.
@@ -134,7 +134,7 @@ public class ValidateQrCommandHandlerTests
         result.Advanced.Should().BeTrue();
         result.IsLastStage.Should().BeFalse();
         await _repository.Received(1).UpdateParticipantAsync(Arg.Any<SessionParticipant>(), Arg.Any<CancellationToken>());
-        await _notifier.Received(1).NotifyRankingUpdatedAsync(sessionId, Arg.Any<IEnumerable<SessionRankingEntry>>(), Arg.Any<CancellationToken>());
+        await _notifier.Received(1).NotifySessionRankingUpdatedAsync(sessionId, Arg.Any<IEnumerable<SessionRankingEntry>>(), Arg.Any<CancellationToken>());
         await _repository.Received(1).AddAuditEventAsync(
             // Stage difficulty defaults to "Medium" (150 pts) when not specified.
             Arg.Is<SessionAuditEvent>(e => e.SessionId == sessionId && e.EventType == SessionAuditEventTypes.EvidenceValidated && e.UserId == userId && e.ScoreDelta == 150),

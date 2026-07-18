@@ -45,10 +45,11 @@ public class TransitionSessionCommandHandler
             throw new InvalidOperationException($"Session with id '{command.Id}' not found");
         }
 
-        // RB-10: only the operator who created this session may transition it. HttpContext is
-        // null when this handler runs from a background/system caller (e.g. the RF-02 timeout
-        // enforcer) — those calls are not "an operator administering a session" and stay exempt.
-        if (_httpContextAccessor.HttpContext is not null)
+        // RB-10: only the operator who created this session may transition it. This is skipped
+        // for system-driven transitions (command.SkipOwnershipCheck) — those can run inline
+        // inside another user's HTTP request (e.g. a participant's QR scan auto-finishing the
+        // session), where HttpContext is NOT null but belongs to someone who isn't the operator.
+        if (!command.SkipOwnershipCheck && _httpContextAccessor.HttpContext is not null)
         {
             var currentUserId = CurrentUserClaims.GetUserId(_httpContextAccessor.HttpContext.User);
             if (!session.IsManagedBy(currentUserId))

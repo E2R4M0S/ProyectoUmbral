@@ -167,6 +167,28 @@ public class TransitionSessionCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WithSkipOwnershipCheck_ShouldSucceedEvenWhenCalledByNonOwningUser()
+    {
+        // Reproduces the participant-auto-finish scenario: a session-completion transition runs
+        // inline inside a participant's own HTTP request (not the operator's), so HttpContext
+        // belongs to someone who isn't the operator. SkipOwnershipCheck must bypass RB-10 here.
+        var operatorId = Guid.NewGuid();
+        var participantId = Guid.NewGuid();
+        var session = CreateSessionWithStatus(SessionStatus.Preparing, operatorId);
+        session.AddParticipant(Guid.NewGuid());
+        typeof(Session).GetProperty("Status")!.SetValue(session, SessionStatus.Active);
+        SetAuthenticatedUser(participantId);
+        var command = new TransitionSessionCommand(session.Id, "Finished", SkipOwnershipCheck: true);
+
+        _repository.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        _repository.UpdateAsync(Arg.Any<Session>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+
+        await _sut.Handle(command, CancellationToken.None);
+
+        session.Status.Should().Be(SessionStatus.Finished);
+    }
+
+    [Fact]
     public async Task Handle_WhenSessionHasNoOperator_ShouldThrowUnauthorizedEvenForAuthenticatedOperator()
     {
         // RB-10: sessions predating OperatorId (null) cannot be managed by anyone.

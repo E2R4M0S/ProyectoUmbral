@@ -118,7 +118,7 @@ public class SessionTimeoutEnforcementService
                     $"Pista automática liberada: {clue.Content}", ct);
 
                 var rankingAfterPenalty = await _repository.GetSessionRankingAsync(sessionId, ct);
-                await _notifier.NotifyRankingUpdatedAsync(sessionId, rankingAfterPenalty, ct);
+                await _notifier.NotifySessionRankingUpdatedAsync(sessionId, rankingAfterPenalty, ct);
             }
 
             _logger.LogInformation(
@@ -156,7 +156,9 @@ public class SessionTimeoutEnforcementService
                 SessionAuditEventTypes.StatusChanged,
                 $"Sesión finalizada automáticamente: tiempo máximo agotado para la misión '{currentStage.MissionTitle}'"), ct);
 
-            await _facade.TransitionAndNotify(session.Id, nameof(SessionStatus.Finished), ct);
+            // System-driven (mission time ran out), not an operator action — see the same
+            // skipOwnershipCheck note in ValidateQrCommandHandler.
+            await _facade.TransitionAndNotify(session.Id, nameof(SessionStatus.Finished), ct, skipOwnershipCheck: true);
 
             _logger.LogInformation(
                 "Session {SessionId} auto-finished: mission '{Mission}' timed out", session.Id, currentStage.MissionTitle);
