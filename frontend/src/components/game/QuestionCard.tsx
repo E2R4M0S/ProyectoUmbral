@@ -19,6 +19,7 @@ export function QuestionCard({ question }: Props) {
   const [timeLeft, setTimeLeft] = useState<number>(question.timeLimitSeconds || 30);
   const [correctIndex, setCorrectIndex] = useState<number | null>(null);
   const [questionClosed, setQuestionClosed] = useState(false);
+  const [answerSource, setAnswerSource] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sentRef = useRef(sent);
   useEffect(() => { sentRef.current = sent; });
@@ -98,6 +99,7 @@ export function QuestionCard({ question }: Props) {
       if (!myTeamId || detail.teamId !== myTeamId) return;
       if (!claimSubmission()) return;
       setSelectedIndex(detail.selectedIndex);
+      setAnswerSource("SignalR");
       setSent(true);
       setTeamSynced(true);
       if (timerRef.current) clearInterval(timerRef.current);
@@ -168,6 +170,7 @@ export function QuestionCard({ question }: Props) {
         const data: { answered: boolean; selectedIndex: number | null; isCorrect?: boolean; pointsAwarded?: number } = await r.json();
         if (data?.answered && data.selectedIndex != null && claimSubmission()) {
           setSelectedIndex(data.selectedIndex);
+          setAnswerSource("Poll");
           setSent(true);
           setTeamSynced(true);
           if (timerRef.current) clearInterval(timerRef.current);
@@ -234,6 +237,7 @@ export function QuestionCard({ question }: Props) {
             timeLimitSeconds: capturedQuestion.timeLimitSeconds,
           }),
         });
+        setAnswerSource("Timeout");
         setSent(true);
         setFeedback("wrong");
       } catch { /* ignore — UI already shows timeout state */ }
@@ -252,6 +256,7 @@ export function QuestionCard({ question }: Props) {
     if (isDisabled) return;
     if (!claimSubmission()) return;
     setSelectedIndex(index);
+    setAnswerSource("Tap");
     setError(null);
 
     if (timerRef.current) clearInterval(timerRef.current);
@@ -334,7 +339,14 @@ export function QuestionCard({ question }: Props) {
         )}
       </div>
 
-      <h3>{question.questionText}</h3>
+      <h3>
+        {question.questionText}
+        {answerSource && (
+          <span style={{ fontSize: 11, color: "#888", marginLeft: 8 }}>
+            [{answerSource}]
+          </span>
+        )}
+      </h3>
       <div className="options-list">
         {question.options.map((opt, i) => (
           <button
