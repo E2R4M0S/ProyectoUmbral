@@ -5,6 +5,7 @@ import { getSessionById, getSessionProgress, getSessionRanking } from "../../../
 import { getRankingByQuiz } from "../../../services/triviaApi";
 import { getSessionTeams } from "../../../services/sessionTeamsApi";
 import { useSignalR } from "../../../hooks/useSignalR";
+import { fetchWithAuth } from "../../../services/api";
 import { userManager } from "../../../auth/keycloak";
 import { isMyRankingEntry } from "../../../utils/rankingMatch";
 import { WaitingRoom } from "./WaitingRoom";
@@ -65,8 +66,8 @@ function GameContent() {
     if (!sessionId || state.currentMissionType !== "Trivia") return;
     const poll = setInterval(async () => {
       try {
-        const resp = await fetch(`/api/quizzes/questions/current/${sessionId}`);
-
+        const resp = await fetchWithAuth(`/api/quizzes/questions/current/${sessionId}`);
+        if (!resp.ok) return;
         const data = await resp.json();
         if (data.hasQuestion && !state.currentQuestion) {
           dispatch({ type: "QUESTION_RECEIVED", question: data });
