@@ -23,7 +23,7 @@ if (!tunnelUrl || !/^https:\/\/.+\.trycloudflare\.com$/.test(tunnelUrl)) {
   process.exit(1);
 }
 
-const base = process.env.KEYCLOAK_BASE_URL || "http://localhost:8080/auth";
+const base = process.env.KEYCLOAK_BASE_URL || "http://localhost:80/auth";
 const adminUser = process.env.KEYCLOAK_ADMIN_USER || "admin";
 const adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || "admin123";
 const realm = process.env.KEYCLOAK_REALM || "umbral";

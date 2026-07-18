@@ -38,6 +38,12 @@ export function buildApiBase(): string {
 export function buildKeycloakBase(): string {
   if (!isProductionApk) {
     const hostname = window.location.hostname;
+    // Si el frontend se accede por HTTPS (túnel/dominio externo), Keycloak está
+    // bajo /auth en el mismo origen (vía Caddy). Si es localhost, Keycloak está
+    // en el puerto directo :8080.
+    if (window.location.protocol === "https:" || (!hostname.includes("localhost") && !hostname.match(/^\d+\.\d+\.\d+\.\d+$/))) {
+      return `${window.location.origin}/auth`;
+    }
     return hostname === "localhost" ? "http://localhost:8080" : `http://${hostname}:8080`;
   }
   const host = getServerHost();

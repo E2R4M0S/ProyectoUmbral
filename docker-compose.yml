@@ -11,7 +11,7 @@ services:
   # ─── Keycloak ─────────────────────────────────────────────
   keycloak:
     image: quay.io/keycloak/keycloak:26.1
-    command: start-dev --import-realm
+    command: start --import-realm --http-enabled=true --http-port=8080 --hostname-strict=false
     environment:
       KC_DB: postgres
       KC_DB_URL_HOST: keycloak-db
@@ -21,8 +21,7 @@ services:
       KC_DB_PASSWORD: keycloak123
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin123
-      KC_HOSTNAME_URL: http://localhost:8080
-      KC_HOSTNAME_ADMIN_URL: http://localhost:8080
+      KC_HOSTNAME_URL: http://192.168.31.21:8080
     ports:
       - "8080:8080"
     volumes:
