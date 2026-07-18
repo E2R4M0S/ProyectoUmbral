@@ -34,7 +34,7 @@ services:
   missions.service:
     environment:
       Jwt__Authority: "http://keycloak:8080/auth/realms/umbral"
-      KeycloakAdmin__BaseUrl: "https://inch-vid-organizer-arbitration.trycloudflare.com/auth"
+      KeycloakAdmin__BaseUrl: "https://jokes-unwrap-bathroom-ultram.trycloudflare.com/auth"
 
   sessions.service:
     environment:
