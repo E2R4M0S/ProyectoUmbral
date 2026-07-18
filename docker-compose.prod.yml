@@ -26,3 +26,20 @@ services:
       KC_HTTP_RELATIVE_PATH: /auth
       KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME_STRICT: "false"
+
+  api-gateway:
+    environment:
+      Jwt__Authority: "http://keycloak:8080/auth/realms/umbral"
+
+  missions.service:
+    environment:
+      Jwt__Authority: "http://keycloak:8080/auth/realms/umbral"
+      KeycloakAdmin__BaseUrl: "http://keycloak:8080/auth"
+
+  sessions.service:
+    environment:
+      Jwt__Authority: "http://keycloak:8080/auth/realms/umbral"
+
+  trivia.service:
+    environment:
+      Jwt__Authority: "http://keycloak:8080/auth/realms/umbral"
