@@ -57,11 +57,12 @@ public class GameSessionFacadeTests
         var clueContent = "Look behind the painting";
         var penalty = 10;
 
-        await _facade.ReleaseClueAndNotify(sessionId, clueId, teamId, clueContent, penalty);
+        await _facade.ReleaseClueAndNotify(sessionId, clueId, teamId, null, clueContent, penalty);
 
         await _notifier.Received().NotifyClueReleased(
             sessionId,
             teamId,
+            null,
             Arg.Any<object>(),
             Arg.Any<CancellationToken>());
     }
@@ -72,10 +73,11 @@ public class GameSessionFacadeTests
         var sessionId = Guid.NewGuid();
         var clueId = Guid.NewGuid();
 
-        await _facade.ReleaseClueAndNotify(sessionId, clueId, null, null, null);
+        await _facade.ReleaseClueAndNotify(sessionId, clueId, null, null, null, null);
 
         await _notifier.Received().NotifyClueReleased(
             sessionId,
+            null,
             null,
             Arg.Any<object>(),
             Arg.Any<CancellationToken>());
@@ -87,11 +89,29 @@ public class GameSessionFacadeTests
         var sessionId = Guid.NewGuid();
         var clueId = Guid.NewGuid();
 
-        await _facade.ReleaseClueAndNotify(sessionId, clueId, null, "Some clue", 5);
+        await _facade.ReleaseClueAndNotify(sessionId, clueId, null, null, "Some clue", 5);
 
         await _notifier.Received().NotifyClueReleased(
             sessionId,
             null,
+            null,
+            Arg.Any<object>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ReleaseClueAndNotify_WithUserId_SendsUserId()
+    {
+        var sessionId = Guid.NewGuid();
+        var clueId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        await _facade.ReleaseClueAndNotify(sessionId, clueId, null, userId, "Just for you", 5);
+
+        await _notifier.Received().NotifyClueReleased(
+            sessionId,
+            null,
+            userId,
             Arg.Any<object>(),
             Arg.Any<CancellationToken>());
     }

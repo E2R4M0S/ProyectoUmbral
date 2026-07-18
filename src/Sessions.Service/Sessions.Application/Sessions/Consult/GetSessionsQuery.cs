@@ -7,5 +7,8 @@ public record GetSessionsQuery(
     string? Status,
     Guid? MissionId,
     int Page,
-    int PageSize
+    int PageSize,
+    // RB-10: null means "no ownership filter" (admin, read-only supervision).
+    // Set means "only sessions owned by this operator".
+    Guid? OperatorId = null
 ) : IRequest<GetSessionsResult>;

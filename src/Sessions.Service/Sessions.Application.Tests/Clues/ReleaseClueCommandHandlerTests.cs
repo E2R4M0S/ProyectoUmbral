@@ -26,6 +26,6 @@ public class ReleaseClueCommandHandlerTests
         await _sut.Handle(command, CancellationToken.None);
 
         await _notifier.Received(1).NotifyClueReleased(
-            sessionId, null, Arg.Any<object>(), Arg.Any<CancellationToken>());
+            sessionId, null, null, Arg.Any<object>(), Arg.Any<CancellationToken>());
     }
 }

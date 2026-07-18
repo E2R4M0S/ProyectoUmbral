@@ -31,7 +31,7 @@ public class NotificationEndpointsTests
     {
         var sessionId = Guid.NewGuid();
         var teamId = Guid.NewGuid();
-        var notification = new ClueReleasedNotification(sessionId, teamId, new { ClueId = Guid.NewGuid() });
+        var notification = new ClueReleasedNotification(sessionId, teamId, null, new { ClueId = Guid.NewGuid() });
 
         notification.SessionId.Should().Be(sessionId);
         notification.TeamId.Should().Be(teamId);
@@ -41,10 +41,22 @@ public class NotificationEndpointsTests
     public void ClueReleasedNotification_WithoutTeamId_RecordsCanBeCreated()
     {
         var sessionId = Guid.NewGuid();
-        var notification = new ClueReleasedNotification(sessionId, null, new { ClueId = Guid.NewGuid() });
+        var notification = new ClueReleasedNotification(sessionId, null, null, new { ClueId = Guid.NewGuid() });
 
         notification.SessionId.Should().Be(sessionId);
         notification.TeamId.Should().BeNull();
+    }
+
+    [Fact]
+    public void ClueReleasedNotification_WithUserId_RecordsCanBeCreated()
+    {
+        var sessionId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var notification = new ClueReleasedNotification(sessionId, null, userId, new { ClueId = Guid.NewGuid() });
+
+        notification.SessionId.Should().Be(sessionId);
+        notification.TeamId.Should().BeNull();
+        notification.UserId.Should().Be(userId);
     }
 
     [Fact]

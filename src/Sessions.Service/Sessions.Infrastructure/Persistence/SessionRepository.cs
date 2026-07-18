@@ -57,9 +57,17 @@ public class SessionRepository : ISessionRepository
         Guid? missionId,
         int page,
         int pageSize,
-        CancellationToken ct)
+        CancellationToken ct,
+        Guid? operatorId = null)
     {
         var query = _context.Sessions.Include(s => s.Participants).AsQueryable();
+
+        // RB-10 / HU-16: an operator only ever lists the sessions they own; admins pass null
+        // to see everything in their read-only supervision view.
+        if (operatorId.HasValue)
+        {
+            query = query.Where(s => s.OperatorId == operatorId.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -245,7 +253,7 @@ public class SessionRepository : ISessionRepository
         await _context.SaveChangesAsync(ct);
     }
 
-    public async Task ApplyCluePenaltyAsync(Guid sessionId, Guid? teamId, int amount, string? reason = null, CancellationToken ct = default)
+    public async Task ApplyCluePenaltyAsync(Guid sessionId, Guid? teamId, Guid? userId, int amount, string? reason = null, CancellationToken ct = default)
     {
         if (amount <= 0) return;
 
@@ -272,8 +280,25 @@ public class SessionRepository : ISessionRepository
             return;
         }
 
-        // No specific team: the clue was broadcast to everyone in the session, so every team
-        // and every teamless participant pays the penalty.
+        if (userId is { } uid)
+        {
+            // Targeted at one individual participant — only they pay the penalty, regardless
+            // of whether they belong to a team (a team-targeted clue penalizes the whole team;
+            // this path is for the "just this player" case).
+            var participant = await GetParticipantAsync(sessionId, uid, ct);
+            if (participant is null) return;
+
+            participant.ApplyPenalty(amount);
+
+            await _context.Set<SessionAuditEvent>().AddAsync(
+                SessionAuditEvent.Create(sessionId, SessionAuditEventTypes.PenaltyApplied, description, userId: uid, scoreDelta: -amount), ct);
+
+            await _context.SaveChangesAsync(ct);
+            return;
+        }
+
+        // No specific team or participant: the clue was broadcast to everyone in the session,
+        // so every team and every teamless participant pays the penalty.
         var teams = await _context.SessionTeams
             .Include(t => t.Members)
             .Where(t => t.SessionId == sessionId)

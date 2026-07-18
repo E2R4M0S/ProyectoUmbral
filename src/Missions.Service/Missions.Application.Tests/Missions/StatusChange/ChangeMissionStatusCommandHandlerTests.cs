@@ -49,6 +49,7 @@ public class ChangeMissionStatusCommandHandlerTests
         var existingMission = Mission.Create(
             "Test", "Test", Difficulty.Easy, 30, MissionType.Treasure);
         existingMission.AddStage("Etapa 1", "Desc", 1);
+        existingMission.AddStageClue(existingMission.Stages[0].Id, "Clue content", null, ReleaseType.Manual);
 
         _repository.GetByIdAsync(missionId, Arg.Any<CancellationToken>())
             .Returns(existingMission);

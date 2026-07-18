@@ -47,7 +47,7 @@ public class GameNotifierTests
         var teamId = Guid.NewGuid();
         var clueData = new { ClueId = Guid.NewGuid(), Text = "Test clue" };
 
-        await _notifier.NotifyClueReleased(sessionId, teamId, clueData);
+        await _notifier.NotifyClueReleased(sessionId, teamId, null, clueData);
     }
 
     [Fact]
@@ -56,7 +56,17 @@ public class GameNotifierTests
         var sessionId = Guid.NewGuid();
         var clueData = new { ClueId = Guid.NewGuid(), Text = "Test clue" };
 
-        await _notifier.NotifyClueReleased(sessionId, null, clueData);
+        await _notifier.NotifyClueReleased(sessionId, null, null, clueData);
+    }
+
+    [Fact]
+    public async Task NotifyClueReleased_WithUserId_SendsCorrectPayload()
+    {
+        var sessionId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var clueData = new { ClueId = Guid.NewGuid(), Text = "Test clue" };
+
+        await _notifier.NotifyClueReleased(sessionId, null, userId, clueData);
     }
 
     [Fact]

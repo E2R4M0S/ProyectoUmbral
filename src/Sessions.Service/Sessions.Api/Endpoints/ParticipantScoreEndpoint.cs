@@ -1,5 +1,6 @@
 using Sessions.Application.Common.Interfaces;
 using Sessions.Domain.Entities;
+using Sessions.Domain.Enums;
 
 namespace Sessions.Api.Endpoints;
 
@@ -15,6 +16,15 @@ public static class ParticipantScoreEndpoint
             ILogger<Program> logger) =>
         {
             if (req.Delta <= 0) return Results.Ok();
+
+            // RB-03 / HU-34: once a session is terminal, its score must stay frozen.
+            var session = await repository.GetByIdAsync(req.SessionId, CancellationToken.None);
+            if (session is null || session.Status is SessionStatus.Finished or SessionStatus.Cancelled)
+            {
+                logger.LogInformation("Skipped {Delta} pts for participant {UserId}: session {SessionId} is missing or terminal", req.Delta, req.UserId, req.SessionId);
+                return Results.Ok();
+            }
+
             await repository.AddParticipantScoreAsync(req.SessionId, req.UserId, req.Delta);
 
             // RB-07: trivia scoring must be traceable to its origin, same as Treasure evidence.
@@ -39,19 +49,27 @@ public static class ParticipantScoreEndpoint
             ILogger<Program> logger) =>
         {
             if (req.Delta <= 0) return Results.Ok();
+
+            var team = await repository.GetTeamByIdAsync(req.TeamId, CancellationToken.None);
+            if (team is null) return Results.Ok();
+
+            // RB-03 / HU-34: once a session is terminal, its score must stay frozen.
+            var session = await repository.GetByIdAsync(team.SessionId, CancellationToken.None);
+            if (session is null || session.Status is SessionStatus.Finished or SessionStatus.Cancelled)
+            {
+                logger.LogInformation("Skipped {Delta} pts for team {TeamId}: session {SessionId} is missing or terminal", req.Delta, req.TeamId, team.SessionId);
+                return Results.Ok();
+            }
+
             await repository.AddTeamScoreAsync(req.TeamId, req.Delta);
 
             // RB-07: same traceability as the solo-participant path above.
-            var team = await repository.GetTeamByIdAsync(req.TeamId, CancellationToken.None);
-            if (team is not null)
-            {
-                await repository.AddAuditEventAsync(SessionAuditEvent.Create(
-                    team.SessionId,
-                    SessionAuditEventTypes.TriviaAnswerScored,
-                    "Puntaje otorgado al equipo por respuesta de trivia",
-                    teamId: req.TeamId,
-                    scoreDelta: req.Delta));
-            }
+            await repository.AddAuditEventAsync(SessionAuditEvent.Create(
+                team.SessionId,
+                SessionAuditEventTypes.TriviaAnswerScored,
+                "Puntaje otorgado al equipo por respuesta de trivia",
+                teamId: req.TeamId,
+                scoreDelta: req.Delta));
 
             logger.LogInformation("Added {Delta} pts to team {TeamId}", req.Delta, req.TeamId);
             return Results.Ok();

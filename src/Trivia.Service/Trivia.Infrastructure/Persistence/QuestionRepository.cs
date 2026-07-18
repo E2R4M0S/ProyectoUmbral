@@ -15,4 +15,13 @@ public class QuestionRepository : IQuestionRepository
         await _db.Set<Question>().AddRangeAsync(questions, ct);
         await _db.SaveChangesAsync(ct);
     }
+
+    public async Task MarkReleasedAsync(Guid questionId, DateTime releasedAt, CancellationToken ct = default)
+    {
+        var question = await _db.Set<Question>().FirstOrDefaultAsync(q => q.Id == questionId, ct);
+        if (question is null) return;
+
+        question.ReleasedAt = releasedAt;
+        await _db.SaveChangesAsync(ct);
+    }
 }

@@ -100,10 +100,13 @@ export function PanelSesion() {
   const [mission, setMission] = useState<MissionDetail | null>(null);
   const [selectedClueId, setSelectedClueId] = useState<string>("");
   const [clueMode, setClueMode] = useState<"predefined" | "custom">("predefined");
+  // "all" | "team:<teamId>" | "user:<userId>" — who receives the clue.
+  const [clueTarget, setClueTarget] = useState<string>("all");
   const [customClueText, setCustomClueText] = useState("");
   const [customCluePenalty, setCustomCluePenalty] = useState("");
   const [releasing, setReleasing] = useState(false);
   const [clueMsg, setClueMsg] = useState("");
+  const [releasedClueIds, setReleasedClueIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [localSeconds, setLocalSeconds] = useState(0);
@@ -143,6 +146,7 @@ export function PanelSesion() {
     try {
       const m = await getMissionById(current.missionId);
       setMission(m);
+      setReleasedClueIds(new Set()); // Reset released clues on stage change
       // Pistas de ESTA etapa únicamente — no de todas las etapas de la misión.
       const firstClue = m.stages?.find(st => st.id === current.missionStageId)?.clues?.[0];
       setSelectedClueId(firstClue?.id ?? "");
@@ -188,6 +192,15 @@ export function PanelSesion() {
   useEffect(() => {
     if (progress) setLocalMissionSeconds(progress.currentMissionElapsedSeconds);
   }, [progress?.currentMissionElapsedSeconds]);
+
+  // Auto-select next available clue when current one was released globally
+  useEffect(() => {
+    const available = stageClues.filter(c => !releasedClueIds.has(c.id));
+    if (available.length === 0) return;
+    if (!available.find(c => c.id === selectedClueId)) {
+      setSelectedClueId(available[0].id);
+    }
+  }, [releasedClueIds]);
 
   // Auto-finish when remaining time reaches 0 (RF-02 already enforces this server-side too —
   // this is just for a snappier UI update on the operator's own screen, so it's pointless
@@ -305,9 +318,11 @@ export function PanelSesion() {
     setReleasing(true);
     setClueMsg("");
     try {
+      const targetTeamId = clueTarget.startsWith("team:") ? clueTarget.slice(5) : null;
+      const targetUserId = clueTarget.startsWith("user:") ? clueTarget.slice(5) : null;
       const body = isCustom
-        ? { content: customClueText.trim(), penalty: customCluePenalty ? Number(customCluePenalty) : null, teamId: null }
-        : { clueId: selectedClueId, teamId: null };
+        ? { content: customClueText.trim(), penalty: customCluePenalty ? Number(customCluePenalty) : null, teamId: targetTeamId, userId: targetUserId }
+        : { clueId: selectedClueId, teamId: targetTeamId, userId: targetUserId };
       const resp = await fetchWithAuth(`/api/sessions/${id}/clues/release`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -317,6 +332,10 @@ export function PanelSesion() {
       const result = await resp.json();
       setClueMsg(result.hasContent ? "Pista enviada correctamente." : "Pista enviada (sin contenido definido).");
       if (isCustom) { setCustomClueText(""); setCustomCluePenalty(""); }
+      // Remove clue from dropdown if broadcast to everyone
+      if (clueTarget === "all" && !isCustom && selectedClueId) {
+        setReleasedClueIds(prev => new Set(prev).add(selectedClueId));
+      }
     } catch {
       setClueMsg("Error al liberar la pista.");
     } finally {
@@ -552,6 +571,31 @@ export function PanelSesion() {
               </button>
             </div>
 
+            <label style={{ display: "block", fontSize: "0.8rem", color: "#888", marginBottom: "0.35rem" }}>
+              Destinatario
+            </label>
+            <select
+              value={clueTarget}
+              onChange={e => setClueTarget(e.target.value)}
+              style={{ ...css.select, marginBottom: "0.75rem" }}
+            >
+              <option value="all">🌐 Todos</option>
+              {teams.length > 0 && (
+                <optgroup label="Equipos">
+                  {teams.map(team => (
+                    <option key={team.id} value={`team:${team.id}`}>👥 {team.name}</option>
+                  ))}
+                </optgroup>
+              )}
+              {progress?.participants?.length ? (
+                <optgroup label="Jugadores individuales">
+                  {progress.participants.map((p: ParticipantProgress) => (
+                    <option key={p.userId} value={`user:${p.userId}`}>🧑 {p.userAlias}</option>
+                  ))}
+                </optgroup>
+              ) : null}
+            </select>
+
             {clueMode === "predefined" ? (
               stageClues.length === 0 ? (
                 <p style={{ color: "#555", fontSize: "0.875rem", marginBottom: "0.75rem" }}>
@@ -560,7 +604,7 @@ export function PanelSesion() {
               ) : (
                 <>
                   <select value={selectedClueId} onChange={e => setSelectedClueId(e.target.value)} style={css.select}>
-                    {stageClues.map(clue => (
+                    {stageClues.filter(clue => !releasedClueIds.has(clue.id)).map(clue => (
                       <option key={clue.id} value={clue.id}>
                         {clue.content?.substring(0, 80)}{(clue.content?.length ?? 0) > 80 ? "..." : ""}
                         {clue.penalty != null ? ` (−${clue.penalty} pts)` : ""}
@@ -823,7 +867,7 @@ function QuizQuestionSender({ sessionId, quizId, totalParticipants, questionResu
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId, questionText: q.text,
+          sessionId, questionId: q.id, questionText: q.text,
           options: q.answers.map(a => a.text),
           timeLimitSeconds: q.timeLimitSeconds || 30,
           correctAnswerIndex: q.answers.findIndex(a => a.isCorrect),

@@ -22,6 +22,6 @@ public class ReleaseClueCommandHandler : IRequestHandler<ReleaseClueCommand>
             ReleasedAt = DateTime.UtcNow
         };
 
-        await _notifier.NotifyClueReleased(command.SessionId, command.TeamId, clueData, ct);
+        await _notifier.NotifyClueReleased(command.SessionId, command.TeamId, null, clueData, ct);
     }
 }

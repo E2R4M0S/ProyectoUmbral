@@ -16,7 +16,8 @@ public interface ISessionRepository
         Guid? missionId,
         int page,
         int pageSize,
-        CancellationToken ct);
+        CancellationToken ct,
+        Guid? operatorId = null);
     Task UpdateAsync(Session session, CancellationToken ct);
     Task AddParticipantAsync(SessionParticipant participant, CancellationToken ct);
     Task<SessionParticipant?> GetParticipantAsync(Guid sessionId, Guid userId, CancellationToken ct);
@@ -38,10 +39,12 @@ public interface ISessionRepository
     Task<List<SessionRankingEntry>> GetSessionRankingAsync(Guid sessionId, CancellationToken ct = default);
 
     // Clue penalties
-    // teamId null = the clue was broadcast to the whole session (current UI behavior): every
-    // team and every teamless participant currently in the session is penalized.
+    // teamId set = only that team (and its members) is penalized.
+    // userId set (teamId null) = only that individual participant is penalized.
+    // both null = the clue was broadcast to the whole session: every team and every
+    // teamless participant currently in the session is penalized.
     // RB-06: every penalty must record its reason — persisted as a SessionAuditEvent.
-    Task ApplyCluePenaltyAsync(Guid sessionId, Guid? teamId, int amount, string? reason = null, CancellationToken ct = default);
+    Task ApplyCluePenaltyAsync(Guid sessionId, Guid? teamId, Guid? userId, int amount, string? reason = null, CancellationToken ct = default);
 
     // Audit trail (RF-09 / RF-15): persisted history of session events (penalties, evidence
     // validation, status transitions) with reason/motivo and timestamp.

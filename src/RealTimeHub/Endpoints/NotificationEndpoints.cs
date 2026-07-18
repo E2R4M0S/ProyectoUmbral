@@ -30,16 +30,12 @@ public static class NotificationEndpoints
             [FromBody] ClueReleasedNotification notification,
             IHubContext<GameHub> hubContext) =>
         {
-            if (notification.TeamId.HasValue)
-            {
-                await hubContext.Clients.Group(notification.TeamId.Value.ToString())
-                    .SendAsync("ClueReleased", notification, CancellationToken.None);
-            }
-            else
-            {
-                await hubContext.Clients.Group(notification.SessionId.ToString())
-                    .SendAsync("ClueReleased", notification, CancellationToken.None);
-            }
+            // Targeting (TeamId/UserId) is resolved client-side: every client in the session
+            // group receives the notification and decides whether it applies to them. There's
+            // no per-team/per-user SignalR group to join, so a server-side-only group send
+            // would silently drop targeted clues.
+            await hubContext.Clients.Group(notification.SessionId.ToString())
+                .SendAsync("ClueReleased", notification, CancellationToken.None);
             return Results.Ok();
         });
 
@@ -123,7 +119,7 @@ public record LeaderboardEntryDto(Guid Id, Guid QuizId, Guid TeamId, string? Tea
 
 public record SessionStatusNotification(Guid SessionId, string Status);
 public record ProgressNotification(Guid SessionId, object ProgressData);
-public record ClueReleasedNotification(Guid SessionId, Guid? TeamId, object ClueData);
+public record ClueReleasedNotification(Guid SessionId, Guid? TeamId, Guid? UserId, object ClueData);
 public record QuestionAskedNotification(Guid SessionId, Guid QuestionId, string QuestionText, string[] Options, int TimeLimitSeconds, DateTime AskedAt);
 public record QuestionResultsNotification(Guid QuizId, Guid? SessionId, Guid QuestionId, object Results);
 public record QuestionClosedNotification(Guid SessionId, Guid QuestionId, Guid CorrectAnswerId, string? CorrectAnswerText);

@@ -2,6 +2,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Sessions.Application.Common;
 using Sessions.Application.Common.Interfaces;
+using Sessions.Domain.Entities;
+using Sessions.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Sessions.Api.Endpoints;
@@ -27,6 +29,14 @@ public static class ReleaseClueEndpoint
                 if (session is null)
                     return Results.NotFound(new { error = "Session not found" });
 
+                // RB-03 / HU-34: once a session is terminal, its score/penalties must stay frozen.
+                if (session.Status is SessionStatus.Finished or SessionStatus.Cancelled)
+                {
+                    return Results.Json(
+                        new { error = "Session is terminal", message = "No se pueden liberar pistas en una sesión Finalizada o Cancelada" },
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
                 // RB-10: only the operator who created this session may release its clues.
                 var currentUserId = CurrentUserClaims.GetUserId(httpContext.User);
                 if (!session.IsManagedBy(currentUserId))
@@ -43,6 +53,9 @@ public static class ReleaseClueEndpoint
                 // Clues only make sense for Treasure hunts — Trivia has no location-based hints to give.
                 if (currentStage.MissionType != "Treasure")
                     return Results.BadRequest(new { error = "Not a Treasure stage", message = "Clues can only be released during a Treasure stage" });
+
+                if (request.TeamId is not null && request.UserId is not null)
+                    return Results.BadRequest(new { error = "Invalid target", message = "Provide at most one of teamId or userId, not both" });
 
                 Guid clueId;
                 string? clueContent;
@@ -90,6 +103,21 @@ public static class ReleaseClueEndpoint
 
                     if (clueContent is null)
                         return Results.BadRequest(new { error = "Clue not found", message = "That clue does not belong to the session's current stage" });
+
+                    // RB-04: a predefined clue must not be released twice to the same recipient
+                    // (team, individual, or everyone) for the same stage.
+                    var auditTrail = await sessionRepo.GetAuditTrailAsync(id, CancellationToken.None);
+                    var alreadyReleased = auditTrail.Any(e =>
+                        e.EventType == SessionAuditEventTypes.ManualClueReleased &&
+                        e.ClueId == predefinedClueId &&
+                        e.TeamId == request.TeamId &&
+                        e.UserId == request.UserId);
+                    if (alreadyReleased)
+                    {
+                        return Results.Json(
+                            new { error = "Clue already released", message = "Esta pista ya fue liberada a este destinatario para esta etapa" },
+                            statusCode: StatusCodes.Status409Conflict);
+                    }
                 }
                 else if (!string.IsNullOrWhiteSpace(request.Content))
                 {
@@ -105,7 +133,18 @@ public static class ReleaseClueEndpoint
                 }
 
                 // 3. Send real clue data via SignalR through Facade
-                await facade.ReleaseClueAndNotify(id, clueId, request.TeamId, clueContent, cluePenalty);
+                await facade.ReleaseClueAndNotify(id, clueId, request.TeamId, request.UserId, clueContent, cluePenalty);
+
+                // RB-04: record the release so a repeat request for the same predefined clue +
+                // recipient is rejected above. Ad-hoc clues always get a fresh Guid, so they can
+                // never collide — no need to track them here.
+                if (request.ClueId is not null)
+                {
+                    await sessionRepo.AddAuditEventAsync(SessionAuditEvent.Create(
+                        id, SessionAuditEventTypes.ManualClueReleased,
+                        $"Pista liberada manualmente: {clueContent}",
+                        teamId: request.TeamId, userId: request.UserId, clueId: clueId), CancellationToken.None);
+                }
 
                 // 4. Apply the penalty (if any) and let everyone see the updated score right away.
                 if (cluePenalty is { } penaltyAmount && penaltyAmount > 0)
@@ -113,7 +152,7 @@ public static class ReleaseClueEndpoint
                     var penaltyReason = string.IsNullOrWhiteSpace(request.Reason)
                         ? $"Pista liberada: {clueContent}"
                         : request.Reason.Trim();
-                    await sessionRepo.ApplyCluePenaltyAsync(id, request.TeamId, penaltyAmount, penaltyReason, CancellationToken.None);
+                    await sessionRepo.ApplyCluePenaltyAsync(id, request.TeamId, request.UserId, penaltyAmount, penaltyReason, CancellationToken.None);
                     var rankingAfterPenalty = await sessionRepo.GetSessionRankingAsync(id, CancellationToken.None);
                     await notifier.NotifyRankingUpdatedAsync(id, rankingAfterPenalty, CancellationToken.None);
                 }
@@ -144,4 +183,4 @@ public static class ReleaseClueEndpoint
     }
 }
 
-public record ReleaseClueRequest(Guid? ClueId = null, Guid? TeamId = null, string? Content = null, int? Penalty = null, string? Reason = null);
+public record ReleaseClueRequest(Guid? ClueId = null, Guid? TeamId = null, Guid? UserId = null, string? Content = null, int? Penalty = null, string? Reason = null);

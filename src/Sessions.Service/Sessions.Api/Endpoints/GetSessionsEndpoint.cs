@@ -1,4 +1,5 @@
 using MediatR;
+using Sessions.Application.Common;
 using Sessions.Application.Sessions.Consult;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,10 +17,16 @@ public static class GetSessionsEndpoint
             [FromQuery] Guid? missionId,
             [FromQuery] int page,
             [FromQuery] int pageSize,
+            HttpContext httpContext,
             IMediator mediator,
             CancellationToken ct) =>
         {
-            var query = new GetSessionsQuery(search, status, missionId, page, pageSize);
+            // RB-10: an operator only ever lists the sessions they own; an admin
+            // supervises everything in read-only mode, so no ownership filter applies.
+            var isAdmin = httpContext.User.IsInRole("admin");
+            var operatorId = isAdmin ? null : CurrentUserClaims.GetUserId(httpContext.User);
+
+            var query = new GetSessionsQuery(search, status, missionId, page, pageSize, operatorId);
             var result = await mediator.Send(query, ct);
             return Results.Ok(result);
         })
