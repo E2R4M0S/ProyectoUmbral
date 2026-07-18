@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Registra la URL pública de un Cloudflare Quick Tunnel (https://algo.trycloudflare.com)
-// como redirect URI / web origin válido del cliente umbral-frontend en Keycloak.
+// como redirect URI / web origin válido del cliente umbral-frontend en Keycloak, y
+// actualiza KC_HOSTNAME_URL para que los enlaces en correos usen la URL del túnel.
 //
 // Necesario porque Keycloak solo soporta wildcard como sufijo al final de una URI
 // (ej. "https://midominio.com/*"), NO en medio del host — así que un patrón como
@@ -30,6 +31,33 @@ const realm = process.env.KEYCLOAK_REALM || "umbral";
 const clientId = process.env.KEYCLOAK_CLIENT_ID || "umbral-frontend";
 
 async function main() {
+  // 0. Actualizar KC_HOSTNAME_URL y PublicForwardedHost para que los enlaces usen el túnel
+  try {
+    const fs = require("fs");
+    const path = require("path");
+    const root = path.join(__dirname, "..");
+
+    // 0a. docker-compose.yml — KC_HOSTNAME_URL
+    let compose = fs.readFileSync(path.join(root, "docker-compose.yml"), "utf8");
+    const oldHostname = compose.match(/KC_HOSTNAME_URL: (https?:\/\/[^\s]+)/);
+    if (oldHostname) {
+      const newHostname = tunnelUrl.replace(/\/$/, "");
+      compose = compose.replace(/KC_HOSTNAME_URL: https?:\/\/[^\s]+/, `KC_HOSTNAME_URL: ${newHostname}`);
+      fs.writeFileSync(path.join(root, "docker-compose.yml"), compose);
+      console.log(`KC_HOSTNAME_URL actualizado: ${oldHostname[1]} -> ${newHostname}`);
+    }
+
+    // 0b. docker-compose.prod.yml — KeycloakAdmin__PublicForwardedHost
+    let prod = fs.readFileSync(path.join(root, "docker-compose.prod.yml"), "utf8");
+    const oldFwd = prod.match(/KeycloakAdmin__PublicForwardedHost:\s*"[^"]+"/);
+    if (oldFwd) {
+      prod = prod.replace(/KeycloakAdmin__PublicForwardedHost:\s*"[^"]+"/, `KeycloakAdmin__PublicForwardedHost: "${tunnelUrl}"`);
+      fs.writeFileSync(path.join(root, "docker-compose.prod.yml"), prod);
+      console.log(`PublicForwardedHost actualizado: ${oldFwd[0]} -> ${tunnelUrl}`);
+    }
+  } catch (e) {
+    console.warn("No se pudo actualizar los archivos:", e.message);
+  }
   const tokenResp = await fetch(`${base}/realms/master/protocol/openid-connect/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -85,6 +113,19 @@ async function main() {
     process.exit(1);
   }
   console.log(`Listo: "${tunnelUrl}" registrado como redirect URI / web origin de "${clientId}".`);
+
+  // 5. Recargar Keycloak para que use el nuevo KC_HOSTNAME_URL
+  try {
+    const { execSync } = require("child_process");
+    console.log("Reiniciando Keycloak para aplicar KC_HOSTNAME_URL...");
+    execSync("docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d keycloak", {
+      cwd: require("path").join(__dirname, ".."),
+      stdio: "inherit",
+      timeout: 60000,
+    });
+  } catch (e) {
+    console.warn("No se pudo reiniciar Keycloak. Hacelo manualmente:", e.message);
+  }
 }
 
 main().catch((e) => {

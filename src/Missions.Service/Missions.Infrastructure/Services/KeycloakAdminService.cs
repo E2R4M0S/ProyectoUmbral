@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Missions.Application.Common.Interfaces;
@@ -17,15 +18,18 @@ public class KeycloakAdminService : IKeycloakAdminService
     private readonly HttpClient _httpClient;
     private readonly KeycloakAdminOptions _options;
     private readonly ILogger<KeycloakAdminService> _logger;
+    private readonly IHttpContextAccessor? _httpContextAccessor;
 
     public KeycloakAdminService(
         HttpClient httpClient,
         IOptions<KeycloakAdminOptions> options,
-        ILogger<KeycloakAdminService> logger)
+        ILogger<KeycloakAdminService> logger,
+        IHttpContextAccessor? httpContextAccessor = null)
     {
         _httpClient = httpClient;
         _options = options.Value;
         _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<string> CreateUserAsync(
@@ -298,6 +302,30 @@ public class KeycloakAdminService : IKeycloakAdminService
             Content = JsonContent.Create(actions)
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // Forward the public hostname so Keycloak generates action token URLs with
+        // the correct external URL (ej: tunnel URL) instead of the internal Docker hostname.
+        // Priority: config override > X-Forwarded-Host header > request Host header
+        var publicHost = _options.PublicForwardedHost;
+        _logger.LogWarning("ExecuteActionsEmail: PublicForwardedHost options value = {Val}", publicHost ?? "(null)");
+        if (string.IsNullOrEmpty(publicHost))
+        {
+            var ctx = _httpContextAccessor?.HttpContext;
+            publicHost = ctx?.Request.Headers["X-Forwarded-Host"].FirstOrDefault()
+                      ?? ctx?.Request.Headers["Host"].FirstOrDefault();
+            _logger.LogWarning("ExecuteActionsEmail: falling back to request headers = {Val}", publicHost ?? "(null)");
+        }
+        if (!string.IsNullOrEmpty(publicHost))
+        {
+            request.Headers.TryAddWithoutValidation("X-Forwarded-Host", publicHost);
+            request.Headers.TryAddWithoutValidation("X-Forwarded-Proto", "https");
+            _logger.LogWarning("ExecuteActionsEmail: X-Forwarded-Host set to {Val}", publicHost);
+        }
+        else
+        {
+            _logger.LogWarning("ExecuteActionsEmail: no public hostname available, using default");
+        }
+
 
         var response = await _httpClient.SendAsync(request, ct);
 

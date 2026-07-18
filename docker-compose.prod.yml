@@ -35,6 +35,7 @@ services:
     environment:
       Jwt__Authority: "http://keycloak:8080/auth/realms/umbral"
       KeycloakAdmin__BaseUrl: "http://keycloak:8080/auth"
+      KeycloakAdmin__PublicForwardedHost: "https://reason-other-shift-pete.trycloudflare.com"
 
   sessions.service:
     environment:

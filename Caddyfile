@@ -13,13 +13,19 @@
 	# rompe el login.
 	handle /auth/* {
 		reverse_proxy keycloak:8080 {
+			header_up Host {http.request.host}
+			header_up X-Forwarded-Host {http.request.host}
 			header_up X-Forwarded-Proto https
 		}
 	}
 
 	# Todo lo demás (la SPA, /api, /hub vía el proxy que ya arma Vite) va al frontend.
+	# Preservamos el Host original y agregamos X-Forwarded-Host para que Keycloak
+	# pueda generar action tokens con la URL pública correcta del túnel.
 	handle {
 		reverse_proxy frontend:5173 {
+			header_up Host {http.request.host}
+			header_up X-Forwarded-Host {http.request.host}
 			header_up X-Forwarded-Proto https
 		}
 	}

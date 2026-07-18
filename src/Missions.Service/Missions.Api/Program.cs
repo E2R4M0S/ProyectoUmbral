@@ -53,6 +53,7 @@ try
             policy.RequireRole("participant"));
     });
 
+    builder.Services.AddHttpContextAccessor();
     builder.Services.AddHealthChecks();
     builder.Services.AddOpenApi();
 
