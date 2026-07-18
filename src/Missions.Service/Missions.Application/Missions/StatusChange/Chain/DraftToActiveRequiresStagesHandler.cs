@@ -5,6 +5,7 @@ namespace Missions.Application.Missions.StatusChange.Chain;
 
 /// <summary>
 /// Validates that activating a Draft mission requires at least one stage.
+/// Trivia missions are exempt — they can be activated without stages.
 /// </summary>
 public class DraftToActiveRequiresStagesHandler : BaseMissionStatusHandler
 {
@@ -14,6 +15,9 @@ public class DraftToActiveRequiresStagesHandler : BaseMissionStatusHandler
 
         if (mission.Status == MissionStatus.Draft && target == MissionStatus.Active)
         {
+            // Trivia missions can be activated without stages (questions are created in the quiz flow)
+            if (mission.Type == MissionType.Trivia) return;
+
             if (mission.Stages.Count == 0)
             {
                 throw new InvalidOperationException(

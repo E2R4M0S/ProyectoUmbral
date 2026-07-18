@@ -28,9 +28,7 @@ public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionSt
         // Build the Chain of Responsibility
         var validStatus = new ValidMissionStatusHandler();
         var requiresStages = new DraftToActiveRequiresStagesHandler();
-        var requiresClues = new EachStageRequiresClueHandler();
         validStatus.SetNext(requiresStages);
-        requiresStages.SetNext(requiresClues);
         _validationChain = validStatus;
     }
 
