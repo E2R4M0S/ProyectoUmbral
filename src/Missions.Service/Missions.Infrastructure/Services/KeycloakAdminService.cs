@@ -643,4 +643,59 @@ public class KeycloakAdminService : IKeycloakAdminService
 
         return rep;
     }
+
+    public async Task VerifyPasswordAsync(string email, string currentPassword, CancellationToken ct)
+    {
+        var content = new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string, string>("client_id", "umbral-frontend"),
+            new KeyValuePair<string, string>("username", email),
+            new KeyValuePair<string, string>("password", currentPassword),
+            new KeyValuePair<string, string>("grant_type", "password")
+        });
+
+        var response = await _httpClient.PostAsync(
+            $"{_options.BaseUrl}/realms/{_options.Realm}/protocol/openid-connect/token", content, ct);
+
+        if (response.IsSuccessStatusCode)
+            return;
+
+        if (response.StatusCode == System.Net.HttpStatusCode.BadRequest
+            || response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            _logger.LogWarning("Password verification failed for {Email}: current password is incorrect", email);
+            throw new UnauthorizedAccessException("La contraseña actual no es correcta.");
+        }
+
+        var errorBody = await response.Content.ReadAsStringAsync(ct);
+        _logger.LogError(
+            "Keycloak password verification failed unexpectedly: {StatusCode} {Error}",
+            response.StatusCode, errorBody);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task ResetPasswordAsync(string userId, string newPassword, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var payload = new { type = "password", value = newPassword, temporary = false };
+        var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}/reset-password")
+        {
+            Content = JsonContent.Create(payload)
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError(
+                "Keycloak reset password failed for user {UserId}: {StatusCode} {Error}",
+                userId, response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
+    }
 }
