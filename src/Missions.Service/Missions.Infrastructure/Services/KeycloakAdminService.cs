@@ -299,6 +299,17 @@ public class KeycloakAdminService : IKeycloakAdminService
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
+        var publicHost = _options.PublicForwardedHost;
+        _logger.LogWarning("PFH: PublicForwardedHost='{Val}' BaseUrl='{Url}'", publicHost ?? "(null)", _options.BaseUrl);
+        if (!string.IsNullOrEmpty(publicHost))
+        {
+            var hostname = publicHost;
+            try { hostname = new Uri(publicHost).Host; } catch { }
+            _logger.LogWarning("PFH: setting X-Forwarded-Host='{Host}', X-Forwarded-Proto=https", hostname);
+            request.Headers.TryAddWithoutValidation("X-Forwarded-Host", hostname);
+            request.Headers.TryAddWithoutValidation("X-Forwarded-Proto", "https");
+        }
+
         var response = await _httpClient.SendAsync(request, ct);
 
         if (!response.IsSuccessStatusCode)

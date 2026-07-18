@@ -49,13 +49,10 @@ async function main() {
 
     // 0b. docker-compose.prod.yml — KeycloakAdmin__BaseUrl (tunnel URL)
     let prod = fs.readFileSync(path.join(root, "docker-compose.prod.yml"), "utf8");
-    const oldBase = prod.match(/KeycloakAdmin__BaseUrl:\s*"[^"]+"/);
-    if (oldBase) {
-      const newBase = `${tunnelUrl}/auth`;
-      prod = prod.replace(/KeycloakAdmin__BaseUrl:\s*"[^"]+"/, `KeycloakAdmin__BaseUrl: "${newBase}"`);
-      fs.writeFileSync(path.join(root, "docker-compose.prod.yml"), prod);
-      console.log(`KeycloakAdmin__BaseUrl actualizado: ${oldBase[0]} -> ${newBase}`);
-    }
+    const newBase = `${tunnelUrl}/auth`;
+    prod = prod.replace(/KeycloakAdmin__BaseUrl:\s*"[^"]+"/, `KeycloakAdmin__BaseUrl: "${newBase}"`);
+    fs.writeFileSync(path.join(root, "docker-compose.prod.yml"), prod);
+    console.log(`KeycloakAdmin__BaseUrl actualizado a ${newBase}`);
   } catch (e) {
     console.warn("No se pudo actualizar los archivos:", e.message);
   }

@@ -34,7 +34,7 @@ services:
   missions.service:
     environment:
       Jwt__Authority: "http://keycloak:8080/auth/realms/umbral"
-      KeycloakAdmin__BaseUrl: "http://caddy:80/auth"
+      KeycloakAdmin__BaseUrl: "https://classroom-dozens-threaded-sensitive.trycloudflare.com/auth"
 
   sessions.service:
     environment:
