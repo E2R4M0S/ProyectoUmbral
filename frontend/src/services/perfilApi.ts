@@ -29,6 +29,24 @@ export async function updateProfile(
   return response.json() as Promise<PerfilData>;
 }
 
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const resp = await fetchWithAuth("/api/profile/password", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({}));
+    throw new ApiError(
+      resp.status,
+      body.message || body.error || "No se pudo cambiar la contraseña.",
+    );
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,

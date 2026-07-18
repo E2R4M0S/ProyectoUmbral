@@ -106,6 +106,7 @@ export function PanelSesion() {
   const [customCluePenalty, setCustomCluePenalty] = useState("");
   const [releasing, setReleasing] = useState(false);
   const [clueMsg, setClueMsg] = useState("");
+  const [clueReason, setClueReason] = useState("");
   const [releasedClueIds, setReleasedClueIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -321,8 +322,8 @@ export function PanelSesion() {
       const targetTeamId = clueTarget.startsWith("team:") ? clueTarget.slice(5) : null;
       const targetUserId = clueTarget.startsWith("user:") ? clueTarget.slice(5) : null;
       const body = isCustom
-        ? { content: customClueText.trim(), penalty: customCluePenalty ? Number(customCluePenalty) : null, teamId: targetTeamId, userId: targetUserId }
-        : { clueId: selectedClueId, teamId: targetTeamId, userId: targetUserId };
+        ? { content: customClueText.trim(), penalty: customCluePenalty ? Number(customCluePenalty) : null, reason: clueReason.trim() || undefined, teamId: targetTeamId, userId: targetUserId }
+        : { clueId: selectedClueId, reason: clueReason.trim() || undefined, teamId: targetTeamId, userId: targetUserId };
       const resp = await fetchWithAuth(`/api/sessions/${id}/clues/release`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -332,6 +333,7 @@ export function PanelSesion() {
       const result = await resp.json();
       setClueMsg(result.hasContent ? "Pista enviada correctamente." : "Pista enviada (sin contenido definido).");
       if (isCustom) { setCustomClueText(""); setCustomCluePenalty(""); }
+      setClueReason("");
       // Remove clue from dropdown if broadcast to everyone
       if (clueTarget === "all" && !isCustom && selectedClueId) {
         setReleasedClueIds(prev => new Set(prev).add(selectedClueId));
@@ -640,6 +642,14 @@ export function PanelSesion() {
                 />
               </>
             )}
+
+            <input
+              type="text"
+              value={clueReason}
+              onChange={e => setClueReason(e.target.value)}
+              placeholder="Motivo de la penalización (obligatorio si aplica puntos)"
+              style={css.select}
+            />
 
             <button
               onClick={handleReleaseClue}

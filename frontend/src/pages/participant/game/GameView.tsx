@@ -140,11 +140,17 @@ function GameContent() {
       dispatch({ type: "CONNECTION_STATE_CHANGED", state: connState });
     },
     onRankingUpdated: (ranking: RankingEntry[]) => {
+      // Trivia-only leaderboard from Trivia.Service. Used to drive the leaderboard UI
+      // (RankingBoard) during trivia play. The score badge is NOT updated from this event:
+      // the trivia leaderboard is per-quiz, so its totals diverge from the accumulated
+      // session score (treasure + trivia). See onSessionRankingUpdated for that.
       dispatch({ type: "RANKING_UPDATED", ranking });
-      // QR scans (Treasure) never report the new score directly like trivia answers do — the
-      // ranking broadcast that follows every scan is the only place it shows up, so mirror the
-      // participant's own entry into the score badge here (covers the scanner and every
-      // teammate, since team members share both score and this same broadcast).
+    },
+    onSessionRankingUpdated: (ranking: RankingEntry[]) => {
+      // Authoritative session-wide ranking (treasure + trivia) from Sessions.Service.
+      // Replaces the leaderboard with the full-session ordering and updates the score
+      // badge to the participant's accumulated total.
+      dispatch({ type: "RANKING_UPDATED", ranking });
       const mine = ranking.find(e => isMyRankingEntry(e, state.myUserId, state.myTeam));
       if (mine && mine.score !== state.score) {
         dispatch({ type: "SET_SCORE", score: mine.score });

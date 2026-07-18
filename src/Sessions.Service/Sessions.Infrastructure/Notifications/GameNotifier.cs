@@ -124,6 +124,37 @@ public class GameNotifier : IGameNotifier
         }
     }
 
+    public async Task NotifySessionRankingUpdatedAsync(Guid sessionId, IEnumerable<SessionRankingEntry> entries, CancellationToken ct = default)
+    {
+        try
+        {
+            // RB-08: score desc, then earliest score update wins ties. Mirrors the same
+            // ordering used by SessionRepository.GetSessionRankingAsync so the broadcast
+            // matches what GET /sessions/{id}/ranking returns.
+            var ranking = entries
+                .OrderByDescending(e => e.Score)
+                .ThenBy(e => e.LastScoreAt ?? DateTime.MaxValue)
+                .Select((e, i) => new
+                {
+                    position = i + 1,
+                    teamName = e.DisplayName,
+                    score = e.Score,
+                    userId = e.UserId?.ToString()
+                })
+                .ToList();
+
+            await _httpClient.PostAsJsonAsync("/internal/notifications/session-ranking", new
+            {
+                SessionId = sessionId,
+                Ranking = ranking
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send session ranking update for {SessionId}", sessionId);
+        }
+    }
+
     public async Task NotifyTeamStageAdvancedAsync(Guid sessionId, Guid teamId, int newStageOrder, int totalStages, CancellationToken ct = default)
     {
         try

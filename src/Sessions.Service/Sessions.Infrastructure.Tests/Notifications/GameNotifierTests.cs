@@ -81,6 +81,67 @@ public class GameNotifierTests
     }
 
     [Fact]
+    public async Task NotifySessionRankingUpdatedAsync_PostsToSessionRankingEndpoint()
+    {
+        // Bug fix: the session-wide ranking must hit the dedicated RealTimeHub endpoint so
+        // the trivia-only leaderboard broadcast can't overwrite the participant's score.
+        HttpRequestMessage? captured = null;
+        // BaseAddress is required by HttpClient.PostAsJsonAsync when posting a relative URL;
+        // the existing tests didn't notice because they only assert "doesn't throw".
+        var client = new HttpClient(new TestHttpHandler(req =>
+        {
+            captured = req;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }))
+        {
+            BaseAddress = new Uri("http://localhost")
+        };
+        var notifier = new GameNotifier(client, Substitute.For<ILogger<GameNotifier>>());
+        var sessionId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var entries = new[]
+        {
+            new SessionRankingEntry("team", "Alpha", 100, 2, teamId, null, DateTime.UtcNow),
+            new SessionRankingEntry("individual", "Bob", 60, 0, null, userId, DateTime.UtcNow.AddSeconds(-1)),
+        };
+
+        await notifier.NotifySessionRankingUpdatedAsync(sessionId, entries);
+
+        captured.Should().NotBeNull();
+        captured!.RequestUri!.AbsolutePath.Should().Be("/internal/notifications/session-ranking");
+        var body = await captured.Content!.ReadFromJsonAsync<SessionRankingBody>();
+        body.Should().NotBeNull();
+        body!.SessionId.Should().Be(sessionId);
+        body.Ranking.Should().HaveCount(2);
+        // RB-08: score desc; Alpha (100) before Bob (60) regardless of lastScoreAt.
+        body.Ranking[0].TeamName.Should().Be("Alpha");
+        body.Ranking[0].Score.Should().Be(100);
+        body.Ranking[1].TeamName.Should().Be("Bob");
+        body.Ranking[1].Score.Should().Be(60);
+    }
+
+    [Fact]
+    public async Task NotifySessionRankingUpdatedAsync_WhenHttpFails_DoesNotThrow()
+    {
+        var badClient = new HttpClient(new TestHttpHandler(_ => throw new HttpRequestException("Network error")));
+        var logger = Substitute.For<ILogger<GameNotifier>>();
+        var notifier = new GameNotifier(badClient, logger);
+
+        await notifier.Invoking(n => n.NotifySessionRankingUpdatedAsync(
+                Guid.NewGuid(),
+                new[] { new SessionRankingEntry("team", "Alpha", 10, 1, Guid.NewGuid(), null, DateTime.UtcNow) }))
+            .Should().NotThrowAsync();
+
+        logger.Received(1).Log(
+            LogLevel.Warning,
+            Arg.Any<EventId>(),
+            Arg.Any<object>(),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    [Fact]
     public async Task NotifySessionStatusChanged_WhenHttpFails_DoesNotThrow()
     {
         var badClient = new HttpClient(new TestHttpHandler(_ => throw new HttpRequestException("Network error")));
@@ -97,6 +158,9 @@ public class GameNotifierTests
             Arg.Any<Exception>(),
             Arg.Any<Func<object, Exception?, string>>());
     }
+
+    private record SessionRankingBody(Guid SessionId, List<RankingItem> Ranking);
+    private record RankingItem(int Position, string TeamName, int Score, string? UserId);
 }
 
 internal class TestHttpHandler : HttpMessageHandler
