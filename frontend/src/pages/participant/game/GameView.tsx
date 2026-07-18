@@ -43,6 +43,22 @@ function GameContent() {
       .catch(() => {});
   }, [state.connectionState, state.sessionStatus, sessionId, dispatch]);
 
+  // Fallback polling for session status changes (when SignalR isn't available, e.g. APK via tunnel).
+  // Polls every 4s regardless of current status so that "Preparing" → "Active" is detected.
+  useEffect(() => {
+    if (!sessionId) return;
+    const poll = setInterval(async () => {
+      try {
+        const session = await getSessionById(sessionId);
+        const newStatus = session.status as SessionStatus;
+        if (newStatus !== sessionStatusRef.current) {
+          dispatch({ type: "STATUS_CHANGED", status: newStatus });
+        }
+      } catch { /* ignore */ }
+    }, 4000);
+    return () => clearInterval(poll);
+  }, [sessionId, dispatch]);
+
   // Fallback polling: if the SignalR ProgressUpdated event is missed (e.g. Docker not rebuilt),
   // re-fetch session state every 8s and update stage if the operator advanced it.
   useEffect(() => {
