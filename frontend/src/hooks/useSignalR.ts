@@ -18,7 +18,7 @@ export interface AnswerResult {
     sessionId: string;
     onStatusChanged: (status: string) => void;
     onProgressUpdated: (data: unknown) => void;
-    onClueReleased: (clue: unknown) => void;
+    onClueReleased: (clue: unknown, teamId?: string, userId?: string) => void;
     onQuestionClosed?: (payload: { questionId: string; correctAnswerId: string; correctAnswerText?: string }) => void;
     onConnectionStateChange: (state: ConnectionState) => void;
     onQuestionAsked?: (question: TriviaQuestion) => void;
@@ -59,9 +59,9 @@ export function useSignalR(callbacks: UseSignalRCallbacks): void {
     });
 
     hub.on("ClueReleased", (payload: unknown) => {
-      const p = payload as { sessionId: string; teamId?: string; clueData: unknown };
+      const p = payload as { sessionId: string; teamId?: string; userId?: string; clueData: unknown };
       if (p.sessionId === sessionId) {
-        callbacksRef.current.onClueReleased(p.clueData);
+        callbacksRef.current.onClueReleased(p.clueData, p.teamId, p.userId);
       }
     });
 

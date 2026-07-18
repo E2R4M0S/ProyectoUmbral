@@ -67,6 +67,7 @@
       "protocol": "openid-connect",
       "standardFlowEnabled": true,
       "redirectUris": [
+        "http://192.168.0.3:5173/*",
         "http://localhost:5173/*",
         "http://localhost:5174/*",
         "http://192.168.0.2:5173/*",
@@ -84,6 +85,7 @@
         "umbral://callback"
       ],
       "webOrigins": [
+        "http://192.168.0.3:5173/*",
         "http://localhost:5173",
         "http://localhost",
         "http://192.168.31.21:5173",

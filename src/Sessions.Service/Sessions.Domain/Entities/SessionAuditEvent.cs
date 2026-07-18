@@ -8,6 +8,9 @@ public static class SessionAuditEventTypes
     public const string StatusChanged = "StatusChanged";
     public const string TriviaAnswerScored = "TriviaAnswerScored";
     public const string AutomaticClueReleased = "AutomaticClueReleased";
+    // RB-04: marks a predefined clue as released to a specific recipient (team/user/everyone)
+    // for a stage, so ReleaseClueEndpoint can refuse to release the same clue to them twice.
+    public const string ManualClueReleased = "ManualClueReleased";
 }
 
 public class SessionAuditEvent

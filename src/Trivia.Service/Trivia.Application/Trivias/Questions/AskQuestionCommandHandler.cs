@@ -2,12 +2,14 @@ using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Trivia.Application.Common.Interfaces;
 
 namespace Trivia.Application.Trivias.Questions;
 
 public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Guid>
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IQuestionRepository _questionRepo;
     private readonly ILogger<AskQuestionCommandHandler> _logger;
 
     // Tracks correct answers, answer timings, and team submissions per question
@@ -20,16 +22,34 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Gui
     // (questionId, userId) → selectedIndex; one entry per participant for per-user counting
     public static readonly ConcurrentDictionary<(Guid, Guid), int> UserAnswers = new();
 
-    public AskQuestionCommandHandler(IHttpClientFactory httpClientFactory, ILogger<AskQuestionCommandHandler> logger)
+    public AskQuestionCommandHandler(
+        IHttpClientFactory httpClientFactory,
+        IQuestionRepository questionRepo,
+        ILogger<AskQuestionCommandHandler> logger)
     {
         _httpClientFactory = httpClientFactory;
+        _questionRepo = questionRepo;
         _logger = logger;
     }
 
     public async Task<Guid> Handle(AskQuestionCommand command, CancellationToken ct)
     {
-        var questionId = Guid.NewGuid();
+        var questionId = command.QuestionId ?? Guid.NewGuid();
         var askedAt = DateTime.UtcNow;
+
+        // HU-27/HU-29: when this round comes from a saved quiz-bank question, mark it
+        // released. Best-effort — a persistence hiccup must not block live gameplay.
+        if (command.QuestionId is { } persistedQuestionId)
+        {
+            try
+            {
+                await _questionRepo.MarkReleasedAsync(persistedQuestionId, askedAt, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to mark question {QuestionId} as released", persistedQuestionId);
+            }
+        }
 
         // Store the correct answer index for later verification
         CorrectAnswers[questionId] = command.CorrectAnswerIndex;

@@ -47,7 +47,7 @@ public class GameNotifier : IGameNotifier
         }
     }
 
-    public async Task NotifyClueReleased(Guid sessionId, Guid? teamId, object clueData, CancellationToken ct = default)
+    public async Task NotifyClueReleased(Guid sessionId, Guid? teamId, Guid? userId, object clueData, CancellationToken ct = default)
     {
         try
         {
@@ -55,6 +55,7 @@ public class GameNotifier : IGameNotifier
             {
                 SessionId = sessionId,
                 TeamId = teamId,
+                UserId = userId,
                 ClueData = clueData
             }, ct);
         }

@@ -26,7 +26,7 @@ public class GameSessionFacade : IGameSessionFacade
         await _notifier.NotifySessionStatusChanged(sessionId, newStatus, ct);
     }
 
-    public async Task ReleaseClueAndNotify(Guid sessionId, Guid clueId, Guid? teamId, string? clueContent, int? penalty, CancellationToken ct = default)
+    public async Task ReleaseClueAndNotify(Guid sessionId, Guid clueId, Guid? teamId, Guid? userId, string? clueContent, int? penalty, CancellationToken ct = default)
     {
         var clueData = new
         {
@@ -36,7 +36,7 @@ public class GameSessionFacade : IGameSessionFacade
             ReleasedAt = DateTime.UtcNow
         };
 
-        await _notifier.NotifyClueReleased(sessionId, teamId, clueData, ct);
+        await _notifier.NotifyClueReleased(sessionId, teamId, userId, clueData, ct);
     }
 
     public async Task NotifyStageAdvanced(Guid sessionId, int newStageOrder, CancellationToken ct = default)

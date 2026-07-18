@@ -363,7 +363,7 @@ public class SessionRepositoryTests
         var repo = new SessionRepository(dbContext);
 
         // Act
-        await repo.ApplyCluePenaltyAsync(session.Id, team.Id, 25, "Pista revelada antes de tiempo", CancellationToken.None);
+        await repo.ApplyCluePenaltyAsync(session.Id, team.Id, null, 25, "Pista revelada antes de tiempo", CancellationToken.None);
 
         // Assert
         var events = await dbContext.Set<SessionAuditEvent>()
@@ -395,12 +395,47 @@ public class SessionRepositoryTests
         var repo = new SessionRepository(dbContext);
 
         // Act
-        await repo.ApplyCluePenaltyAsync(session.Id, team.Id, 10, ct: CancellationToken.None);
+        await repo.ApplyCluePenaltyAsync(session.Id, team.Id, null, 10, ct: CancellationToken.None);
 
         // Assert
         var evt = await dbContext.Set<SessionAuditEvent>().FirstOrDefaultAsync(e => e.SessionId == session.Id);
         evt.Should().NotBeNull();
         evt!.Description.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task ApplyCluePenaltyAsync_WithUserId_ShouldOnlyPenalizeThatParticipant()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using var dbContext = CreateDbContext(dbName);
+
+        var session = Session.Create("Penalty Session 3", "000004", new List<SessionStage> { SessionStage.Create(Guid.NewGuid(), Guid.NewGuid(), "Test Mission", "Stage", "Treasure", 1, "test-token") });
+        dbContext.Sessions.Add(session);
+
+        var target = SessionParticipant.Create(session.Id, Guid.NewGuid());
+        var bystander = SessionParticipant.Create(session.Id, Guid.NewGuid());
+        target.AddScore(50);
+        bystander.AddScore(50);
+        dbContext.Set<SessionParticipant>().AddRange(target, bystander);
+        await dbContext.SaveChangesAsync();
+
+        var repo = new SessionRepository(dbContext);
+
+        // Act
+        await repo.ApplyCluePenaltyAsync(session.Id, null, target.UserId, 15, "Solo para vos", CancellationToken.None);
+
+        // Assert
+        var reloadedTarget = await dbContext.Set<SessionParticipant>().FirstAsync(p => p.Id == target.Id);
+        var reloadedBystander = await dbContext.Set<SessionParticipant>().FirstAsync(p => p.Id == bystander.Id);
+        reloadedTarget.Score.Should().Be(35);
+        reloadedBystander.Score.Should().Be(50);
+
+        var evt = await dbContext.Set<SessionAuditEvent>().FirstOrDefaultAsync(e => e.SessionId == session.Id);
+        evt.Should().NotBeNull();
+        evt!.UserId.Should().Be(target.UserId);
+        evt.TeamId.Should().BeNull();
+        evt.ScoreDelta.Should().Be(-15);
     }
 
     [Fact]

@@ -23,7 +23,8 @@ public class GetSessionsQueryHandler : IRequestHandler<GetSessionsQuery, GetSess
             request.MissionId,
             request.Page,
             request.PageSize,
-            ct);
+            ct,
+            request.OperatorId);
 
         var items = sessions.Select(s =>
         {

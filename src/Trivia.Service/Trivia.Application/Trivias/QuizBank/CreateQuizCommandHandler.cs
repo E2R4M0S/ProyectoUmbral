@@ -44,7 +44,7 @@ public class CreateQuizCommandHandler : IRequestHandler<CreateQuizCommand, Guid>
                 Id = questionId,
                 QuizId = quiz.Id,
                 Text = q.Text,
-                TimeLimitSeconds = 30
+                TimeLimitSeconds = q.TimeLimitSeconds
             });
 
             foreach (var a in q.Answers)

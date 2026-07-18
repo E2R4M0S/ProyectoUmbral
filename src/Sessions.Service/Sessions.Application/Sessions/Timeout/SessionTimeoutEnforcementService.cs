@@ -13,9 +13,11 @@ public class SessionTimeoutEnforcementService
 {
     private const int UnsetTimeMinutesDefaultSeconds = 600;
 
-    // RF-07: fraction of the mission's declared time after which clues marked
-    // ReleaseType.Automatic are released to every team, absent a per-clue threshold in the data model.
-    private const double AutomaticClueReleaseThresholdFraction = 0.5;
+    // RF-07: clues marked ReleaseType.Automatic are released one at a time, every 5 minutes of
+    // mission time, in the order Missions.Service returns them for the stage — independent of
+    // the mission's declared total duration (a short mission can still cycle through several
+    // clues before SessionTimeoutEnforcementService ends it).
+    private static readonly TimeSpan AutomaticClueReleaseInterval = TimeSpan.FromMinutes(5);
 
     private readonly ISessionRepository _repository;
     private readonly IGameSessionFacade _facade;
@@ -78,12 +80,9 @@ public class SessionTimeoutEnforcementService
         if (currentStage is null || currentStage.MissionType != "Treasure")
             return; // Clues only exist for Treasure stages (mirrors ReleaseClueEndpoint).
 
-        var missionStages = session.Stages.Where(s => s.MissionId == currentStage.MissionId).ToList();
-        var durationSeconds = MissionDurationSeconds(missionStages[0].TimeMinutes);
-        if (durationSeconds <= 0) return; // no declared time, no threshold to trigger against
-
         var elapsedSeconds = (DateTime.UtcNow - session.CurrentMissionStartedAt.Value).TotalSeconds;
-        if (elapsedSeconds < durationSeconds * AutomaticClueReleaseThresholdFraction) return;
+        var dueCount = (int)(elapsedSeconds / AutomaticClueReleaseInterval.TotalSeconds);
+        if (dueCount <= 0) return; // less than 5 minutes into the stage — nothing due yet
 
         var automaticClues = await _missionCatalogService.GetAutomaticCluesAsync(
             currentStage.MissionId, currentStage.MissionStageId, ct);
@@ -95,11 +94,16 @@ public class SessionTimeoutEnforcementService
             .Select(e => e.ClueId)
             .ToHashSet();
 
-        foreach (var clue in automaticClues)
-        {
-            if (alreadyReleasedClueIds.Contains(clue.Id)) continue;
+        // Only the clues whose 5-minute mark has been reached (1st at 5min, 2nd at 10min, ...),
+        // and only those not already released — one call may cover more than one tick if the
+        // enforcer missed a run (e.g. after a restart).
+        var cluesToRelease = automaticClues
+            .Take(Math.Min(dueCount, automaticClues.Count))
+            .Where(clue => !alreadyReleasedClueIds.Contains(clue.Id));
 
-            await _facade.ReleaseClueAndNotify(sessionId, clue.Id, teamId: null, clue.Content, clue.Penalty, ct);
+        foreach (var clue in cluesToRelease)
+        {
+            await _facade.ReleaseClueAndNotify(sessionId, clue.Id, teamId: null, userId: null, clue.Content, clue.Penalty, ct);
 
             await _repository.AddAuditEventAsync(SessionAuditEvent.Create(
                 sessionId,
@@ -110,7 +114,7 @@ public class SessionTimeoutEnforcementService
             if (clue.Penalty is { } penalty && penalty > 0)
             {
                 await _repository.ApplyCluePenaltyAsync(
-                    sessionId, teamId: null, penalty,
+                    sessionId, teamId: null, userId: null, penalty,
                     $"Pista automática liberada: {clue.Content}", ct);
 
                 var rankingAfterPenalty = await _repository.GetSessionRankingAsync(sessionId, ct);

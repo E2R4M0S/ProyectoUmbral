@@ -201,9 +201,9 @@ public class SessionTimeoutEnforcementServiceTests
     }
 
     [Fact]
-    public async Task EnforceAutomaticClueReleaseAsync_WhenThresholdNotReached_ShouldNotRelease()
+    public async Task EnforceAutomaticClueReleaseAsync_WhenFirstFiveMinuteMarkNotReached_ShouldNotRelease()
     {
-        var session = BuildActiveTreasureSession(30, DateTime.UtcNow.AddMinutes(-5), out var missionId, out var stageId);
+        var session = BuildActiveTreasureSession(30, DateTime.UtcNow.AddMinutes(-2), out var missionId, out var stageId);
         _repository.GetByIdWithStagesAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
 
         await _sut.EnforceAutomaticClueReleaseAsync(session.Id, CancellationToken.None);
@@ -211,7 +211,7 @@ public class SessionTimeoutEnforcementServiceTests
         await _missionCatalogService.DidNotReceive().GetAutomaticCluesAsync(
             Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await _facade.DidNotReceive().ReleaseClueAndNotify(
-            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<CancellationToken>());
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public class SessionTimeoutEnforcementServiceTests
         await _sut.EnforceAutomaticClueReleaseAsync(session.Id, CancellationToken.None);
 
         await _facade.Received(1).ReleaseClueAndNotify(
-            session.Id, clueId, null, "Busca bajo la piedra", null, Arg.Any<CancellationToken>());
+            session.Id, clueId, null, null, "Busca bajo la piedra", null, Arg.Any<CancellationToken>());
         await _repository.Received(1).AddAuditEventAsync(
             Arg.Is<SessionAuditEvent>(e =>
                 e.SessionId == session.Id &&
@@ -234,7 +234,7 @@ public class SessionTimeoutEnforcementServiceTests
                 e.ClueId == clueId),
             Arg.Any<CancellationToken>());
         await _repository.DidNotReceive().ApplyCluePenaltyAsync(
-            Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -254,7 +254,7 @@ public class SessionTimeoutEnforcementServiceTests
         await _sut.EnforceAutomaticClueReleaseAsync(session.Id, CancellationToken.None);
 
         await _facade.DidNotReceive().ReleaseClueAndNotify(
-            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<CancellationToken>());
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -269,8 +269,54 @@ public class SessionTimeoutEnforcementServiceTests
         await _sut.EnforceAutomaticClueReleaseAsync(session.Id, CancellationToken.None);
 
         await _repository.Received(1).ApplyCluePenaltyAsync(
-            session.Id, null, 20, Arg.Any<string>(), Arg.Any<CancellationToken>());
+            session.Id, null, null, 20, Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _notifier.Received(1).NotifyRankingUpdatedAsync(
             session.Id, Arg.Any<IEnumerable<SessionRankingEntry>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task EnforceAutomaticClueReleaseAsync_WithTwoClues_ReleasesOnlyTheOnesWhoseFiveMinuteMarkPassed()
+    {
+        // 7 minutes in: only the 5-minute mark has passed, so only the 1st clue is due —
+        // the 2nd (due at 10 minutes) must stay held back.
+        var session = BuildActiveTreasureSession(30, DateTime.UtcNow.AddMinutes(-7), out var missionId, out var stageId);
+        _repository.GetByIdWithStagesAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var firstClueId = Guid.NewGuid();
+        var secondClueId = Guid.NewGuid();
+        _missionCatalogService.GetAutomaticCluesAsync(missionId, stageId, Arg.Any<CancellationToken>())
+            .Returns(new List<AutomaticClueSummary>
+            {
+                new(firstClueId, "Primera pista", null),
+                new(secondClueId, "Segunda pista", null),
+            });
+
+        await _sut.EnforceAutomaticClueReleaseAsync(session.Id, CancellationToken.None);
+
+        await _facade.Received(1).ReleaseClueAndNotify(
+            session.Id, firstClueId, null, null, "Primera pista", null, Arg.Any<CancellationToken>());
+        await _facade.DidNotReceive().ReleaseClueAndNotify(
+            session.Id, secondClueId, Arg.Any<Guid?>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task EnforceAutomaticClueReleaseAsync_WithTwoClues_ReleasesBothOncePastTenMinutes()
+    {
+        var session = BuildActiveTreasureSession(30, DateTime.UtcNow.AddMinutes(-11), out var missionId, out var stageId);
+        _repository.GetByIdWithStagesAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        var firstClueId = Guid.NewGuid();
+        var secondClueId = Guid.NewGuid();
+        _missionCatalogService.GetAutomaticCluesAsync(missionId, stageId, Arg.Any<CancellationToken>())
+            .Returns(new List<AutomaticClueSummary>
+            {
+                new(firstClueId, "Primera pista", null),
+                new(secondClueId, "Segunda pista", null),
+            });
+
+        await _sut.EnforceAutomaticClueReleaseAsync(session.Id, CancellationToken.None);
+
+        await _facade.Received(1).ReleaseClueAndNotify(
+            session.Id, firstClueId, null, null, "Primera pista", null, Arg.Any<CancellationToken>());
+        await _facade.Received(1).ReleaseClueAndNotify(
+            session.Id, secondClueId, null, null, "Segunda pista", null, Arg.Any<CancellationToken>());
     }
 }

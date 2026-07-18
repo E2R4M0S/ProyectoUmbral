@@ -127,8 +127,14 @@ function GameContent() {
         dispatch({ type: "PROGRESS_UPDATED", data });
       }
     },
-    onClueReleased: (clue: unknown) => {
-      dispatch({ type: "CLUE_RELEASED", clue });
+    onClueReleased: (clue: unknown, teamId?: string, userId?: string) => {
+      // Broadcast (no target) always applies; otherwise it must match my own team or my own user.
+      const isForEveryone = !teamId && !userId;
+      const isForMyTeam = !!teamId && !!state.myTeam && teamId.toLowerCase() === state.myTeam.id.toLowerCase();
+      const isForMe = !!userId && !!state.myUserId && userId.toLowerCase() === state.myUserId.toLowerCase();
+      if (isForEveryone || isForMyTeam || isForMe) {
+        dispatch({ type: "CLUE_RELEASED", clue });
+      }
     },
     onConnectionStateChange: (connState) => {
       dispatch({ type: "CONNECTION_STATE_CHANGED", state: connState });

@@ -19,6 +19,15 @@ public static class QuizBankEndpoints
                 logger.LogInformation("Quiz created: {Id}", id);
                 return Results.Created($"/api/quizzes/{id}", new { id });
             }
+            catch (FluentValidation.ValidationException ex)
+            {
+                logger.LogWarning("Create quiz validation failed: {Message}", ex.Message);
+                return Results.BadRequest(new
+                {
+                    error = "Validation failed",
+                    details = ex.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage })
+                });
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to create quiz");

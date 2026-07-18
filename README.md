@@ -167,7 +167,7 @@ Participante → Registrarse → Unirse a sesión (con PIN) → WaitingRoom
 Operador → Iniciar partida → todos pasan a ActiveGame
          → Panel en tiempo real: ve progreso de cada etapa
          → Avanzar etapa (operador controla el ritmo)
-         → Enviar pista (penaliza puntos, aparece en teléfono del equipo)
+         → Enviar pista a todos, a un equipo o a un jugador individual (penaliza puntos, aparece en el teléfono del destinatario)
 
 Operador → Finalizar sesión → resultados vía SignalR
 ```
@@ -213,7 +213,7 @@ Participante → Ve preguntas en su teléfono → responde → ve si acertó →
 - PIN de 6 dígitos para unirse
 - State Machine completo: `Scheduled → Preparing → Active ⇄ Paused → Finished/Cancelled`
 - Dashboard del operador con progreso en tiempo real
-- Liberación manual de pistas
+- Liberación manual de pistas — a todos, a un equipo o a un jugador individual
 - Avance de etapa controlado por el operador
 
 ### Módulo 5: Gestión de Trivias (HU-28 a HU-35) — Implementado (pendiente merge)
@@ -393,7 +393,7 @@ Ciclo de vida de sesiones **y** equipos como sub-agregado de sesión (sin JoinCo
 | `POST` | `/api/sessions/{id}/join` | Participante se une con PIN | authenticated |
 | `GET` | `/api/sessions/{id}/progress` | Dashboard del operador | operator/admin |
 | `POST` | `/api/sessions/{id}/stages/{sid}/advance` | Avanzar de etapa | operator/admin |
-| `POST` | `/api/sessions/{id}/stages/{sid}/clues` | Liberar pista | operator/admin |
+| `POST` | `/api/sessions/{id}/clues/release` | Liberar pista — `{ clueId\|content, teamId?, userId?, penalty?, reason? }` (`teamId`/`userId` mutuamente excluyentes; ninguno = todos) | operator |
 | `POST` | `/api/sessions/{id}/teams` | Crear equipo dentro de la sesión | operator |
 | `GET` | `/api/sessions/{id}/teams` | Listar equipos de la sesión | authenticated |
 | `POST` | `/api/sessions/{id}/teams/{tid}/join` | Unirse a un equipo (sin código) | authenticated |

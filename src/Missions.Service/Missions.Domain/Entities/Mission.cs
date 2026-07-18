@@ -117,6 +117,11 @@ public class Mission : IMissionComponent
             throw new InvalidOperationException($"Stage with id '{stageId}' not found");
         }
 
+        if (Status == MissionStatus.Active && stage.Clues.Count == 1 && stage.Clues[0].Id == clueId)
+        {
+            throw new InvalidOperationException("Cannot remove the last clue of a stage while the mission is Active");
+        }
+
         stage.RemoveClue(clueId);
     }
 
