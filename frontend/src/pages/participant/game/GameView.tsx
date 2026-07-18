@@ -117,7 +117,12 @@ function GameContent() {
 
   // Fallback polling for ranking/score updates (when SignalR isn't available, e.g. APK via tunnel).
   // Polls every 5s and updates the score badge if it changed.
-  const lastScoreRef = useRef(state.score);
+  // Uses refs to avoid stale closures (myUserId/myTeam may not be set when the interval first runs).
+  const myUserIdRef = useRef(state.myUserId);
+  useEffect(() => { myUserIdRef.current = state.myUserId; }, [state.myUserId]);
+  const myTeamRef = useRef(state.myTeam);
+  useEffect(() => { myTeamRef.current = state.myTeam; }, [state.myTeam]);
+  const lastScoreRef = useRef<number>(state.score);
   useEffect(() => {
     if (!sessionId) return;
     const poll = setInterval(async () => {
@@ -130,7 +135,7 @@ function GameContent() {
           userId: r.userId ?? undefined,
         }));
         if (ranking.length > 0) {
-          const mine = ranking.find(e => isMyRankingEntry(e, state.myUserId, state.myTeam));
+          const mine = ranking.find(e => isMyRankingEntry(e, myUserIdRef.current, myTeamRef.current));
           if (mine && mine.score !== lastScoreRef.current) {
             lastScoreRef.current = mine.score;
             dispatch({ type: "SET_SCORE", score: mine.score });
@@ -141,7 +146,7 @@ function GameContent() {
       } catch { /* ignore */ }
     }, 5000);
     return () => clearInterval(poll);
-  }, [sessionId, state.myUserId, state.myTeam, dispatch]);
+  }, [sessionId, dispatch]);
 
   // Sync elapsedSeconds from the server every 5s (same source the operator dashboard polls),
   // so every participant's mission timer counts down from the exact same numbers instead of
