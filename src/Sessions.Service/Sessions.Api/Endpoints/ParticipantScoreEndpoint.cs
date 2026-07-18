@@ -13,6 +13,7 @@ public static class ParticipantScoreEndpoint
         app.MapPost("/internal/participants/score", async (
             ParticipantScoreRequest req,
             ISessionRepository repository,
+            IGameNotifier notifier,
             ILogger<Program> logger) =>
         {
             if (req.Delta <= 0) return Results.Ok();
@@ -35,6 +36,13 @@ public static class ParticipantScoreEndpoint
                 userId: req.UserId,
                 scoreDelta: req.Delta));
 
+            // Bug fix: Trivia.Service broadcasts its own trivia-only leaderboard via
+            // RankingUpdated, which used to overwrite the participant's accumulated score.
+            // The session-wide ranking (treasure + trivia) is the authoritative source for
+            // the score badge, so we emit it on a dedicated event right after the DB write.
+            var rankingEntries = await repository.GetSessionRankingAsync(req.SessionId, CancellationToken.None);
+            await notifier.NotifySessionRankingUpdatedAsync(req.SessionId, rankingEntries, CancellationToken.None);
+
             logger.LogInformation("Added {Delta} pts to participant {UserId} in session {SessionId}", req.Delta, req.UserId, req.SessionId);
             return Results.Ok();
         })
@@ -46,6 +54,7 @@ public static class ParticipantScoreEndpoint
         app.MapPost("/internal/teams/score", async (
             TeamScoreRequest req,
             ISessionRepository repository,
+            IGameNotifier notifier,
             ILogger<Program> logger) =>
         {
             if (req.Delta <= 0) return Results.Ok();
@@ -70,6 +79,11 @@ public static class ParticipantScoreEndpoint
                 "Puntaje otorgado al equipo por respuesta de trivia",
                 teamId: req.TeamId,
                 scoreDelta: req.Delta));
+
+            // See /internal/participants/score: broadcast the full session ranking so the
+            // frontend's score badge and leaderboard both reflect the treasure+trivia total.
+            var rankingEntries = await repository.GetSessionRankingAsync(team.SessionId, CancellationToken.None);
+            await notifier.NotifySessionRankingUpdatedAsync(team.SessionId, rankingEntries, CancellationToken.None);
 
             logger.LogInformation("Added {Delta} pts to team {TeamId}", req.Delta, req.TeamId);
             return Results.Ok();

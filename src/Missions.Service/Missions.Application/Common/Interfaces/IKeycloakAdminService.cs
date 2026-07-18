@@ -29,10 +29,7 @@ public interface IKeycloakAdminService
 
     Task<UserRepresentation?> GetUserByIdAsync(string userId, CancellationToken ct);
 
-    // HU-03: verifies the user's current password by attempting a Resource Owner
-    // Password Credentials grant. Throws UnauthorizedAccessException if it's wrong.
-    Task VerifyPasswordAsync(string email, string currentPassword, CancellationToken ct);
-
-    // HU-03: sets a new permanent password for the user via the Admin API.
     Task ResetPasswordAsync(string userId, string newPassword, CancellationToken ct);
+
+    Task VerifyPasswordAsync(string email, string password, CancellationToken ct);
 }

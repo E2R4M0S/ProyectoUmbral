@@ -112,6 +112,19 @@ public static class NotificationEndpoints
                 .SendAsync("RankingUpdated", notification, CancellationToken.None);
             return Results.Ok();
         });
+
+        // Authoritative session-wide ranking (treasure + trivia), pushed by Sessions.Service
+        // after every score change. Kept on a separate event from the trivia-only
+        // RankingUpdated so the trivia leaderboard broadcast can no longer overwrite the
+        // participant's accumulated session score on the client.
+        app.MapPost("/internal/notifications/session-ranking", async (
+            [FromBody] SessionRankingNotification notification,
+            IHubContext<GameHub> hubContext) =>
+        {
+            await hubContext.Clients.Group(notification.SessionId.ToString())
+                .SendAsync("SessionRankingUpdated", notification, CancellationToken.None);
+            return Results.Ok();
+        });
     }
 }
 
@@ -125,6 +138,7 @@ public record QuestionResultsNotification(Guid QuizId, Guid? SessionId, Guid Que
 public record QuestionClosedNotification(Guid SessionId, Guid QuestionId, Guid CorrectAnswerId, string? CorrectAnswerText);
 public record RankingEntryDto(int Position, string TeamName, int Score);
 public record RankingUpdatedNotification(Guid SessionId, List<RankingEntryDto> Ranking);
+public record SessionRankingNotification(Guid SessionId, List<object> Ranking);
 public record GateOpenedNotification(Guid SessionId, int NextStageIndex);
 public record TeamStageAdvancedNotification(Guid SessionId, Guid TeamId, int NewStageOrder, int TotalStages);
 public record TeamAnswerSubmittedNotification(Guid SessionId, Guid TeamId, Guid QuestionId, int SelectedIndex, bool IsCorrect, int PointsAwarded);
