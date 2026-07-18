@@ -169,42 +169,71 @@ export function CatalogoMisiones() {
         <>
           <div className="mission-cards">
             {items.map(item => (
-              <div key={item.id} className="mission-card">
-                <div className="mission-card-badges">
-                  <span className={statusClass(item.status)}>
-                    {STATUS_LABELS[item.status] ?? item.status}
-                  </span>
-                  <span className={typeClass(item.type)}>
-                    {TYPE_LABELS[item.type] ?? item.type}
-                  </span>
-                  <span className={difficultyClass(item.difficulty)}>
-                    {DIFFICULTY_LABELS[item.difficulty] ?? item.difficulty}
-                  </span>
-                </div>
-
-                <div className="mission-card-title">{item.title}</div>
-
-                {isAdmin && (
-                  <div className="mission-card-footer">
-                    {item.type !== "Trivia" && item.status !== "Active" && (
-                      <Link to={`/admin/misiones/${item.id}`} className="btn btn-ghost btn-sm">
-                        Panel
-                      </Link>
-                    )}
-                    {item.status !== "Active" && (
-                      <Link to={`/admin/misiones/${item.id}/editar`} className="btn btn-secondary btn-sm">
-                        Editar
-                      </Link>
-                    )}
-                    <button
-                      className={`btn btn-sm ${item.status === "Active" ? "btn-danger" : "btn-success"}`}
-                      onClick={() => toggleStatus(item)}
-                    >
-                      {item.status === "Active" ? "Desactivar" : "Activar"}
-                    </button>
+              isAdmin ? (
+                <div key={item.id} className="mission-card">
+                  <div className="mission-card-badges">
+                    <span className={statusClass(item.status)}>
+                      {STATUS_LABELS[item.status] ?? item.status}
+                    </span>
+                    <span className={typeClass(item.type)}>
+                      {TYPE_LABELS[item.type] ?? item.type}
+                    </span>
+                    <span className={difficultyClass(item.difficulty)}>
+                      {DIFFICULTY_LABELS[item.difficulty] ?? item.difficulty}
+                    </span>
                   </div>
-                )}
-              </div>
+
+                  <div className="mission-card-title">{item.title}</div>
+
+                  {isAdmin && (
+                    <div className="mission-card-footer">
+                      {item.type !== "Trivia" && item.status !== "Active" && (
+                        <Link to={`/admin/misiones/${item.id}`} className="btn btn-ghost btn-sm">
+                          Panel
+                        </Link>
+                      )}
+                      {item.status !== "Active" && (
+                        <Link to={`/admin/misiones/${item.id}/editar`} className="btn btn-secondary btn-sm">
+                          Editar
+                        </Link>
+                      )}
+                      <button
+                        className={`btn btn-sm ${item.status === "Active" ? "btn-danger" : "btn-success"}`}
+                        onClick={() => toggleStatus(item)}
+                      >
+                        {item.status === "Active" ? "Desactivar" : "Activar"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link
+                  key={item.id}
+                  to={`/operator/misiones/${item.id}`}
+                  className="mission-card"
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
+                  <div className="mission-card-badges">
+                    <span className={statusClass(item.status)}>
+                      {STATUS_LABELS[item.status] ?? item.status}
+                    </span>
+                    <span className={typeClass(item.type)}>
+                      {TYPE_LABELS[item.type] ?? item.type}
+                    </span>
+                    <span className={difficultyClass(item.difficulty)}>
+                      {DIFFICULTY_LABELS[item.difficulty] ?? item.difficulty}
+                    </span>
+                  </div>
+
+                  <div className="mission-card-title">{item.title}</div>
+
+                  <div className="mission-card-footer" style={{ borderTop: "none", paddingTop: 0 }}>
+                    <span className="btn btn-ghost btn-sm" style={{ pointerEvents: "none" }}>
+                      👁 Ver detalle
+                    </span>
+                  </div>
+                </Link>
+              )
             ))}
           </div>
 

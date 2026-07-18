@@ -28,4 +28,8 @@ public interface IKeycloakAdminService
     Task<IReadOnlyList<string>> GetUserRealmRolesAsync(string userId, CancellationToken ct);
 
     Task<UserRepresentation?> GetUserByIdAsync(string userId, CancellationToken ct);
+
+    Task ResetPasswordAsync(string userId, string newPassword, CancellationToken ct);
+
+    Task VerifyPasswordAsync(string email, string password, CancellationToken ct);
 }

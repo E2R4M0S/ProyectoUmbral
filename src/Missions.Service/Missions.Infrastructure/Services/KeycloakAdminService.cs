@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Missions.Application.Common.Interfaces;
@@ -18,18 +17,15 @@ public class KeycloakAdminService : IKeycloakAdminService
     private readonly HttpClient _httpClient;
     private readonly KeycloakAdminOptions _options;
     private readonly ILogger<KeycloakAdminService> _logger;
-    private readonly IHttpContextAccessor? _httpContextAccessor;
 
     public KeycloakAdminService(
         HttpClient httpClient,
         IOptions<KeycloakAdminOptions> options,
-        ILogger<KeycloakAdminService> logger,
-        IHttpContextAccessor? httpContextAccessor = null)
+        ILogger<KeycloakAdminService> logger)
     {
         _httpClient = httpClient;
         _options = options.Value;
         _logger = logger;
-        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<string> CreateUserAsync(
@@ -302,30 +298,6 @@ public class KeycloakAdminService : IKeycloakAdminService
             Content = JsonContent.Create(actions)
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        // Forward the public hostname so Keycloak generates action token URLs with
-        // the correct external URL (ej: tunnel URL) instead of the internal Docker hostname.
-        // Priority: config override > X-Forwarded-Host header > request Host header
-        var publicHost = _options.PublicForwardedHost;
-        _logger.LogWarning("ExecuteActionsEmail: PublicForwardedHost options value = {Val}", publicHost ?? "(null)");
-        if (string.IsNullOrEmpty(publicHost))
-        {
-            var ctx = _httpContextAccessor?.HttpContext;
-            publicHost = ctx?.Request.Headers["X-Forwarded-Host"].FirstOrDefault()
-                      ?? ctx?.Request.Headers["Host"].FirstOrDefault();
-            _logger.LogWarning("ExecuteActionsEmail: falling back to request headers = {Val}", publicHost ?? "(null)");
-        }
-        if (!string.IsNullOrEmpty(publicHost))
-        {
-            request.Headers.TryAddWithoutValidation("X-Forwarded-Host", publicHost);
-            request.Headers.TryAddWithoutValidation("X-Forwarded-Proto", "https");
-            _logger.LogWarning("ExecuteActionsEmail: X-Forwarded-Host set to {Val}", publicHost);
-        }
-        else
-        {
-            _logger.LogWarning("ExecuteActionsEmail: no public hostname available, using default");
-        }
-
 
         var response = await _httpClient.SendAsync(request, ct);
 
@@ -670,5 +642,68 @@ public class KeycloakAdminService : IKeycloakAdminService
         }
 
         return rep;
+    }
+
+    public async Task ResetPasswordAsync(string userId, string newPassword, CancellationToken ct)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var payload = new
+        {
+            type = "password",
+            value = newPassword,
+            temporary = false
+        };
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"{_options.BaseUrl}/admin/realms/{_options.Realm}/users/{userId}/reset-password")
+        {
+            Content = JsonContent.Create(payload)
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError(
+                "Keycloak reset password failed for user {UserId}: {StatusCode} {Error}",
+                userId, response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
+
+        _logger.LogInformation("Password reset successfully for user {UserId}", userId);
+    }
+
+    public async Task VerifyPasswordAsync(string email, string password, CancellationToken ct)
+    {
+        var content = new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string, string>("client_id", "umbral-frontend"),
+            new KeyValuePair<string, string>("username", email),
+            new KeyValuePair<string, string>("password", password),
+            new KeyValuePair<string, string>("grant_type", "password")
+        });
+
+        var response = await _httpClient.PostAsync(
+            $"{_options.BaseUrl}/realms/{_options.Realm}/protocol/openid-connect/token",
+            content, ct);
+
+        if (response.IsSuccessStatusCode)
+            return;
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            _logger.LogWarning("Password verification failed for {Email}: invalid credentials", email);
+            throw new UnauthorizedAccessException("Current password is incorrect.");
+        }
+
+        var errorBody = await response.Content.ReadAsStringAsync(ct);
+        _logger.LogWarning(
+            "Password verification failed for {Email}: {StatusCode} {Error}",
+            email, response.StatusCode, errorBody);
+        throw new UnauthorizedAccessException("Current password could not be verified.");
     }
 }

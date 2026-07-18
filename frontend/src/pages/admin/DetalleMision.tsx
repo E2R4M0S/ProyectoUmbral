@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { getMissionById, createStage, updateStage, deleteStage, createClue, deleteClue, ApiError } from "../../services/missionsApi";
 import { fetchWithAuth } from "../../services/api";
 import { LocationPicker } from "../../components/LocationPicker";
@@ -65,6 +65,10 @@ const css = {
 
 export function DetalleMision() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  // Los operadores pueden ver el detalle de la misión pero no editarla.
+  const basePath = location.pathname.includes("/admin/") ? "/admin" : "/operator";
+  const readOnly = basePath === "/operator";
   const [mission, setMission] = useState<MissionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -171,12 +175,12 @@ export function DetalleMision() {
   if (error || !mission) return (
     <div style={css.container}>
       <p style={css.msgError}>{error || "Misión no encontrada"}</p>
-      <Link to="/admin/misiones" style={css.backLink}>← Volver</Link>
+      <Link to={`${basePath}/misiones`} style={css.backLink}>← Volver</Link>
     </div>
   );
-  if (mission.status === "Active") return (
+  if (mission.status === "Active" && !readOnly) return (
     <div style={css.container}>
-      <Link to="/admin/misiones" style={css.backLink}>← Volver al catálogo</Link>
+      <Link to={`${basePath}/misiones`} style={css.backLink}>← Volver al catálogo</Link>
       <p style={css.msgError}>
         No se puede acceder al panel de una misión en estado 'Active'. Desactívela primero desde el catálogo.
       </p>
@@ -188,7 +192,7 @@ export function DetalleMision() {
 
   return (
     <div style={css.container}>
-      <Link to="/admin/misiones" style={css.backLink}>← Volver al catálogo</Link>
+      <Link to={`${basePath}/misiones`} style={css.backLink}>← Volver al catálogo</Link>
 
       {/* Mission header card */}
       <div style={css.missionCard}>
@@ -199,6 +203,11 @@ export function DetalleMision() {
           <span style={css.metaChip("#0f3460")}>{mission.timeMinutes} min</span>
           <span style={css.metaChip("#1a3a4a")}>{mission.type}</span>
           <span style={css.metaChip(statusColors[mission.status] || "#6c757d")}>{mission.status}</span>
+          {readOnly && (
+            <span style={css.metaChip("#555")} title="El operador consulta el detalle de la misión pero no puede editarla">
+              👁 Solo lectura
+            </span>
+          )}
         </div>
       </div>
 
@@ -208,7 +217,7 @@ export function DetalleMision() {
         <>
           <div style={css.sectionHeader}>
             <h3 style={css.sectionTitle}>Etapas &nbsp;<span style={{ color: "#666", fontWeight: 400 }}>({mission.stages.length})</span></h3>
-            {!showStageForm && (
+            {!readOnly && !showStageForm && (
               <button style={css.btnAddStage} onClick={() => { setShowStageForm(true); setStageForm({ name: "", description: "", latitude: "", longitude: "" }); }}>
                 + Nueva Etapa
               </button>
@@ -216,7 +225,7 @@ export function DetalleMision() {
           </div>
 
           {/* New stage form */}
-          {showStageForm && (
+          {!readOnly && showStageForm && (
             <div style={{ ...css.stageCard, marginBottom: "1rem" }}>
               <div style={{ ...css.stageBody, borderLeft: "4px solid #4caf50" }}>
                 <p style={{ margin: "0 0 0.75rem", fontWeight: 600, color: "#4caf50", fontSize: "0.875rem" }}>
@@ -268,7 +277,7 @@ export function DetalleMision() {
           {/* Stage list */}
           {mission.stages.length === 0 && !showStageForm && (
             <p style={{ color: "#555", fontSize: "0.875rem", padding: "1rem 0" }}>
-              No hay etapas. Agregá la primera para estructurar la búsqueda.
+              {readOnly ? "Esta misión no tiene etapas registradas." : "No hay etapas. Agregá la primera para estructurar la búsqueda."}
             </p>
           )}
 
@@ -288,22 +297,24 @@ export function DetalleMision() {
                       </p>
                     )}
                   </div>
-                  <div style={css.stageActions}>
-                    <button style={css.btnSuccess} onClick={() => handleDownloadQr(stage.id, stage.name)}>⬇ QR</button>
-                    <button style={css.btnPrimary} onClick={() => {
-                      setEditingStage(stage.id);
-                      setEditForm({ name: stage.name, description: stage.description, order: stage.order, latitude: stage.latitude?.toString() ?? "", longitude: stage.longitude?.toString() ?? "" });
-                    }}>Editar</button>
-                    <button style={css.btnPrimary} onClick={() => setShowClueForm(showClueForm === stage.id ? null : stage.id)}>
-                      {showClueForm === stage.id ? "Cerrar" : "+ Pista"}
-                    </button>
-                    <button style={css.btnDanger} onClick={() => handleDeleteStage(stage.id)}>Eliminar</button>
-                  </div>
+                  {!readOnly && (
+                    <div style={css.stageActions}>
+                      <button style={css.btnSuccess} onClick={() => handleDownloadQr(stage.id, stage.name)}>⬇ QR</button>
+                      <button style={css.btnPrimary} onClick={() => {
+                        setEditingStage(stage.id);
+                        setEditForm({ name: stage.name, description: stage.description, order: stage.order, latitude: stage.latitude?.toString() ?? "", longitude: stage.longitude?.toString() ?? "" });
+                      }}>Editar</button>
+                      <button style={css.btnPrimary} onClick={() => setShowClueForm(showClueForm === stage.id ? null : stage.id)}>
+                        {showClueForm === stage.id ? "Cerrar" : "+ Pista"}
+                      </button>
+                      <button style={css.btnDanger} onClick={() => handleDeleteStage(stage.id)}>Eliminar</button>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Inline edit form */}
-              {editingStage === stage.id && (
+              {!readOnly && editingStage === stage.id && (
                 <div style={css.inlineForm}>
                   <div style={css.formRow}>
                     <div>
@@ -339,15 +350,17 @@ export function DetalleMision() {
               )}
 
               {/* Clues */}
-              {(stage.clues.length > 0 || showClueForm === stage.id) && (
+              {(stage.clues.length > 0 || (!readOnly && showClueForm === stage.id)) && (
                 <div style={css.clueList}>
                   {stage.clues.map(clue => (
                     <div key={clue.id} style={css.clueItem}>
                       <span style={css.clueText}>💡 {clue.content}{clue.penalty != null ? <span style={{ color: "#e94560", marginLeft: 8 }}>−{clue.penalty} pts</span> : null}</span>
-                      <button style={css.clueDeleteBtn} onClick={() => handleDeleteClue(stage.id, clue.id)}>✕</button>
+                      {!readOnly && (
+                        <button style={css.clueDeleteBtn} onClick={() => handleDeleteClue(stage.id, clue.id)}>✕</button>
+                      )}
                     </div>
                   ))}
-                  {showClueForm === stage.id && (
+                  {!readOnly && showClueForm === stage.id && (
                     <div style={css.addClueRow}>
                       <input
                         style={css.addClueInput}

@@ -22,7 +22,12 @@ export interface AnswerResult {
     onQuestionClosed?: (payload: { questionId: string; correctAnswerId: string; correctAnswerText?: string }) => void;
     onConnectionStateChange: (state: ConnectionState) => void;
     onQuestionAsked?: (question: TriviaQuestion) => void;
+    // Trivia-only leaderboard from Trivia.Service — display only; the score badge must
+    // not be derived from this, see onSessionRankingUpdated for the authoritative source.
     onRankingUpdated?: (ranking: RankingEntry[]) => void;
+    // Full session ranking (treasure + trivia) from Sessions.Service — used to drive
+    // the score badge and replace the leaderboard with the authoritative ordering.
+    onSessionRankingUpdated?: (ranking: RankingEntry[]) => void;
     onGateOpened?: (nextStageIndex: number) => void;
     onQuestionResultsUpdated?: (questionId: string, results: AnswerResult[]) => void;
   }
@@ -86,6 +91,13 @@ export function useSignalR(callbacks: UseSignalRCallbacks): void {
       const p = payload as { sessionId: string; ranking: RankingEntry[] };
       if (p.sessionId === sessionId) {
         callbacksRef.current.onRankingUpdated?.(p.ranking);
+      }
+    });
+
+    hub.on("SessionRankingUpdated", (payload: unknown) => {
+      const p = payload as { sessionId: string; ranking: RankingEntry[] };
+      if (p.sessionId === sessionId) {
+        callbacksRef.current.onSessionRankingUpdated?.(p.ranking);
       }
     });
 

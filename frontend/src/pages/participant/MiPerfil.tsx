@@ -1,14 +1,22 @@
 ﻿import { useState, useEffect } from "react";
 import { useAuth } from "../../auth/useAuth";
-import { getProfile, updateProfile, ApiError } from "../../services/perfilApi";
+import { getProfile, updateProfile, changePassword, ApiError } from "../../services/perfilApi";
 import type { PerfilData, UpdatePerfilRequest } from "../../types/perfil";
 
 type FormState = "idle" | "loading" | "saving";
+type PasswordFormState = "idle" | "saving";
 
 interface ValidationErrors {
   firstName?: string;
   lastName?: string;
   alias?: string;
+  general?: string;
+}
+
+interface PasswordErrors {
+  currentPassword?: string;
+  newPassword?: string;
+  confirmPassword?: string;
   general?: string;
 }
 
@@ -26,6 +34,21 @@ function validate(data: UpdatePerfilRequest): ValidationErrors {
   return e;
 }
 
+function validatePassword(
+  current: string,
+  next: string,
+  confirm: string,
+): PasswordErrors {
+  const e: PasswordErrors = {};
+  if (!current)           e.currentPassword = "Ingresá tu contraseña actual.";
+  if (!next)              e.newPassword = "Ingresá la nueva contraseña.";
+  else if (next.length < 6) e.newPassword = "Mínimo 6 caracteres.";
+  if (!confirm)           e.confirmPassword = "Confirmá la nueva contraseña.";
+  else if (next && confirm !== next)
+    e.confirmPassword = "Las contraseñas no coinciden.";
+  return e;
+}
+
 export function MiPerfil() {
   const auth = useAuth();
 
@@ -39,6 +62,13 @@ export function MiPerfil() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName]   = useState("");
   const [alias, setAlias]         = useState("");
+
+  const [pwdState, setPwdState]       = useState<PasswordFormState>("idle");
+  const [pwdErrors, setPwdErrors]     = useState<PasswordErrors>({});
+  const [pwdSuccess, setPwdSuccess]   = useState("");
+  const [currentPwd, setCurrentPwd]   = useState("");
+  const [newPwd, setNewPwd]           = useState("");
+  const [confirmPwd, setConfirmPwd]   = useState("");
 
   useEffect(() => { loadProfile(); }, []);
 
@@ -119,6 +149,39 @@ export function MiPerfil() {
     }
   }
 
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwdSuccess("");
+
+    const ve = validatePassword(currentPwd, newPwd, confirmPwd);
+    if (Object.keys(ve).length > 0) { setPwdErrors(ve); return; }
+
+    setPwdState("saving");
+    setPwdErrors({});
+
+    try {
+      await changePassword(currentPwd, newPwd);
+      setPwdSuccess("Contraseña actualizada correctamente.");
+      setCurrentPwd("");
+      setNewPwd("");
+      setConfirmPwd("");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 403) {
+          setPwdErrors({ currentPassword: "La contraseña actual es incorrecta." });
+        } else if (err.status === 400) {
+          setPwdErrors({ newPassword: "La nueva contraseña no es válida." });
+        } else {
+          setPwdErrors({ general: "No se pudo cambiar la contraseña. Inténtalo de nuevo." });
+        }
+      } else {
+        setPwdErrors({ general: "Ocurrió un error inesperado. Inténtalo de nuevo." });
+      }
+    } finally {
+      setPwdState("idle");
+    }
+  }
+
   if (loading) {
     return (
       <div className="page" style={{ textAlign: "center", paddingTop: "4rem" }}>
@@ -128,6 +191,7 @@ export function MiPerfil() {
   }
 
   const isBusy = formState === "saving" || formState === "loading";
+  const isPwdBusy = pwdState === "saving";
   const fullName = `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim();
 
   return (
@@ -202,6 +266,64 @@ export function MiPerfil() {
             </button>
             <button type="button" className="btn btn-secondary" onClick={loadProfile} disabled={isBusy}>
               Descartar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className="page-header" style={{ marginTop: "2rem" }}>
+        <h2 className="page-title" style={{ fontSize: "1.25rem" }}>Cambiar contraseña</h2>
+      </div>
+
+      {pwdSuccess && <div className="alert alert-success" style={{ marginBottom: "1.25rem" }}>{pwdSuccess}</div>}
+      {pwdErrors.general && !pwdErrors.currentPassword && !pwdErrors.newPassword && !pwdErrors.confirmPassword && (
+        <div className="alert alert-error" style={{ marginBottom: "1.25rem" }}>{pwdErrors.general}</div>
+      )}
+
+      <div className="card">
+        <form onSubmit={handleChangePassword}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="currentPassword">Contraseña actual</label>
+            <input
+              id="currentPassword" type="password" className="form-input"
+              style={pwdErrors.currentPassword ? { borderColor: "var(--color-error)" } : {}}
+              value={currentPwd} onChange={(e) => setCurrentPwd(e.target.value)}
+              placeholder="Tu contraseña actual" disabled={isPwdBusy}
+              autoComplete="current-password"
+            />
+            {pwdErrors.currentPassword && <span className="form-hint form-hint-error">{pwdErrors.currentPassword}</span>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="newPassword">Nueva contraseña</label>
+            <input
+              id="newPassword" type="password" className="form-input"
+              style={pwdErrors.newPassword ? { borderColor: "var(--color-error)" } : {}}
+              value={newPwd} onChange={(e) => setNewPwd(e.target.value)}
+              placeholder="Mínimo 6 caracteres" disabled={isPwdBusy}
+              autoComplete="new-password"
+            />
+            {pwdErrors.newPassword
+              ? <span className="form-hint form-hint-error">{pwdErrors.newPassword}</span>
+              : <span className="form-hint">Mínimo 6 caracteres.</span>
+            }
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="confirmPassword">Confirmar nueva contraseña</label>
+            <input
+              id="confirmPassword" type="password" className="form-input"
+              style={pwdErrors.confirmPassword ? { borderColor: "var(--color-error)" } : {}}
+              value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)}
+              placeholder="Repetí la nueva contraseña" disabled={isPwdBusy}
+              autoComplete="new-password"
+            />
+            {pwdErrors.confirmPassword && <span className="form-hint form-hint-error">{pwdErrors.confirmPassword}</span>}
+          </div>
+
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary" disabled={isPwdBusy} style={{ flex: 1 }}>
+              {pwdState === "saving" ? "Cambiando..." : "Cambiar contraseña"}
             </button>
           </div>
         </form>

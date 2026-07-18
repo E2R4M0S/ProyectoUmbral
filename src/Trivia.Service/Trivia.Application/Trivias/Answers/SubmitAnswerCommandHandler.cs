@@ -230,6 +230,21 @@ public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, A
                     {
                         _logger.LogWarning(ex, "Failed to notify Sessions.Service of team score for team {TeamId}", request.TeamId);
                     }
+
+                    // Solo participants also need their score recorded (QuizId == SessionId convention)
+                    if (request.UserId != Guid.Empty)
+                    {
+                        try
+                        {
+                            var sessionsClient = _httpClientFactory.CreateClient("sessionsService");
+                            await sessionsClient.PostAsJsonAsync("/internal/participants/score",
+                                new { SessionId = request.QuizId, UserId = request.UserId, Delta = delta }, ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to notify Sessions.Service of participant score for user {UserId}", request.UserId);
+                        }
+                    }
                 }
             }
 
