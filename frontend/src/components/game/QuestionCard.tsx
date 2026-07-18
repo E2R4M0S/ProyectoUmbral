@@ -42,7 +42,7 @@ export function QuestionCard({ question }: Props) {
   useEffect(() => { autoSubmittedRef.current = false; submissionClaimedRef.current = false; }, [question.questionId]);
 
   useEffect(() => {
-    const limit = question.timeLimitSeconds || 30;
+    const limit = Math.max(question.timeLimitSeconds || 30, 10);
     setTimeLeft(limit);
 
     timerRef.current = setInterval(() => {
