@@ -21,6 +21,8 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Gui
     public static readonly ConcurrentDictionary<(Guid, Guid), int> TeamAnswerPoints = new();
     // (questionId, userId) → selectedIndex; one entry per participant for per-user counting
     public static readonly ConcurrentDictionary<(Guid, Guid), int> UserAnswers = new();
+    // (sessionId) → current active question data (for HTTP polling fallback when SignalR is unavailable)
+    public static readonly ConcurrentDictionary<Guid, CurrentQuestionDto> CurrentQuestions = new();
 
     public AskQuestionCommandHandler(
         IHttpClientFactory httpClientFactory,
@@ -54,6 +56,10 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Gui
         // Store the correct answer index for later verification
         CorrectAnswers[questionId] = command.CorrectAnswerIndex;
         CorrectAnswerTimestamps[questionId] = new List<DateTime>();
+
+        // Store latest question data per session for HTTP polling fallback (APK via tunnel)
+        CurrentQuestions[command.SessionId] = new CurrentQuestionDto(
+            questionId, command.QuestionText, command.Options, command.TimeLimitSeconds, askedAt);
 
         var client = _httpClientFactory.CreateClient("realTimeHub");
         var response = await client.PostAsJsonAsync("/internal/notifications/question-asked", new

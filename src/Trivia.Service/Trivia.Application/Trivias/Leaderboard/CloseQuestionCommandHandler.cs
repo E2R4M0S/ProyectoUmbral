@@ -20,6 +20,9 @@ public class CloseQuestionCommandHandler : IRequestHandler<CloseQuestionCommand>
 
     public async Task Handle(CloseQuestionCommand request, CancellationToken cancellationToken)
     {
+        // Remove from HTTP polling fallback (question is no longer active)
+        AskQuestionCommandHandler.CurrentQuestions.TryRemove(request.SessionId, out _);
+
         // Resolve correct answer from in-memory store populated by AskQuestionCommandHandler
         var correctIndex = AskQuestionCommandHandler.CorrectAnswers.GetValueOrDefault(request.QuestionId, 0);
         var correctAnswerId = Guid.Parse($"00000000-0000-0000-0000-00000000000{correctIndex}");

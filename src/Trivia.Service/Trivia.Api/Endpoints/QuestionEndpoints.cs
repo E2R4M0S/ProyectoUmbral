@@ -39,6 +39,26 @@ public static class QuestionEndpoints
         .WithName("GetAnswerCount")
         .RequireAuthorization("operator_or_admin");
 
+        // HTTP polling fallback: get the current active question for a session (APK without SignalR)
+        app.MapGet("/questions/current/{sessionId:guid}", (Guid sessionId) =>
+        {
+            if (AskQuestionCommandHandler.CurrentQuestions.TryGetValue(sessionId, out var question))
+            {
+                return Results.Ok(new
+                {
+                    hasQuestion = true,
+                    question.QuestionId,
+                    question.QuestionText,
+                    question.Options,
+                    question.TimeLimitSeconds,
+                    question.AskedAt
+                });
+            }
+            return Results.Ok(new { hasQuestion = false });
+        })
+        .WithName("GetCurrentQuestion")
+        .AllowAnonymous();
+
         // Cross-device team sync: let participants check if their team already answered this question
         app.MapGet("/questions/{questionId:guid}/team-answer/{teamId:guid}", (Guid questionId, Guid teamId) =>
         {

@@ -59,6 +59,23 @@ function GameContent() {
     return () => clearInterval(poll);
   }, [sessionId, dispatch]);
 
+  // Fallback polling for trivia questions (when SignalR isn't available, e.g. APK via tunnel).
+  // Polls every 4s for the current active question via HTTP endpoint.
+  useEffect(() => {
+    if (!sessionId || state.currentMissionType !== "Trivia") return;
+    const poll = setInterval(async () => {
+      try {
+        const resp = await fetch(`/api/quizzes/questions/current/${sessionId}`);
+
+        const data = await resp.json();
+        if (data.hasQuestion && !state.currentQuestion) {
+          dispatch({ type: "QUESTION_RECEIVED", question: data });
+        }
+      } catch { /* ignore */ }
+    }, 4000);
+    return () => clearInterval(poll);
+  }, [sessionId, state.currentMissionType, state.currentQuestion, dispatch]);
+
   // Fallback polling: if the SignalR ProgressUpdated event is missed (e.g. Docker not rebuilt),
   // re-fetch session state every 8s and update stage if the operator advanced it.
   useEffect(() => {
