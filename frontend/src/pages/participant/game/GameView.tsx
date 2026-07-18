@@ -115,6 +115,34 @@ function GameContent() {
     return () => clearInterval(poll);
   }, [sessionId, dispatch]);
 
+  // Fallback polling for ranking/score updates (when SignalR isn't available, e.g. APK via tunnel).
+  // Polls every 5s and updates the score badge if it changed.
+  const lastScoreRef = useRef(state.score);
+  useEffect(() => {
+    if (!sessionId) return;
+    const poll = setInterval(async () => {
+      try {
+        const rankingRaw = await getSessionRanking(sessionId);
+        const ranking = rankingRaw.map(r => ({
+          position: r.position,
+          teamName: r.displayName,
+          score: r.score,
+          userId: r.userId ?? undefined,
+        }));
+        if (ranking.length > 0) {
+          const mine = ranking.find(e => isMyRankingEntry(e, state.myUserId, state.myTeam));
+          if (mine && mine.score !== lastScoreRef.current) {
+            lastScoreRef.current = mine.score;
+            dispatch({ type: "SET_SCORE", score: mine.score });
+            try { sessionStorage.setItem(`score_${sessionId}`, String(mine.score)); } catch { /* ignore */ }
+          }
+        }
+        dispatch({ type: "RANKING_UPDATED", ranking });
+      } catch { /* ignore */ }
+    }, 5000);
+    return () => clearInterval(poll);
+  }, [sessionId, state.myUserId, state.myTeam, dispatch]);
+
   // Sync elapsedSeconds from the server every 5s (same source the operator dashboard polls),
   // so every participant's mission timer counts down from the exact same numbers instead of
   // drifting apart on local per-client clocks.
