@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function QuestionCard({ question }: Props) {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [sent, setSent] = useState(false);
   const [teamSynced, setTeamSynced] = useState(false);
@@ -288,10 +288,13 @@ export function QuestionCard({ question }: Props) {
       const data = await resp.json();
       setSent(true);
       setFeedback(data.isCorrect ? "correct" : "wrong");
-      // Only drives the per-question "+N pts" display — the running score badge comes from
-      // GameView's ranking-broadcast sync exclusively (single source of truth), which this
-      // same answer will trigger via the leaderboard update on the backend.
       setPointsAwarded(data.pointsAwarded || 0);
+      // Immediate score update — works even when SignalR ranking sync is not available
+      // (e.g. APK via tunnel). The backend also records the score independently.
+      if (data.isCorrect && data.pointsAwarded > 0) {
+        const newScore = (state.score || 0) + data.pointsAwarded;
+        dispatch({ type: "SET_SCORE", score: newScore });
+      }
     } catch (ex: unknown) {
       setError((ex as Error)?.message ?? "Error de conexión");
     }
