@@ -4,7 +4,6 @@ import { userManager } from "../auth/keycloak";
 import type { ConnectionState, RankingEntry, TriviaQuestion } from "../types/game";
 
 import { buildHubUrl } from "../config/serverConfig";
-const HUB_URL = buildHubUrl();
 const RECONNECT_DELAYS_MS = [0, 1000, 2000, 4000, 8000, 15000, 30000];
 
 export interface AnswerResult {
@@ -40,7 +39,7 @@ export function useSignalR(callbacks: UseSignalRCallbacks): void {
     const { sessionId } = callbacks;
 
     const hub = new HubConnectionBuilder()
-      .withUrl(HUB_URL, {
+      .withUrl(buildHubUrl(), {
         accessTokenFactory: async () => {
           const user = await userManager.getUser();
           return user?.access_token ?? "";
