@@ -47,13 +47,14 @@ async function main() {
       console.log(`KC_HOSTNAME_URL actualizado: ${oldHostname[1]} -> ${newHostname}`);
     }
 
-    // 0b. docker-compose.prod.yml — KeycloakAdmin__PublicForwardedHost
+    // 0b. docker-compose.prod.yml — KeycloakAdmin__BaseUrl (tunnel URL)
     let prod = fs.readFileSync(path.join(root, "docker-compose.prod.yml"), "utf8");
-    const oldFwd = prod.match(/KeycloakAdmin__PublicForwardedHost:\s*"[^"]+"/);
-    if (oldFwd) {
-      prod = prod.replace(/KeycloakAdmin__PublicForwardedHost:\s*"[^"]+"/, `KeycloakAdmin__PublicForwardedHost: "${tunnelUrl}"`);
+    const oldBase = prod.match(/KeycloakAdmin__BaseUrl:\s*"[^"]+"/);
+    if (oldBase) {
+      const newBase = `${tunnelUrl}/auth`;
+      prod = prod.replace(/KeycloakAdmin__BaseUrl:\s*"[^"]+"/, `KeycloakAdmin__BaseUrl: "${newBase}"`);
       fs.writeFileSync(path.join(root, "docker-compose.prod.yml"), prod);
-      console.log(`PublicForwardedHost actualizado: ${oldFwd[0]} -> ${tunnelUrl}`);
+      console.log(`KeycloakAdmin__BaseUrl actualizado: ${oldBase[0]} -> ${newBase}`);
     }
   } catch (e) {
     console.warn("No se pudo actualizar los archivos:", e.message);

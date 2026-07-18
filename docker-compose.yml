@@ -21,7 +21,8 @@ services:
       KC_DB_PASSWORD: keycloak123
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin123
-      KC_HOSTNAME_URL: https://reason-other-shift-pete.trycloudflare.com
+      KC_HOSTNAME_URL: https://classroom-dozens-threaded-sensitive.trycloudflare.com
+      KC_HOSTNAME_ADMIN_URL: https://declare-java-retail-could.trycloudflare.com
     ports:
       - "8080:8080"
     volumes:
