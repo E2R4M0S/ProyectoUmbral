@@ -98,6 +98,7 @@ try
     app.MapRegisterParticipantEndpoint();
     app.MapGetProfileEndpoint();
     app.MapUpdateProfileEndpoint();
+    app.MapChangePasswordEndpoint();
 
     // Operator management
     app.MapCreateOperatorEndpoint();
