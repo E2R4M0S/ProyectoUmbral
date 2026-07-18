@@ -24,6 +24,7 @@ services:
   keycloak:
     environment:
       KC_HTTP_RELATIVE_PATH: /auth
+      KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME_STRICT: "false"
 
   api-gateway:
@@ -33,7 +34,7 @@ services:
   missions.service:
     environment:
       Jwt__Authority: "http://keycloak:8080/auth/realms/umbral"
-      KeycloakAdmin__BaseUrl: "http://keycloak:8080/auth"
+      KeycloakAdmin__BaseUrl: "http://caddy:80/auth"
 
   sessions.service:
     environment:
